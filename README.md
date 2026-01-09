@@ -1,32 +1,20 @@
-✨🤖 ChappieBot - WhatsApp 🤖✨
-�
-🌟 Trailer Interactivo 🌟
-Copiar código
-Text
-████████████████████████████
-█░░░░░░░░░░░░░░░░░░░░░░░░█
-█░░  ChappieBot Loading... ░░█
-█░░░░░░░░░░░░░░░░░░░░░░░░█
-████████████████████████████
-⏳ Cargando comandos…
-[▓▓░░░░░░░░░░░░░░░░░] 20%
-💬 ¡Hola! Soy ChappieBot 🤖
-[▓▓▓▓░░░░░░░░░░░░░] 40%
-🎮 Listo para jugar y divertirte 🎲
-[▓▓▓▓▓▓▓░░░░░░░░] 60%
-🔞 Menú NSFW opcional activado
-[▓▓▓▓▓▓▓▓▓░░░░] 80%
-⚡ Comandos Free Fire, Among Us y más 🔫
-[▓▓▓▓▓▓▓▓▓▓▓▓] 100%
-✨ ¡ChappieBot está casi listo para WhatsApp! ✨
-🎉 Funciones Destacadas
-⚡ Automatización 24/7
-🎲 Juegos y desafíos divertidos
+🌈🤖 ChappieBot - WhatsApp 🤖🌈
+
+```ansi
+[38;5;196m███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ ██╗███████╗[0m
+[38;5;202m██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗██║██╔════╝[0m
+[38;5;226m█████╗  ███████║███████║██████╔╝██████╔╝██║█████╗ [0m
+[38;5;46m██╔══╝  ██╔══██║██╔══██║██╔═══╝ ██╔═══╝ ██║██╔══╝ [0m
+[38;5;21m███████╗██║  ██║██║  ██║██║     ██║     ██║███████╗[0m
+[38;5;201m╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝     ╚═╝╚══════╝[0m
+🚀 ¡Próximamente en tu WhatsApp!
+ChappieBot estará disponible 24/7 para automatizar tu chat y hacerlo más divertido 😎💬
+💡 Funciones destacadas:
+🎮 Juegos interactivos y minijuegos
+🛠 Comandos útiles y automatizaciones
 🔞 Menú NSFW opcional
-🔫 Comandos especiales para gamers
-💬 Respuestas inteligentes y rápidas
-🔔 Mantente al tanto
-📌 Pronto compartiremos:
-Link de instalación
-Lista completa de comandos
-Actualizaciones y novedades
+📲 Comandos especiales para Free Fire y más
+⚡ Siempre rápido, seguro y activo
+ChappieBot aprende contigo y responde al instante 🤖✨
+💚 Contacto directo:
+💬 SoyGabo – ¡Escríbeme y entérate de todo primero!
