@@ -59,20 +59,18 @@ global.db = {
 
 const getMutes = () => JSON.parse(fs.readFileSync(MUTE_DB))
 
+global.saveDB = () => {
+  fs.writeFileSync(GROUP_DB, JSON.stringify(global.db.groups, null, 2))
+  fs.writeFileSync(USERS_DB, JSON.stringify(global.db.users, null, 2))
+}
+
 // ───── BANNER CHAPPIE ─────
 function showBanner () {
   console.clear()
-
-  const banner = figlet.textSync('CHAPPIE BOT', {
-    font: 'Slant'
-  })
-
+  const banner = figlet.textSync('CHAPPIE BOT', { font: 'Slant' })
   console.log(chalk.redBright(banner))
   console.log(chalk.yellow('════════════════════════════════════'))
-  console.log(
-    chalk.green('🤖 Bot iniciado correctamente'),
-    chalk.cyan('| WhatsApp Online')
-  )
+  console.log(chalk.green('🤖 Bot iniciado correctamente'), chalk.cyan('| WhatsApp Online'))
   console.log(chalk.magenta('════════════════════════════════════\n'))
 }
 
@@ -103,8 +101,6 @@ const getText = m =>
   m.message?.videoMessage?.caption ||
   ''
 
-let botStartTime = Math.floor(Date.now() / 1000)
-
 // ───── START BOT ─────
 async function startBot () {
   showBanner()
@@ -112,6 +108,9 @@ async function startBot () {
 
   const sock = await connectBot()
   initAutoDetect(sock)
+
+  // ───── Ignorar mensajes viejos ─────
+  const botStartTime = Math.floor(Date.now() / 1000)
 
   // ───── EVENTOS DE GRUPO ─────
   sock.ev.on('group-participants.update', async update => {
@@ -124,14 +123,18 @@ async function startBot () {
     const { connection, lastDisconnect } = update
 
     if (connection === 'open') {
-      botStartTime = Math.floor(Date.now() / 1000)
+      console.log(chalk.green('✅ Bot reconectado'))
       await loadPlugins()
     }
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
+      console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
       if (reason !== DisconnectReason.loggedOut) {
+        console.log(chalk.yellow('🔁 Reintentando conexión en 3s...'))
         setTimeout(startBot, 3000)
+      } else {
+        console.log(chalk.red('❌ Sesión cerrada, elimina la carpeta auth'))
       }
     }
   })
@@ -140,6 +143,8 @@ async function startBot () {
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
+
+    // ❌ Ignorar mensajes anteriores al inicio del bot
     if (Number(m.messageTimestamp) < botStartTime) return
 
     const from = m.key.remoteJid
