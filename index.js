@@ -64,13 +64,13 @@ global.saveDB = () => {
   fs.writeFileSync(USERS_DB, JSON.stringify(global.db.users, null, 2))
 }
 
-// ───── BANNER CHAPPIE ─────
+// ───── BANNER ─────
 function showBanner () {
   console.clear()
-  const banner = figlet.textSync('CHAPPIE BOT', { font: 'Slant' })
+  const banner = figlet.textSync('CHAPPIEBOT', { font: 'Slant' })
   console.log(chalk.redBright(banner))
   console.log(chalk.yellow('════════════════════════════════════'))
-  console.log(chalk.green('🤖 Bot iniciado correctamente'), chalk.cyan('| WhatsApp Online'))
+  console.log(chalk.green('🤖 Bot conectado | Solo comandos activos'))
   console.log(chalk.magenta('════════════════════════════════════\n'))
 }
 
@@ -87,7 +87,9 @@ async function loadPlugins () {
         pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
       )
       if (plugin?.handler) plugins.push(plugin)
-    } catch {}
+    } catch (e) {
+      console.log(chalk.red('❌ Error cargando plugin:'), file)
+    }
   }
 
   global.plugins = plugins
@@ -109,8 +111,8 @@ async function startBot () {
   const sock = await connectBot()
   initAutoDetect(sock)
 
-  // ───── Ignorar mensajes viejos ─────
-  const botStartTime = Math.floor(Date.now() / 1000)
+  // 🕒 Tiempo desde que el bot inicia (ignorar mensajes viejos)
+  let botStartTime = Math.floor(Date.now() / 1000)
 
   // ───── EVENTOS DE GRUPO ─────
   sock.ev.on('group-participants.update', async update => {
@@ -123,43 +125,39 @@ async function startBot () {
     const { connection, lastDisconnect } = update
 
     if (connection === 'open') {
-      console.log(chalk.green('✅ Bot reconectado'))
+      botStartTime = Math.floor(Date.now() / 1000)
+      console.log(chalk.green('✅ Conectado | Comandos activos'))
       await loadPlugins()
     }
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
       console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
+
       if (reason !== DisconnectReason.loggedOut) {
-        console.log(chalk.yellow('🔁 Reintentando conexión en 3s...'))
+        console.log(chalk.yellow('🔁 Reintentando en 3s...'))
         setTimeout(startBot, 3000)
       } else {
-        console.log(chalk.red('❌ Sesión cerrada, elimina la carpeta auth'))
+        console.log(chalk.red('❌ Sesión cerrada, borra carpeta auth'))
       }
     }
   })
 
-  // ───── MENSAJES ─────
+  // ───── MENSAJES (SOLO COMANDOS) ─────
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
 
-    // ❌ Ignorar mensajes anteriores al inicio del bot
+    // ❌ Ignorar mensajes viejos
     if (Number(m.messageTimestamp) < botStartTime) return
+
+    const text = getText(m)
+    if (!text.startsWith(global.prefix)) return
 
     const from = m.key.remoteJid
     const isGroup = from.endsWith('@g.us')
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Sin nombre'
-    const text = getText(m)
-    if (!text) return
-
-    // MUTE
-    if (isGroup && getMutes()[from]?.includes(sender)) {
-      return sock.sendMessage(from, { delete: m.key })
-    }
-
-    if (!text.startsWith(global.prefix)) return
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
@@ -172,9 +170,9 @@ async function startBot () {
       } catch {}
     }
 
-    // 📟 LOG SOLO DE COMANDOS
+    // 📟 LOG SOLO COMANDOS
     console.log(
-      chalk.blueBright('\n══════════ 📩 COMANDO ══════════'),
+      chalk.blueBright('\n══════════ ⚡ COMANDO ⚡ ══════════'),
       '\n',
       chalk.green('👤 Usuario:'), chalk.white(pushName),
       '\n',
@@ -182,10 +180,15 @@ async function startBot () {
         ? chalk.cyan(`Grupo → ${chatName}`)
         : chalk.magenta('Privado'),
       '\n',
-      chalk.red('⚡ Comando:'), chalk.white(global.prefix + command),
+      chalk.red('🚀 Ejecutó:'), chalk.white(global.prefix + command),
       '\n',
-      chalk.blueBright('════════════════════════════════')
+      chalk.blueBright('════════════════════════════════════')
     )
+
+    // 🔇 MUTE
+    if (isGroup && getMutes()[from]?.includes(sender)) {
+      return sock.sendMessage(from, { delete: m.key })
+    }
 
     await antiLinkEvent(sock, m)
 
