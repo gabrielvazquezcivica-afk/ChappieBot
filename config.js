@@ -1,42 +1,63 @@
-export default {
+// ─────────────────────────────
+// CONFIGURACIÓN GLOBAL CHAPPIEBOT
+// ─────────────────────────────
+
+// 🔧 Normalizador JID
+const toJid = (n) => {
+  if (!n) return null
+  if (n.includes('@')) return n
+  return n.length > 15
+    ? `${n}@lid`
+    : `${n}@s.whatsapp.net`
+}
+
+// ───── CONFIG PRINCIPAL ─────
+const config = {
+
   // ───── BOT ─────
   bot: {
-    name: 'Chappie Bot',
+    name: 'CHAPPIEBOT',
     prefix: '.',
-    mode: 'public' // public | private
+    public: true,
+    version: '1.0.0'
   },
 
   // ───── OWNER ─────
   owner: {
-    number: ['523310167470'], // tu número con código país
-    name: 'SoyGabo'
+    name: 'SoyGabo',
+
+    // números crudos
+    numbers: [
+      '523310167470',
+      '215590228750567'
+    ],
+
+    // JID base
+    jid: [
+      '523310167470@s.whatsapp.net',
+      '215590228750567@lid'
+    ]
   },
 
-  // ───── MENSAJES GLOBALES ─────
+  // ───── LOGIN ─────
+  login: {
+    pairing: true // true = código | false = QR
+  },
+
+  // ───── MENSAJES GLOBALES PARA PLUGINS ─────
   messages: {
-    owner: '👑 Este comando es solo para el owner.',
-    admin: '🛡️ Este comando es solo para administradores.',
-    group: '👥 Este comando solo funciona en grupos.',
-    private: '📩 Este comando solo funciona en privado.',
-    botAdmin: '⚠️ Necesito ser administrador para usar este comando.',
-    error: '❌ Ocurrió un error al ejecutar el comando.',
-    wait: '⏳ Procesando...',
-    done: '✅ Listo.'
-    // ❌ Sin mensajes de "comando ejecutado"
-  },
-
-  // ───── STICKERS ─────
-  sticker: {
-    packname: 'Chappie Bot',
-    author: 'soyGabo'
-  },
-
-  // ───── APIS (opcional) ─────
-  APIs: {
-    example: 'https://api.example.com'
-  },
-
-  APIKeys: {
-    'https://api.example.com': 'API_KEY_AQUI'
+    error: '❌ Ocurrió un error, intenta nuevamente',
+    admin: '⚠️ Este comando es solo para administradores',
+    owner: '⚠️ Este comando es solo para el propietario',
+    group: '⚠️ Este comando solo funciona en grupos',
+    botAdmin: '⚠️ Necesito ser administrador para ejecutar esto'
   }
+
 }
+
+// 🔥 Normalizar owner JIDs finales
+config.owner.jid = config.owner.jid
+  .concat(config.owner.numbers.map(toJid))
+  .filter(Boolean)
+
+export default config
