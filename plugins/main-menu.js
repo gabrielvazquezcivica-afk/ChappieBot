@@ -31,14 +31,14 @@ export const handler = async (m, {
 
   // ⚡ Emoji comandos
   const cmdEmoji = {
-    info: '➤',
-    group: '➤',
-    juegos: '✦',
-    frases: '✧',
-    herramientas: '➤',
-    descargas: '⬥',
-    stickers: '◆',
-    rpg: '✪'
+    info: '🍁',
+    group: '🏜️',
+    juegos: '🧩',
+    frases: '🗒️',
+    herramientas: '⚙️',
+    descargas: '▶️',
+    stickers: '🖌️',
+    rpg: '👝'
   }
 
   // Agrupar comandos por categoría
@@ -74,10 +74,10 @@ export const handler = async (m, {
 
   // ✨ MENÚ PRINCIPAL
   let menu = `
-┌─🛸─ ChappieBot ─🛸─┐
+╭─🛸─ ChappieBot ─🛸─╮
 │ ${saludo}, ${pushName}
 │ Total comandos: ${totalCommands}
-└───────────────────┘
+╰───────────────────╯
 `.trim()
 
   for (const tag of orderedTags) {
@@ -95,7 +95,7 @@ ${tEmoji} ${tag.toUpperCase()}
       menu += `\n${cEmoji} .${cmd}`
     }
 
-    // 🔹 Línea futurista al final de cada categoría
+    // 🔹 Línea simple al final de cada categoría
     menu += `\n────────────────────`
   }
 
@@ -122,4 +122,4 @@ function getGreeting () {
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
   return '🌙 Buenas noches'
-}
+    }
