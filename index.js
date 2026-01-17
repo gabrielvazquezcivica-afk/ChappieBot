@@ -121,8 +121,9 @@ async function startBot () {
       '\n⚡', command
     )
 
+    // 🔹 Ejecutar plugin
     for (const p of plugins) {
-      const h = p.handler
+      const h = p.handler ?? p.default?.handler
       if (!h?.command) continue
 
       const cmds = Array.isArray(h.command) ? h.command : [h.command]
