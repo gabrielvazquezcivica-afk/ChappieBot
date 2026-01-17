@@ -3,17 +3,11 @@ import chalk from 'chalk'
 import figlet from 'figlet'
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { fileURLToPath } from 'url'
 import { DisconnectReason } from '@whiskeysockets/baileys'
 
 import { connectBot } from './lib/connection.js'
 import config from './config.js'
-
-// EVENTS
-import { welcomeEvent } from './plugins/welcome.js'
-import { antiLinkEvent } from './plugins/gc-antilink.js'
-import { autoAdminOwnerEvent } from './plugins/owner-autoadmin.js'
-import { initAutoDetect } from './plugins/_autodetec.js'
 
 // ───── CONFIG GLOBAL ─────
 util.inspect.defaultOptions.depth = 0
@@ -37,178 +31,38 @@ const __dirname = path.dirname(__filename)
 
 // ───── VARIABLES GLOBALES ─────
 global.config = config
-global.bot = config.bot
-global.owner = config.owner
 global.prefix = config.bot.prefix
-
-// ───── DB ─────
-const DATA = './data'
-const GROUP_DB = `${DATA}/groups.json`
-const USERS_DB = `${DATA}/users.json`
-const MUTE_DB = `${DATA}/mutes.json`
-
-if (!fs.existsSync(DATA)) fs.mkdirSync(DATA, { recursive: true })
-for (const f of [GROUP_DB, USERS_DB, MUTE_DB]) {
-  if (!fs.existsSync(f)) fs.writeFileSync(f, JSON.stringify({}))
-}
-
-global.db = {
-  groups: JSON.parse(fs.readFileSync(GROUP_DB)),
-  users: JSON.parse(fs.readFileSync(USERS_DB))
-}
-
-const getMutes = () => JSON.parse(fs.readFileSync(MUTE_DB))
-
-global.saveDB = () => {
-  fs.writeFileSync(GROUP_DB, JSON.stringify(global.db.groups, null, 2))
-  fs.writeFileSync(USERS_DB, JSON.stringify(global.db.users, null, 2))
-}
 
 // ───── BANNER ─────
 function showBanner () {
   console.clear()
-  const banner = figlet.textSync('CHAPPIEBOT', { font: 'Slant' })
+  const banner = figlet.textSync('CHAPPIE BOT', { font: 'Slant' })
   console.log(chalk.redBright(banner))
-  console.log(chalk.yellow('════════════════════════════════════'))
-  console.log(chalk.green('🤖 Bot conectado | Solo comandos activos'))
-  console.log(chalk.magenta('════════════════════════════════════\n'))
+  console.log(chalk.green('🤖 Bot iniciado | Esperando conexión...\n'))
 }
-
-// ───── PLUGINS ─────
-let plugins = []
-
-async function loadPlugins () {
-  const dir = path.join(__dirname, 'plugins')
-  plugins = []
-
-  for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
-    try {
-      const plugin = await import(
-        pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
-      )
-      if (plugin?.handler) plugins.push(plugin)
-    } catch (e) {
-      console.log(chalk.red('❌ Error cargando plugin:'), file)
-    }
-  }
-
-  global.plugins = plugins
-}
-
-// ───── UTILS ─────
-const getText = m =>
-  m.message?.conversation ||
-  m.message?.extendedTextMessage?.text ||
-  m.message?.imageMessage?.caption ||
-  m.message?.videoMessage?.caption ||
-  ''
 
 // ───── START BOT ─────
+let sock
+
 async function startBot () {
   showBanner()
-  await loadPlugins()
+  sock = await connectBot()
 
-  const sock = await connectBot()
-  initAutoDetect(sock)
-
-  // 🕒 Tiempo desde que el bot inicia (ignorar mensajes viejos)
-  let botStartTime = Math.floor(Date.now() / 1000)
-
-  // ───── EVENTOS DE GRUPO ─────
-  sock.ev.on('group-participants.update', async update => {
-    await welcomeEvent(sock, update)
-    await autoAdminOwnerEvent(sock, update, global.owner)
-  })
-
-  // ───── RECONEXIÓN ─────
-  sock.ev.on('connection.update', async update => {
+  // ───── RECONEXIÓN ÚNICA ─────
+  sock.ev.on('connection.update', update => {
     const { connection, lastDisconnect } = update
-
-    if (connection === 'open') {
-      botStartTime = Math.floor(Date.now() / 1000)
-      console.log(chalk.green('✅ Conectado | Comandos activos'))
-      await loadPlugins()
-    }
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
-      console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
 
       if (reason !== DisconnectReason.loggedOut) {
         console.log(chalk.yellow('🔁 Reintentando en 3s...'))
         setTimeout(startBot, 3000)
-      } else {
-        console.log(chalk.red('❌ Sesión cerrada, borra carpeta auth'))
       }
     }
-  })
 
-  // ───── MENSAJES (SOLO COMANDOS) ─────
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const m = messages[0]
-    if (!m?.message || m.key.fromMe) return
-
-    // ❌ Ignorar mensajes viejos
-    if (Number(m.messageTimestamp) < botStartTime) return
-
-    const text = getText(m)
-    if (!text.startsWith(global.prefix)) return
-
-    const from = m.key.remoteJid
-    const isGroup = from.endsWith('@g.us')
-    const sender = isGroup ? m.key.participant : from
-    const pushName = m.pushName || 'Sin nombre'
-
-    const args = text.slice(global.prefix.length).trim().split(/\s+/)
-    const command = args.shift().toLowerCase()
-
-    let chatName = 'Privado'
-    if (isGroup) {
-      try {
-        const meta = await sock.groupMetadata(from)
-        chatName = meta.subject
-      } catch {}
-    }
-
-    // 📟 LOG SOLO COMANDOS
-    console.log(
-      chalk.blueBright('\n══════════ ⚡ COMANDO ⚡ ══════════'),
-      '\n',
-      chalk.green('👤 Usuario:'), chalk.white(pushName),
-      '\n',
-      chalk.yellow('📍 Chat:'), isGroup
-        ? chalk.cyan(`Grupo → ${chatName}`)
-        : chalk.magenta('Privado'),
-      '\n',
-      chalk.red('🚀 Ejecutó:'), chalk.white(global.prefix + command),
-      '\n',
-      chalk.blueBright('════════════════════════════════════')
-    )
-
-    // 🔇 MUTE
-    if (isGroup && getMutes()[from]?.includes(sender)) {
-      return sock.sendMessage(from, { delete: m.key })
-    }
-
-    await antiLinkEvent(sock, m)
-
-    for (const p of plugins) {
-      if (!p.handler?.command?.includes(command)) continue
-      try {
-        await p.handler(m, {
-          sock,
-          from,
-          sender,
-          isGroup,
-          args,
-          command,
-          reply: txt =>
-            sock.sendMessage(from, { text: txt }, { quoted: m })
-        })
-      } catch (e) {
-        console.log(chalk.red('❌ Error comando:'), e)
-      }
-      break
+    if (connection === 'open') {
+      console.log(chalk.cyan('✅ Conectado | Comandos activos'))
     }
   })
 }
