@@ -1,9 +1,10 @@
+// plugins/menu.js
 export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
   if (!Array.isArray(plugins) || plugins.length === 0) {
     return reply('❌ No hay plugins cargados.')
   }
 
-  // ⚡ Reacción al mensaje
+  // Reacción al mensaje
   await sock.sendMessage(from, { react: { text: '🔥', key: m.key } })
 
   const botName = 'ChappieBot'
@@ -24,14 +25,16 @@ export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
     nsfw: '🔞',
     owner: '👑'
   }
-  const cmdEmoji = '🧿'
+
+  const cmdEmoji = '🧿' // emoji fijo para todos los comandos
   const defaultEmoji = '⬢'
 
-  // Agrupar comandos
+  // Agrupar comandos por tags
   const categories = {}
   let totalCommands = 0
+
   for (const plugin of plugins) {
-    const h = plugin.handler || plugin.default?.handler
+    const h = plugin.handler ?? plugin.default?.handler
     if (!h?.command || !h?.tags) continue
 
     const cmds = Array.isArray(h.command) ? h.command : [h.command]
@@ -42,12 +45,7 @@ export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
     }
   }
 
-  // Orden de tags
-  const orderedTags = [
-    'info', 'frases', 'group', 'descargas', 'juegos',
-    'ff', 'registro', 'rpg', 'tools', 'stickers',
-    'nsfw', 'owner'
-  ]
+  const orderedTags = Object.keys(categories) // todos los tags, no se filtra nada
 
   // Construir menú
   let menu = `\n🚀 ${botName} • Comandos activos: ${totalCommands}\n`
@@ -55,12 +53,13 @@ export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
   menu += `──────────────────────────\n`
 
   for (const tag of orderedTags) {
-    if (!categories[tag]) continue
     const emoji = tagEmoji[tag] || defaultEmoji
     menu += `🌟 ${tag.toUpperCase()} ${emoji}\n`
+
     for (const cmd of categories[tag]) {
       menu += `   ${cmdEmoji} .${cmd}\n`
     }
+
     menu += `──────────────────────────\n`
   }
 
@@ -79,4 +78,4 @@ function getGreeting() {
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
   return '🌙 Buenas noches'
-}
+  }
