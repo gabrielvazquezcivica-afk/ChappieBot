@@ -33,6 +33,29 @@ const __dirname = path.dirname(__filename)
 global.config = config
 global.prefix = config.bot.prefix
 
+// ───── HANDLERS ─────
+const handlers = new Map()
+
+async function loadHandlers () {
+  const dir = path.join(__dirname, 'handlers')
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.js'))
+
+  for (const file of files) {
+    const handler = await import(`./handlers/${file}`)
+    if (!handler.command || !handler.run) continue
+
+    const commands = Array.isArray(handler.command)
+      ? handler.command
+      : [handler.command]
+
+    for (const cmd of commands) {
+      handlers.set(cmd.toLowerCase(), handler)
+    }
+  }
+
+  console.log(chalk.green(`🧩 ${handlers.size} handlers cargados`))
+}
+
 // ───── BANNER ─────
 function showBanner () {
   console.clear()
@@ -46,7 +69,32 @@ let sock
 
 async function startBot () {
   showBanner()
+  await loadHandlers()
   sock = await connectBot()
+
+  // ───── MENSAJES ─────
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const m = messages[0]
+    if (!m?.message) return
+
+    const body =
+      m.message.conversation ||
+      m.message.extendedTextMessage?.text
+
+    if (!body || !body.startsWith(global.prefix)) return
+
+    const args = body.slice(global.prefix.length).trim().split(/ +/)
+    const cmd = args.shift().toLowerCase()
+
+    const handler = handlers.get(cmd)
+    if (!handler) return
+
+    try {
+      await handler.run(sock, m, args)
+    } catch (e) {
+      console.error(chalk.red('❌ Error en handler:'), e)
+    }
+  })
 
   // ───── RECONEXIÓN ÚNICA ─────
   sock.ev.on('connection.update', update => {
