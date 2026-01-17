@@ -100,3 +100,4 @@ handler.tags = ['group']
 handler.help = ['n <texto>']
 handler.group = true
 handler.admin = true
+handler.menu = true
