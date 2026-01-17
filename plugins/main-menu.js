@@ -1,56 +1,42 @@
-export const handler = async (m, {
-  sock,
-  from,
-  reply,
-  pushName,
-  plugins
-}) => {
-
+export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
+  // 🔹 Validar plugins
   if (!Array.isArray(plugins) || plugins.length === 0) {
-    return reply('❌ No hay comandos disponibles.')
+    return reply('❌ No hay plugins cargados.')
   }
 
-  await sock.sendMessage(from, {
-    react: { text: '⚡', key: m.key }
-  })
+  // 🔹 Reacción al mensaje
+  await sock.sendMessage(from, { react: { text: '⚡', key: m.key } })
 
   const botName = 'ChappieBot'
+  const dev = 'SoyGabo'
   const saludo = getGreeting()
 
-  // 🏷️ Emoji categorías
+  // 🔹 Emojis por categoría
   const tagEmoji = {
-    info: '🏜️',
-    group: '🏕️',
-    juegos: '🎡',
+    info: '🍄',
     frases: '📖',
-    herramientas: '🛠️',
-    descargas: '📦',
-    stickers: '🖼️',
-    rpg: '💎'
-  }
-
-  // ⚡ Emoji comandos
-  const cmdEmoji = {
-    info: '🍁',
     group: '🏜️',
-    juegos: '🧩',
-    frases: '🗒️',
-    herramientas: '⚙️',
-    descargas: '▶️',
-    stickers: '🖌️',
-    rpg: '👝'
+    descargas: '🎧',
+    juegos: '🎡',
+    ff: '🔫',
+    registro: '📚',
+    rpg: '💰',
+    tools: '🧰',
+    stickers: '🖼️',
+    nsfw: '🔞',
+    owner: '👑'
   }
 
-  // Agrupar comandos por categoría
+  const defaultEmoji = '⬢'
+  const cmdEmoji = '🔥' // Emoji fijo para todos los comandos
+
+  // 🔹 Agrupar comandos por tags
   const categories = {}
   let totalCommands = 0
 
   for (const plugin of plugins) {
-    if (!plugin?.handler) continue
     const h = plugin.handler
-
-    if (!h.command || !h.tags) continue
-    if (h.tags.includes('nsfw') || h.tags.includes('owner')) continue
+    if (!h?.command || !h?.tags) continue
 
     const cmds = Array.isArray(h.command) ? h.command : [h.command]
 
@@ -61,65 +47,46 @@ export const handler = async (m, {
     }
   }
 
+  // 🔹 Orden de las categorías (incluyendo nsfw y owner al final)
   const orderedTags = [
-    'info',
-    'group',
-    'juegos',
-    'frases',
-    'herramientas',
-    'descargas',
-    'stickers',
-    'rpg'
+    'info', 'frases', 'group', 'descargas', 'juegos',
+    'ff', 'registro', 'rpg', 'tools', 'stickers',
+    'nsfw', 'owner'
   ]
 
-  // ✨ MENÚ PRINCIPAL
-  let menu = `
-╭─🛸─ ChappieBot ─🛸─╮
-│ ${saludo}, ${pushName}
-│ Total comandos: ${totalCommands}
-╰───────────────────╯
-`.trim()
+  // 🔹 Construir menú
+  let menu = `\n🚀 ${botName} • Comandos activos: ${totalCommands}\n`
+  menu += `👤 Usuario: ${pushName} • ${saludo}\n👨‍💻 Dev: ${dev}\n`
+  menu += `──────────────────────────\n`
 
   for (const tag of orderedTags) {
     if (!categories[tag]) continue
 
-    const tEmoji = tagEmoji[tag] || '📂'
-    const cEmoji = cmdEmoji[tag] || '•'
-
-    menu += `
-
-${tEmoji} ${tag.toUpperCase()}
-────────────────────`
+    const emoji = tagEmoji[tag] || defaultEmoji
+    menu += `🌟 ${tag.toUpperCase()} ${emoji}\n`
 
     for (const cmd of categories[tag]) {
-      menu += `\n${cEmoji} .${cmd}`
+      menu += `   ${cmdEmoji} .${cmd}\n`
     }
 
-    // 🔹 Línea simple al final de cada categoría
-    menu += `\n────────────────────`
+    menu += `──────────────────────────\n`
   }
 
-  menu += `
+  menu += `\n> ${botName} | ChappieBot\n`
 
-ChappieBot | © 2026
-`
-
-  await sock.sendMessage(
-    from,
-    { text: menu },
-    { quoted: m }
-  )
+  // 🔹 Enviar menú
+  await sock.sendMessage(from, { text: menu }, { quoted: m })
 }
 
 handler.command = ['menu', 'help', 'comandos']
 handler.tags = ['info']
 handler.group = false
-
 export default handler
 
-function getGreeting () {
+// 🔹 Función para saludo según hora
+function getGreeting() {
   const hour = new Date().getHours()
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
   return '🌙 Buenas noches'
-    }
+}
