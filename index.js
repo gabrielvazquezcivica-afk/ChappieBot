@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import figlet from 'figlet'
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { DisconnectReason } from '@whiskeysockets/baileys'
 
 import { connectBot } from './lib/connection.js'
@@ -33,114 +33,118 @@ const __dirname = path.dirname(__filename)
 global.config = config
 global.prefix = config.bot.prefix
 
-// ───── PLUGINS ─────
-const plugins = new Map()
-const pluginsPath = path.join(__dirname, 'plugins')
-
 // ───── BANNER ─────
 function showBanner () {
   console.clear()
   const banner = figlet.textSync('CHAPPIE BOT', { font: 'Slant' })
-  console.log(chalk.redBright(banner))
-  console.log(chalk.green('🤖 Bot iniciado | Esperando conexión...\n'))
+  console.log(chalk.cyan(banner))
+  console.log(chalk.green('🤖 Bot iniciado | Esperando comandos...\n'))
 }
 
-// ───── CARGAR PLUGINS ─────
+// ───── PLUGINS ─────
+let plugins = []
+
 async function loadPlugins () {
-  plugins.clear()
+  const dir = path.join(__dirname, 'plugins')
+  plugins = []
 
-  if (!fs.existsSync(pluginsPath)) {
-    fs.mkdirSync(pluginsPath)
-  }
-
-  const files = fs.readdirSync(pluginsPath).filter(f => f.endsWith('.js'))
-
-  for (const file of files) {
+  for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
       const plugin = await import(
-        `./plugins/${file}?update=${Date.now()}`
+        pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
       )
-
-      if (!plugin.command || !plugin.run) continue
-
-      const commands = Array.isArray(plugin.command)
-        ? plugin.command
-        : [plugin.command]
-
-      for (const cmd of commands) {
-        plugins.set(cmd.toLowerCase(), plugin)
+      if (plugin?.default || plugin?.handler) {
+        plugins.push(plugin.default ?? plugin)
       }
     } catch (e) {
-      console.log(chalk.red(`❌ Error cargando ${file}`))
-      console.error(e)
+      console.log(chalk.red('❌ Error plugin:'), file)
     }
   }
 
-  console.log(chalk.green(`🧩 Plugins cargados: ${plugins.size}`))
+  console.log(chalk.yellow(`🧩 Plugins cargados: ${plugins.length}`))
 }
 
-// ───── START BOT ─────
-let sock
-let reconnecting = false
+// ───── UTILS ─────
+const getText = m =>
+  m.message?.conversation ||
+  m.message?.extendedTextMessage?.text ||
+  m.message?.imageMessage?.caption ||
+  m.message?.videoMessage?.caption ||
+  ''
 
+// ───── START BOT ─────
 async function startBot () {
   showBanner()
   await loadPlugins()
-  sock = await connectBot()
 
-  // ───── RECONEXIÓN ÚNICA ─────
+  const sock = await connectBot()
+
   sock.ev.on('connection.update', update => {
     const { connection, lastDisconnect } = update
 
-    if (connection === 'close') {
-      const reason = lastDisconnect?.error?.output?.statusCode
-
-      if (reason === DisconnectReason.loggedOut) {
-        console.log(
-          chalk.red('🚫 Sesión cerrada → Borra auth_info y vuelve a iniciar')
-        )
-        process.exit(1)
-      }
-
-      if (!reconnecting) {
-        reconnecting = true
-        console.log(chalk.yellow('🔁 Reintentando en 3s...'))
-        setTimeout(() => {
-          reconnecting = false
-          startBot()
-        }, 3000)
-      }
+    if (connection === 'open') {
+      console.log(chalk.green('✅ Conectado | Comandos activos'))
     }
 
-    if (connection === 'open') {
-      console.log(chalk.cyan('✅ Conectado | Comandos activos'))
+    if (connection === 'close') {
+      const reason = lastDisconnect?.error?.output?.statusCode
+      console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
+
+      if (reason !== DisconnectReason.loggedOut) {
+        console.log(chalk.yellow('🔁 Reintentando en 3s...'))
+        setTimeout(startBot, 3000)
+      }
     }
   })
 
-  // ───── LECTOR DE MENSAJES ─────
+  // ───── MENSAJES ─────
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0]
-    if (!m?.message) return
+    if (!m?.message || m.key.fromMe) return
 
-    const text =
-      m.message.conversation ||
-      m.message.extendedTextMessage?.text
-
+    const text = getText(m)
     if (!text || !text.startsWith(global.prefix)) return
 
-    const args = text
-      .slice(global.prefix.length)
-      .trim()
-      .split(/ +/)
+    const from = m.key.remoteJid
+    const isGroup = from.endsWith('@g.us')
+    const sender = isGroup ? m.key.participant : from
+    const pushName = m.pushName || 'Usuario'
 
-    const command = args.shift()?.toLowerCase()
-    const plugin = plugins.get(command)
-    if (!plugin) return
+    const args = text.slice(global.prefix.length).trim().split(/\s+/)
+    const command = args.shift().toLowerCase()
 
-    try {
-      await plugin.run(sock, m, args)
-    } catch (e) {
-      console.error(chalk.red('❌ Error en plugin:'), e)
+    // 📟 LOG DE CONSOLA
+    console.log(
+      chalk.blue('\n📩 COMANDO'),
+      '\n👤', pushName,
+      '\n📍', isGroup ? 'Grupo' : 'Privado',
+      '\n⚡', command
+    )
+
+    for (const p of plugins) {
+      const h = p.handler
+      if (!h?.command) continue
+
+      const cmds = Array.isArray(h.command) ? h.command : [h.command]
+      if (!cmds.includes(command)) continue
+
+      try {
+        await h(m, {
+          sock,
+          from,
+          sender,
+          pushName,
+          isGroup,
+          args,
+          command,
+          plugins,
+          reply: txt =>
+            sock.sendMessage(from, { text: txt }, { quoted: m })
+        })
+      } catch (e) {
+        console.log(chalk.red('❌ Error comando:'), e)
+      }
+      break
     }
   })
 }
