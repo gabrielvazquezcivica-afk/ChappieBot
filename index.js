@@ -33,28 +33,9 @@ const __dirname = path.dirname(__filename)
 global.config = config
 global.prefix = config.bot.prefix
 
-// ───── HANDLERS ─────
-const handlers = new Map()
-
-async function loadHandlers () {
-  const dir = path.join(__dirname, 'handlers')
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.js'))
-
-  for (const file of files) {
-    const handler = await import(`./handlers/${file}`)
-    if (!handler.command || !handler.run) continue
-
-    const commands = Array.isArray(handler.command)
-      ? handler.command
-      : [handler.command]
-
-    for (const cmd of commands) {
-      handlers.set(cmd.toLowerCase(), handler)
-    }
-  }
-
-  console.log(chalk.green(`🧩 ${handlers.size} handlers cargados`))
-}
+// ───── PLUGINS ─────
+const plugins = new Map()
+const pluginsPath = path.join(__dirname, 'plugins')
 
 // ───── BANNER ─────
 function showBanner () {
@@ -64,37 +45,48 @@ function showBanner () {
   console.log(chalk.green('🤖 Bot iniciado | Esperando conexión...\n'))
 }
 
+// ───── CARGAR PLUGINS ─────
+async function loadPlugins () {
+  plugins.clear()
+
+  if (!fs.existsSync(pluginsPath)) {
+    fs.mkdirSync(pluginsPath)
+  }
+
+  const files = fs.readdirSync(pluginsPath).filter(f => f.endsWith('.js'))
+
+  for (const file of files) {
+    try {
+      const plugin = await import(
+        `./plugins/${file}?update=${Date.now()}`
+      )
+
+      if (!plugin.command || !plugin.run) continue
+
+      const commands = Array.isArray(plugin.command)
+        ? plugin.command
+        : [plugin.command]
+
+      for (const cmd of commands) {
+        plugins.set(cmd.toLowerCase(), plugin)
+      }
+    } catch (e) {
+      console.log(chalk.red(`❌ Error cargando ${file}`))
+      console.error(e)
+    }
+  }
+
+  console.log(chalk.green(`🧩 Plugins cargados: ${plugins.size}`))
+}
+
 // ───── START BOT ─────
 let sock
+let reconnecting = false
 
 async function startBot () {
   showBanner()
-  await loadHandlers()
+  await loadPlugins()
   sock = await connectBot()
-
-  // ───── MENSAJES ─────
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const m = messages[0]
-    if (!m?.message) return
-
-    const body =
-      m.message.conversation ||
-      m.message.extendedTextMessage?.text
-
-    if (!body || !body.startsWith(global.prefix)) return
-
-    const args = body.slice(global.prefix.length).trim().split(/ +/)
-    const cmd = args.shift().toLowerCase()
-
-    const handler = handlers.get(cmd)
-    if (!handler) return
-
-    try {
-      await handler.run(sock, m, args)
-    } catch (e) {
-      console.error(chalk.red('❌ Error en handler:'), e)
-    }
-  })
 
   // ───── RECONEXIÓN ÚNICA ─────
   sock.ev.on('connection.update', update => {
@@ -103,14 +95,52 @@ async function startBot () {
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
 
-      if (reason !== DisconnectReason.loggedOut) {
+      if (reason === DisconnectReason.loggedOut) {
+        console.log(
+          chalk.red('🚫 Sesión cerrada → Borra auth_info y vuelve a iniciar')
+        )
+        process.exit(1)
+      }
+
+      if (!reconnecting) {
+        reconnecting = true
         console.log(chalk.yellow('🔁 Reintentando en 3s...'))
-        setTimeout(startBot, 3000)
+        setTimeout(() => {
+          reconnecting = false
+          startBot()
+        }, 3000)
       }
     }
 
     if (connection === 'open') {
       console.log(chalk.cyan('✅ Conectado | Comandos activos'))
+    }
+  })
+
+  // ───── LECTOR DE MENSAJES ─────
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const m = messages[0]
+    if (!m?.message) return
+
+    const text =
+      m.message.conversation ||
+      m.message.extendedTextMessage?.text
+
+    if (!text || !text.startsWith(global.prefix)) return
+
+    const args = text
+      .slice(global.prefix.length)
+      .trim()
+      .split(/ +/)
+
+    const command = args.shift()?.toLowerCase()
+    const plugin = plugins.get(command)
+    if (!plugin) return
+
+    try {
+      await plugin.run(sock, m, args)
+    } catch (e) {
+      console.error(chalk.red('❌ Error en plugin:'), e)
     }
   })
 }
