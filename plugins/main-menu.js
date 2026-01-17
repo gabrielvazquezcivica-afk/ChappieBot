@@ -1,35 +1,17 @@
 // plugins/menu.js
-export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
-  if (!Array.isArray(plugins) || plugins.length === 0) {
+export const handler = async (m, { reply, pushName, plugins }) => {
+  if (!Array.isArray(plugins) || plugins.length === 0)
     return reply('❌ No hay plugins cargados.')
-  }
 
-  // Reacción al mensaje
-  await sock.sendMessage(from, { react: { text: '🔥', key: m.key } })
-
+  // Saludo según la hora
+  const saludo = getGreeting()
   const botName = 'ChappieBot'
   const dev = 'SoyGabo'
-  const saludo = getGreeting()
 
-  const tagEmoji = {
-    info: '🍄',
-    frases: '📖',
-    group: '🏜️',
-    descargas: '🎧',
-    juegos: '🎡',
-    ff: '🔫',
-    registro: '📚',
-    rpg: '💰',
-    tools: '🧰',
-    stickers: '🖼️',
-    nsfw: '🔞',
-    owner: '👑'
-  }
+  // Emoji fijo para comandos
+  const cmdEmoji = '🧿'
 
-  const cmdEmoji = '🧿' // emoji fijo para todos los comandos
-  const defaultEmoji = '⬢'
-
-  // Agrupar comandos por tags
+  // Agrupar comandos por tags, sin filtrar nsfw ni owner
   const categories = {}
   let totalCommands = 0
 
@@ -45,27 +27,25 @@ export const handler = async (m, { sock, from, pushName, reply, plugins }) => {
     }
   }
 
-  const orderedTags = Object.keys(categories) // todos los tags, no se filtra nada
+  const orderedTags = Object.keys(categories)
 
   // Construir menú
-  let menu = `\n🚀 ${botName} • Comandos activos: ${totalCommands}\n`
+  let menu = `🚀 ${botName} | Comandos: ${totalCommands}\n`
   menu += `👤 Usuario: ${pushName} • ${saludo}\n👨‍💻 Dev: ${dev}\n`
-  menu += `──────────────────────────\n`
+  menu += `────────────────────────\n`
 
   for (const tag of orderedTags) {
-    const emoji = tagEmoji[tag] || defaultEmoji
-    menu += `🌟 ${tag.toUpperCase()} ${emoji}\n`
-
+    menu += `🌟 ${tag.toUpperCase()}\n`
     for (const cmd of categories[tag]) {
       menu += `   ${cmdEmoji} .${cmd}\n`
     }
-
-    menu += `──────────────────────────\n`
+    menu += `────────────────────────\n`
   }
 
-  menu += `\n> ${botName} | ChappieBot\n`
+  menu += `\n> ${botName}\n`
 
-  await sock.sendMessage(from, { text: menu }, { quoted: m })
+  // ✅ Usar reply para enviar mensaje al chat
+  reply(menu)
 }
 
 handler.command = ['menu', 'help', 'comandos']
@@ -78,4 +58,4 @@ function getGreeting() {
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
   return '🌙 Buenas noches'
-  }
+}
