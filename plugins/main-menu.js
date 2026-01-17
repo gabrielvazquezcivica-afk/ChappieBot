@@ -11,13 +11,13 @@ export const handler = async (m, {
   }
 
   await sock.sendMessage(from, {
-    react: { text: '📂', key: m.key }
+    react: { text: '⚡', key: m.key }
   })
 
   const botName = 'ChappieBot'
   const saludo = getGreeting()
 
-  // 🏷️ Emoji categoría
+  // 🏷️ Emoji categorías
   const tagEmoji = {
     info: '🏜️',
     group: '🏕️',
@@ -26,13 +26,13 @@ export const handler = async (m, {
     herramientas: '🛠️',
     descargas: '📦',
     stickers: '🖼️',
-    rpg: '💰'
+    rpg: '💎'
   }
 
   // ⚡ Emoji comandos
   const cmdEmoji = {
-    info: '➜',
-    group: '➜',
+    info: '➤',
+    group: '➤',
     juegos: '✦',
     frases: '✧',
     herramientas: '➤',
@@ -41,6 +41,7 @@ export const handler = async (m, {
     rpg: '✪'
   }
 
+  // Agrupar comandos por categoría
   const categories = {}
   let totalCommands = 0
 
@@ -55,8 +56,8 @@ export const handler = async (m, {
 
     for (const tag of h.tags) {
       if (!categories[tag]) categories[tag] = []
-      categories[tag].push(cmds[0])
-      totalCommands++
+      categories[tag].push(...cmds)
+      totalCommands += cmds.length
     }
   }
 
@@ -71,21 +72,18 @@ export const handler = async (m, {
     'rpg'
   ]
 
+  // ✨ MENÚ PRINCIPAL
   let menu = `
-ChappieBot
-
-${saludo}, ${pushName}
-
-Prefijo de comandos:
-.
-
-Comandos disponibles: ${totalCommands}
+┌─🛸─ ChappieBot ─🛸─┐
+│ ${saludo}, ${pushName}
+│ Total comandos: ${totalCommands}
+└───────────────────┘
 `.trim()
 
   for (const tag of orderedTags) {
     if (!categories[tag]) continue
 
-    const tEmoji = tagEmoji[tag] || '📁'
+    const tEmoji = tagEmoji[tag] || '📂'
     const cEmoji = cmdEmoji[tag] || '•'
 
     menu += `
@@ -97,13 +95,13 @@ ${tEmoji} ${tag.toUpperCase()}
       menu += `\n${cEmoji} .${cmd}`
     }
 
-    menu += `
-┄┄┄┄┄┄┄┄┄┄┄┄┄┄`
+    // 🔹 Línea futurista al final de cada categoría
+    menu += `\n────────────────────`
   }
 
   menu += `
 
-ChappieBot
+ChappieBot | © 2026
 `
 
   await sock.sendMessage(
@@ -121,7 +119,7 @@ export default handler
 
 function getGreeting () {
   const hour = new Date().getHours()
-  if (hour >= 5 && hour < 12) return 'Buenos días'
-  if (hour >= 12 && hour < 19) return 'Buenas tardes'
-  return 'Buenas noches'
-      }
+  if (hour >= 5 && hour < 12) return '☀️ Buenos días'
+  if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
+  return '🌙 Buenas noches'
+}
