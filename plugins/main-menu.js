@@ -11,7 +11,7 @@ export const handler = async (m, {
     return reply('❌ No hay comandos disponibles.')
   }
 
-  // ⚡ Reacción
+  // ⚡ Reacción al comando
   await sock.sendMessage(from, {
     react: { text: '⚡', key: m.key }
   })
@@ -19,7 +19,7 @@ export const handler = async (m, {
   const botName = 'ChappieBot'
   const saludo = getGreeting()
 
-  // 🏷️ Emoji categorías
+  // 🏷️ Emoji por categoría
   const tagEmoji = {
     info: '🏜️',
     group: '🏕️',
@@ -31,7 +31,7 @@ export const handler = async (m, {
     rpg: '💎'
   }
 
-  // ⚡ Emoji comandos reales
+  // ⚡ Emoji reales para comandos
   const cmdEmoji = {
     info: 'ℹ️',
     group: '👥',
@@ -107,13 +107,19 @@ ${tEmoji} ${tag.toUpperCase()}
 ChappieBot | © 2026
 `
 
+  // ✅ 
   await sock.sendMessage(
     from,
-    { text: menu },
-    { quoted: m }
+    {
+      text: menu
+    },
+    {
+      quoted: m?.message ? m : undefined
+    }
   )
 }
 
+// ⚡ Comandos que activan el menú
 handler.command = ['menu', 'help', 'comandos']
 handler.tags = ['info']
 handler.group = true
