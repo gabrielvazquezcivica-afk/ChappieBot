@@ -42,3 +42,4 @@ handler.tags = ['group']
 handler.help = ['todos']
 handler.group = true
 handler.admin = true
+handler.menu = true
