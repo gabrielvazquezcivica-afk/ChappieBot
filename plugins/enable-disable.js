@@ -19,46 +19,42 @@ function saveSettings(settings) {
 }
 
 // ───── HANDLER ─────
-export const handler = async (m, { from, sock, args, isGroup, reply, pushName, sender }) => {
+export const handler = async (m, { from, sock, args, isGroup, reply, isAdmin }) => {
   if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
+  if (!isAdmin) return reply('⚠️ Solo los administradores pueden usar este comando')
 
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
-
-  if (!args || args.length < 2) {
+  
+  // Verificar que se enviaron argumentos
+  if (!args || args.length < 1) {
     return reply(
-      `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on\n\nModos disponibles: ${modes.join(', ')}`
+      `⚠️ Uso correcto:\n.ejemplo: .welcome on\nModos disponibles: ${modes.join(', ')}`
     )
   }
 
-  const mode = args[0]?.toLowerCase()
-  const state = args[1]?.toLowerCase()
+  const mode = args[0].toLowerCase()
+  const state = (args[1] || '').toLowerCase()
 
-  if (!modes.includes(mode)) {
-    return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
-  }
-  if (!['on', 'off'].includes(state)) {
-    return reply('⚠️ Estado inválido. Usa on o off')
-  }
+  if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
+  if (!['on', 'off'].includes(state)) return reply(`⚠️ Estado inválido. Usa "on" o "off"`)
 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
 
   const current = settings[from][mode] === true ? 'on' : 'off'
   if (current === state) {
-    return reply(`⚠️ El modo "${mode}" ya estaba ${state.toUpperCase()}`)
+    return reply(`⚠️ El modo "${mode}" ya estaba *${state.toUpperCase()}*`)
   }
 
   settings[from][mode] = state === 'on'
   saveSettings(settings)
 
-  // Reacción al mensaje
   await sock.sendMessage(from, {
     text: `✅ Modo "${mode}" ahora está *${state.toUpperCase()}*`,
     react: { text: state === 'on' ? '✅' : '❌', key: m.key }
   })
 }
 
-// ───── CONFIG HANDLER ─────
 handler.command = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 handler.tags = ['on-off']
 handler.group = true
