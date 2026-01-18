@@ -28,16 +28,15 @@ export const handler = async (m, { from, sock, args, isGroup, reply }) => {
     return reply('⚠️ Solo los administradores pueden usar este comando')
   }
 
-  // El comando usado (welcome, antilink, etc)
-  const mode = m.command.toLowerCase()
-  const state = args[0]?.toLowerCase()
-
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 
+  const mode = m.command?.toLowerCase()
   if (!modes.includes(mode)) return
-  if (!['on', 'off'].includes(state)) {
-    return reply(`⚠️ Uso correcto: .${mode} on/off`)
-  }
+
+  if (!args[0]) return reply(`⚠️ Uso correcto: .${mode} on/off`)
+
+  const state = args[0].toLowerCase()
+  if (!['on', 'off'].includes(state)) return reply(`⚠️ Uso correcto: .${mode} on/off`)
 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
