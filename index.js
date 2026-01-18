@@ -53,9 +53,8 @@ async function loadPlugins () {
       const plugin = await import(
         pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
       )
-      if (plugin?.default || plugin?.handler) {
-        plugins.push(plugin.default ?? plugin)
-      }
+      // si exporta default o handler, lo añadimos
+      plugins.push(plugin.default ?? plugin)
     } catch (e) {
       console.log(chalk.red('❌ Error plugin:'), file, e)
     }
@@ -106,6 +105,7 @@ async function startBot () {
     if (!text || !text.startsWith(global.prefix)) return
 
     const from = m.key.remoteJid
+    if (!from) return
     const isGroup = from.endsWith('@g.us')
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
@@ -123,7 +123,8 @@ async function startBot () {
 
     // 🔹 Ejecutar plugin
     for (const p of plugins) {
-      const h = p.handler ?? p.default?.handler
+      // si el plugin es función directamente o tiene handler
+      const h = p.handler ?? p
       if (!h?.command) continue
 
       const cmds = Array.isArray(h.command) ? h.command : [h.command]
@@ -139,8 +140,7 @@ async function startBot () {
           args,
           command,
           plugins,
-          reply: txt =>
-            sock.sendMessage(from, { text: txt }, { quoted: m })
+          reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
         })
       } catch (e) {
         console.log(chalk.red('❌ Error comando:'), e)
