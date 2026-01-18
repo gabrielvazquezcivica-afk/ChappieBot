@@ -18,20 +18,27 @@ function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
-// ───── COMANDO ─────
-export const handler = async (m, { from, sock, args, isGroup, reply }) => {
-  if (!isGroup) return reply('❌ Solo funciona en grupos')
+// ───── HANDLER ─────
+export const handler = async (m, { from, sock, args, isGroup, reply, pushName, sender }) => {
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
-  if (!args || args.length < 2) return reply(
-    `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on`
-  )
+
+  if (!args || args.length < 2) {
+    return reply(
+      `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on\n\nModos disponibles: ${modes.join(', ')}`
+    )
+  }
 
   const mode = args[0]?.toLowerCase()
   const state = args[1]?.toLowerCase()
 
-  if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
-  if (!['on', 'off'].includes(state)) return reply('⚠️ Estado inválido. Usa on o off')
+  if (!modes.includes(mode)) {
+    return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
+  }
+  if (!['on', 'off'].includes(state)) {
+    return reply('⚠️ Estado inválido. Usa on o off')
+  }
 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
@@ -44,12 +51,14 @@ export const handler = async (m, { from, sock, args, isGroup, reply }) => {
   settings[from][mode] = state === 'on'
   saveSettings(settings)
 
+  // Reacción al mensaje
   await sock.sendMessage(from, {
     text: `✅ Modo "${mode}" ahora está *${state.toUpperCase()}*`,
     react: { text: state === 'on' ? '✅' : '❌', key: m.key }
   })
 }
 
+// ───── CONFIG HANDLER ─────
 handler.command = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 handler.tags = ['on-off']
 handler.group = true
