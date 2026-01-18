@@ -22,6 +22,12 @@ function saveSettings(settings) {
 export const handler = async (m, { from, sock, args, isGroup, reply }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
 
+  // 🔹 VERIFICAR ADMIN
+  const metadata = await sock.groupMetadata(from)
+  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
+  const sender = m.key.participant
+  if (!admins.includes(sender)) return reply('⚠️ Solo los administradores pueden usar este comando')
+
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
   if (args.length < 2) return reply(`⚠️ Uso correcto: .modo <on/off>\nEjemplo: .welcome on`)
 
