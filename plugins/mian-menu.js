@@ -13,7 +13,7 @@ export const handler = async (m, {
 
   // ⚡ Reacción            
   await sock.sendMessage(from, {              
-    react: { text: '🏜️', key: m.key }              
+    react: { text: '⚡', key: m.key }              
   })              
 
   const botName = 'ChappieBot'              
@@ -22,15 +22,15 @@ export const handler = async (m, {
 
   // 🎯 Emojis por categoría            
   const tagEmoji = {              
-    info: 'ℹ️',              
+    info: '🍄',              
     frases: '📖',              
-    group: '👥',              
+    group: '🐉',              
     descargas: '🎧',              
-    juegos: '🎮',              
+    juegos: '🎡',              
     ff: '🔫',              
-    registro: '📝',              
+    registro: '📚',              
     rpg: '💰',              
-    tools: '🛠️',              
+    tools: '🧰',              
     stickers: '🖼️',              
     nsfw: '🔞',              
     owner: '👑'              
@@ -56,15 +56,16 @@ export const handler = async (m, {
     }              
   }              
 
-  // 📌 Orden opcional (prioridad de algunas tags)
+  // 📌 Orden opcional (puedes reordenar si quieres)
   const orderedTags = Object.keys(categories)  
 
-  // 🧠 MENÚ NUEVO DISEÑO            
-  let menu = `─────── 🤖 ${botName.toUpperCase()} ───────
-👋 ${saludo}
-👤 Usuario : ${pushName}
-👨‍💻 Dev    : ${dev}
-─────────────────────────────
+  // 🧠 MENÚ ESTILO JOSHIBOT            
+  let menu = `╭━━━━〔 🤖 ${botName.toUpperCase()} 〕━━━━╮
+┃ 👋 ${saludo}
+┃ 👤 Usuario : ${pushName}
+┃ 🤖 Bot     : ${botName}
+┃ 👨‍💻 Dev   : ${dev}
+╰━━━━━━━━━━━━━━━━━━━━━━╯
 Total comandos: ${totalCommands}
 ─────────────────────────────
 `.trim()
@@ -72,16 +73,18 @@ Total comandos: ${totalCommands}
   // 📑 Listar categorías y comandos
   for (const tag of orderedTags) {              
     const emoji = tagEmoji[tag] || defaultEmoji              
-    menu += `\n─ ${emoji} ${tag.toUpperCase()} ─\n`            
+    menu += `\n╔══〔 ${emoji} ${tag.toUpperCase()} 〕══╗\n`            
 
     for (const cmd of categories[tag]) {              
-      menu += `• .${cmd}\n`              
+      menu += `║ ${emoji}  .${cmd}\n`              
     }              
+
+    menu += `╚════════════════════╝`              
   }              
 
-  menu += `\n──── ${botName} • Menú de comandos ────\n`              
+  menu += `\n╭─ 𝘾ℎ𝘢𝘱𝘱𝘪𝘦𝘉𝘰𝘵 • Menú de comandos ─╮\n`              
 
-  // ✉️ Enviar menú
+  // ✉️ Enviar menú con imagen
   await sock.sendMessage(              
     from,              
     {              
@@ -105,4 +108,4 @@ function getGreeting() {
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'              
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'              
   return '🌙 Buenas noches'              
-    }
+}
