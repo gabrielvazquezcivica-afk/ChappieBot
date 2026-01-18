@@ -1,25 +1,20 @@
-export const handler = async (m, { sock, from, isGroup, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, isOwner, reply }) => {
   const msgs = global.config.messages || {}
+  const botName = sock.user?.name || 'ChappieBot'
 
-  // Solo grupos
+  // 🔹 Solo grupos
   if (!isGroup) {
     return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
   }
 
-  // Debe responder a un mensaje
+  // 🔹 Debe responder a un mensaje
   const ctx = m.message?.extendedTextMessage?.contextInfo
   if (!ctx?.stanzaId) {
     return reply('⚠️ Responde al mensaje que deseas borrar')
   }
 
-  // Obtener metadata
-  const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants
-    .filter(p => p.admin)
-    .map(p => p.id)
-
-  // Verificar admin
-  if (!admins.includes(m.key.participant)) {
+  // 🔹 Verificar admin usando index.js
+  if (!isAdmin && !isOwner) {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
@@ -38,7 +33,6 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     await sock.sendMessage(from, {
       react: { text: '🗑️', key: m.key }
     })
-
   } catch (e) {
     console.log('❌ Error delete:', e)
     reply(msgs.error || '❌ No pude borrar el mensaje')
