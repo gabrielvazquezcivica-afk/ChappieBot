@@ -54,7 +54,7 @@ handler.before = async (m, { sock }) => {
         `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${botName}`
     }
 
-    // ───── OBTENER FOTO PARA ENTRADAS Y SALIDAS ─────
+    // ───── OBTENER FOTO ─────
     let image = null
     try {
       // Foto del usuario
