@@ -1,4 +1,4 @@
-export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner, reply }) => {
+export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
@@ -8,7 +8,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner
   }
 
   // 👮 Verificar admin usando index.js
-  if (!isAdmin && !isOwner) {
+  if (!isAdmin) {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
@@ -52,7 +52,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner
       react: { text: '🔽', key: m.key }
     })
 
-    // 📢 Mensaje
+    // 📢 Mensaje citado
     await sock.sendMessage(
       from,
       {
@@ -63,7 +63,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner
           `> ${botName}`,
         mentions: [user, sender]
       },
-      { quoted: m }
+      { quoted: m } // mensaje citado, no reenviado
     )
 
   } catch (e) {
