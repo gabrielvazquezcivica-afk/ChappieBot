@@ -18,23 +18,19 @@ function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
-// ───── COMANDO ─────
-export const handler = async (m, { from, sock, args = [], isGroup, reply, sender, isAdmin }) => {
+// ───── HANDLER ─────
+export const handler = async (m, { from, sock, command, args = [], isGroup, reply, isAdmin }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
   if (!isAdmin) return reply('⚠️ Solo los administradores pueden usar este comando')
 
-  // Limpiar args: eliminar espacios vacíos y pasar a minúsculas
-  args = args.map(a => a?.trim()).filter(a => a)
-
-  if (args.length < 2) return reply(`⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on`)
-
-  const mode = args[0].toLowerCase()
-  const state = args[1].toLowerCase()
-
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 
+  // El comando mismo es el modo, el primer argumento es on/off
+  const mode = command.toLowerCase()
+  const state = args[0]?.toLowerCase()
+
   if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
-  if (!['on', 'off'].includes(state)) return reply('⚠️ Estado inválido. Usa on o off')
+  if (!state || !['on', 'off'].includes(state)) return reply(`⚠️ Uso correcto: .${mode} <on/off>\nEjemplo: .${mode} on`)
 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
@@ -53,7 +49,6 @@ export const handler = async (m, { from, sock, args = [], isGroup, reply, sender
   })
 }
 
-// ───── METADATA DEL PLUGIN ─────
 handler.command = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 handler.tags = ['on-off']
 handler.group = true
