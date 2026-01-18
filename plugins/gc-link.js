@@ -1,4 +1,4 @@
-export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
+export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
@@ -6,19 +6,18 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
     return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
   }
 
-  // ───── METADATA Y ADMINS ─────
-  const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants
-    .filter(p => p.admin || p.id === metadata.owner)
-    .map(p => p.id)
-
   // ───── VERIFICAR ADMIN ─────
-  if (!admins.includes(sender)) {
-    return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
+  if (!isAdmin) {
+    return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
   }
 
   // ───── OBTENER LINK ─────
-  const inviteCode = await sock.groupInviteCode(from)
+  let inviteCode
+  try {
+    inviteCode = await sock.groupInviteCode(from)
+  } catch {
+    return reply('❌ No pude obtener el link del grupo')
+  }
   const link = `https://chat.whatsapp.com/${inviteCode}`
 
   // ───── OBTENER FOTO DEL GRUPO ─────
