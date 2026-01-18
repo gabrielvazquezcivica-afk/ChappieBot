@@ -31,7 +31,8 @@ export const handler = async (m, {
     tools: '🧰',
     stickers: '🖼️',
     owner: '👑',
-    nsfw: '🔞'
+    nsfw: '🔞',
+    'on-off': '📴'
   }              
 
   const cmdEmoji = '🧿' // emoji fijo para comandos
@@ -56,6 +57,7 @@ export const handler = async (m, {
   // 📌 Orden de los tags en el menú
   const orderedTags = [
     'info',
+    'on-off',
     'frases',
     'group',
     'descargas',
