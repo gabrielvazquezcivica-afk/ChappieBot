@@ -3,22 +3,17 @@ import path from 'path'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 
-// ───── LEER SETTINGS ─────
 function loadSettings() {
   if (!fs.existsSync(settingsPath)) return {}
   try {
     return JSON.parse(fs.readFileSync(settingsPath))
-  } catch {
-    return {}
-  }
+  } catch { return {} }
 }
 
-// ───── GUARDAR SETTINGS ─────
 function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
-// ───── HANDLER PRINCIPAL ─────
 let started = false
 
 export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, reply }) => {
@@ -26,7 +21,6 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
 
-  // ───── COMANDO ON/OFF ─────
   if (command === 'welcome') {
     if (!isGroup) return reply('⚠️ Solo funciona en grupos')
     if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
@@ -46,7 +40,6 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, 
   }
 }
 
-// ───── DETECCIÓN DE ENTRADAS/SALIDAS ─────
 handler.before = async (_, { sock }) => {
   if (started) return
   started = true
@@ -65,14 +58,16 @@ handler.before = async (_, { sock }) => {
     const metadata = await sock.groupMetadata(id)
     const totalMembers = metadata.participants.length
 
+    // ───── TEXTO ─────
     let text = ''
     if (action === 'add') {
-      text = groupSettings.customWelcome ||
-        `🎉 ¡Bienvenido al grupo!\n👤 @${user.split('@')[0]}\n👥 Miembros: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
+      text = groupSettings.customWelcome || `🎉 ¡Bienvenido al grupo!\n👤 @user\n👥 Miembros: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     } else if (action === 'remove') {
-      text = groupSettings.customBye ||
-        `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
+      text = groupSettings.customBye || `👋 Ha salido del grupo:\n👤 @user\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     }
+
+    // Reemplazar @user por la mención real
+    text = text.replace(/@user/g, `@${user.split('@')[0]}`)
 
     // ───── FOTO ─────
     let image = null
