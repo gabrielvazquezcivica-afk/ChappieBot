@@ -16,14 +16,14 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   // Reacción al comando
   await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })
 
-  // Construir lista con nombre y JID
+  // Construir lista con nombre y mención
   let text = `🍁 Lista de miembros del grupo "${metadata.subject}":\n\n`
   const mentions = []
 
   for (const p of participants) {
     const name = p?.notify || p?.id.split('@')[0]
-    text += `🍁 ${name}\n`
-    mentions.push(p.id)
+    text += `🍁 @${name}\n`
+    mentions.push(p.id) // IMPORTANTE: JID exacto
   }
 
   text += `\n> ${botName}`
