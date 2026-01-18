@@ -24,11 +24,7 @@ handler.before = async (m, { sock }) => {
 
     await sock.sendMessage(id, {
       text: text + `\n\n> ${botName}`,
-      mentions: [user, author],
-      contextInfo: {
-        forwardingScore: 999,
-        isForwarded: true
-      }
+      mentions: [user, author]
     })
   })
 
@@ -47,10 +43,7 @@ handler.before = async (m, { sock }) => {
 
       if (!id.endsWith('@g.us')) continue
 
-      const actor =
-        author ||
-        participants?.[0] ||
-        null
+      const actor = author || participants?.[0] || null
 
       let text = ''
       let mentions = []
@@ -75,11 +68,7 @@ handler.before = async (m, { sock }) => {
 
       await sock.sendMessage(id, {
         text: text + `\n\n> ${botName}`,
-        mentions,
-        contextInfo: {
-          forwardingScore: 999,
-          isForwarded: true
-        }
+        mentions
       })
     }
   })
