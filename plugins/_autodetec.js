@@ -1,64 +1,88 @@
-export const handler = {
-  before: async (m, { sock }) => {
-    if (!m || !m.messageStubType) return
-    if (!m.key.remoteJid?.endsWith('@g.us')) return
+let started = false
 
-    const from = m.key.remoteJid
-    const actor = m.key.participant || m.participant
-    const actorTag = actor ? `@${actor.split('@')[0]}` : 'Desconocido'
+export const handler = async () => {}
 
-    let text = ''
-    let mentions = actor ? [actor] : []
+handler.before = async (m, { sock }) => {
+  if (started) return
+  started = true
 
-    switch (m.messageStubType) {
+  const botName = sock.user?.name || 'ChappieBot'
 
-      // 🔒 Grupo cerrado / abierto
-      case 1:
-        text = `🔒 *El grupo fue cerrado*\n👤 Acción realizada por: ${actorTag}`
-        break
+  // ───── ADMIN / DEMOTE ─────
+  sock.ev.on('group-participants.update', async (update) => {
+    const { id, participants, action, author } = update
+    if (!id.endsWith('@g.us')) return
+    if (!['promote', 'demote'].includes(action)) return
 
-      case 2:
-        text = `🔓 *El grupo fue abierto*\n👤 Acción realizada por: ${actorTag}`
-        break
+    const user = participants?.[0]
+    if (!user || !author) return
 
-      // 🛡️ Admin añadido / removido
-      case 29:
-        text = `🛡️ *Se otorgó administrador*\n👤 Acción realizada por: ${actorTag}`
-        break
+    const text =
+      action === 'promote'
+        ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+        : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
-      case 30:
-        text = `🚫 *Se retiró administrador*\n👤 Acción realizada por: ${actorTag}`
-        break
-
-      // ✏️ Descripción
-      case 21:
-        text = `📝 *Se cambió la descripción del grupo*\n👤 Acción realizada por: ${actorTag}`
-        break
-
-      // 🏷️ Nombre del grupo
-      case 22:
-        text = `🏷️ *Se cambió el nombre del grupo*\n👤 Acción realizada por: ${actorTag}`
-        break
-
-      // 🖼️ Foto del grupo
-      case 23:
-        text = `🖼️ *Se cambió la foto del grupo*\n👤 Acción realizada por: ${actorTag}`
-        break
-
-      default:
-        return
-    }
-
-    await sock.sendMessage(
-      from,
-      {
-        text,
-        mentions,
-        forwardingScore: 999, // 🔁 reenviado muchas veces
+    await sock.sendMessage(id, {
+      text: text + `\n\n> ${botName}`,
+      mentions: [user, author],
+      contextInfo: {
+        forwardingScore: 999,
         isForwarded: true
       }
-    )
-  }
+    })
+  })
+
+  // ───── CAMBIOS DEL GRUPO ─────
+  sock.ev.on('groups.update', async (updates) => {
+    for (const g of updates) {
+      const {
+        id,
+        subject,
+        desc,
+        announce,
+        picture,
+        participants,
+        author
+      } = g
+
+      if (!id.endsWith('@g.us')) continue
+
+      const actor =
+        author ||
+        participants?.[0] ||
+        null
+
+      let text = ''
+      let mentions = []
+
+      if (announce === true)
+        text = '🔒 *El grupo fue cerrado*'
+      else if (announce === false)
+        text = '🔓 *El grupo fue abierto*'
+      else if (subject)
+        text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
+      else if (desc !== undefined)
+        text = '📝 *Descripción del grupo modificada*'
+      else if (picture)
+        text = '🖼️ *Foto del grupo actualizada*'
+
+      if (!text) continue
+
+      if (actor) {
+        text += `\n\n👮 Por: @${actor.split('@')[0]}`
+        mentions.push(actor)
+      }
+
+      await sock.sendMessage(id, {
+        text: text + `\n\n> ${botName}`,
+        mentions,
+        contextInfo: {
+          forwardingScore: 999,
+          isForwarded: true
+        }
+      })
+    }
+  })
 }
 
 export default handler
