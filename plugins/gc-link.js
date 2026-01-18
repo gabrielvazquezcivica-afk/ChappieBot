@@ -3,14 +3,10 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const botName = sock.user?.name || 'ChappieBot'
 
   // 🔒 Solo grupos
-  if (!isGroup) {
-    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
-  }
+  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
   // 👮 Solo admins pueden usarlo
-  if (!isAdmin) {
-    return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
-  }
+  if (!isAdmin) return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
 
   try {
     // 🔹 Obtener link del grupo
@@ -21,32 +17,22 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
     let image = null
     try {
       image = await sock.profilePictureUrl(from, 'image')
-    } catch {
-      image = null
-    }
+    } catch {}
 
     const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
 
     // 🔹 Enviar mensaje como si fuera reenviado
     if (image) {
-      await sock.sendMessage(
-        from,
-        {
-          image: { url: image },
-          caption: text,
-          contextInfo: { forwardingScore: 9999, isForwarded: true }
-        },
-        { quoted: m }
-      )
+      await sock.sendMessage(from, {
+        image: { url: image },
+        caption: text,
+        contextInfo: { forwardingScore: 9999, isForwarded: true }
+      }, { quoted: m })
     } else {
-      await sock.sendMessage(
-        from,
-        {
-          text,
-          contextInfo: { forwardingScore: 9999, isForwarded: true }
-        },
-        { quoted: m }
-      )
+      await sock.sendMessage(from, {
+        text,
+        contextInfo: { forwardingScore: 9999, isForwarded: true }
+      }, { quoted: m })
     }
   } catch (e) {
     console.log('❌ Error link:', e)
