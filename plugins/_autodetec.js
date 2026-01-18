@@ -22,7 +22,6 @@ handler.before = async (m, { sock }) => {
         ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
         : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
-    // ⚡ SOLO TEXTO, menciones y reenviado
     await sock.sendMessage(id, {
       text: `${text}\n\n> ${botName}`,
       mentions: [user, author],
@@ -30,7 +29,7 @@ handler.before = async (m, { sock }) => {
     })
   })
 
-  // ───── CAMBIOS DEL GRUPO (solo texto) ─────
+  // ───── CAMBIOS DEL GRUPO (solo texto, ignorando picture) ─────
   sock.ev.on('groups.update', async (updates) => {
     for (const g of updates) {
       const { id, subject, desc, announce, author } = g
