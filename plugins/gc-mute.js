@@ -1,42 +1,61 @@
 import fs from 'fs'
 import path from 'path'
 
-const mutesFile = path.join('./data/mutes.json')
+const mutesFile = path.resolve('./data/mutes.json')
 
-export const handler = async (m, { sock, from, reply, sender, isGroup }) => {
-  if (!isGroup) return reply(global.config.messages.group)
+function loadMutes () {
+  if (!fs.existsSync(mutesFile)) return {}
+  return JSON.parse(fs.readFileSync(mutesFile))
+}
+
+function saveMutes (data) {
+  fs.writeFileSync(mutesFile, JSON.stringify(data, null, 2))
+}
+
+export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
+  const msgs = global.config.messages || {}
+
+  if (!isGroup) return reply(msgs.group)
   
   const metadata = await sock.groupMetadata(from)
   const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
-  if (!admins.includes(sender)) return reply(global.config.messages.admin)
 
-  // Usuario a mutear (mención o reply)
+  if (!admins.includes(sender)) {
+    return reply(msgs.admin)
+  }
+
+  // 🎯 usuario (mención o reply)
   const user =
     m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] ||
     m.message?.extendedTextMessage?.contextInfo?.participant
 
-  if (!user) return reply('⚠️ Menciona al usuario o responde a su mensaje para mutear.')
-
-  // Leer mutes.json
-  let data = {}
-  try {
-    data = JSON.parse(fs.readFileSync(mutesFile, 'utf-8'))
-  } catch (e) {
-    data = {}
+  if (!user) {
+    return reply('⚠️ Menciona a un usuario o responde a su mensaje')
   }
 
-  if (!data[from]) data[from] = []
+  const mutes = loadMutes()
+  if (!mutes[from]) mutes[from] = []
 
-  if (data[from].includes(user)) return reply('⚠️ Este usuario ya está silenciado.')
+  if (mutes[from].includes(user)) {
+    return reply('⚠️ El usuario ya está silenciado')
+  }
 
-  data[from].push(user)
-  fs.writeFileSync(mutesFile, JSON.stringify(data, null, 2))
+  mutes[from].push(user)
+  saveMutes(mutes)
 
-  // Reacción
-  await sock.sendMessage(from, { react: { text: '🔇', key: m.key } })
+  // 🔕 reacción
+  await sock.sendMessage(from, {
+    react: { text: '🔇', key: m.key }
+  })
 
-  // Mensaje confirmando
-  await reply(`🔇 @${user.split('@')[0]} ha sido silenciado por @${sender.split('@')[0]}`, { mentions: [user, sender] })
+  await sock.sendMessage(
+    from,
+    {
+      text: `🔇 Usuario silenciado\n\n👤 @${user.split('@')[0]}\n👮 Por: @${sender.split('@')[0]}`,
+      mentions: [user, sender]
+    },
+    { quoted: m }
+  )
 }
 
 handler.command = ['mute']
