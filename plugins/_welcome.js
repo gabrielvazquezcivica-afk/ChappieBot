@@ -13,7 +13,7 @@ function loadSettings() {
   }
 }
 
-// ───── HANDLER ─────
+// ───── HANDLER WELCOME ─────
 let started = false
 
 export const handler = async () => {}
@@ -24,12 +24,10 @@ handler.before = async (m, { sock }) => {
 
   const botName = sock.user?.name || 'ChappieBot'
 
-  // 🔔 WELCOME / BYE
+  // 🔔 ENTRADAS / SALIDAS
   sock.ev.on('group-participants.update', async (update) => {
     const { id, participants, action } = update
     if (!id.endsWith('@g.us')) return
-
-    // Solo entradas y salidas
     if (!['add', 'remove'].includes(action)) return
 
     const settings = loadSettings()
