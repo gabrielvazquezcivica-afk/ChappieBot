@@ -8,7 +8,7 @@ import { DisconnectReason } from '@whiskeysockets/baileys'
 
 import { connectBot } from './lib/connection.js'
 import config from './config.js'
-import { muteWatcher } from './lib/muteWatcher.js' // 🔹 MUTEWATCHER
+import { muteWatcher } from './lib/muteWatcher.js'
 import { autoAdminOwnerEvent } from './lib/autoAdminOwner.js'
 
 // ───── CONFIG GLOBAL ─────
@@ -131,6 +131,25 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
+    // 🔹 CALCULAR SI ES ADMIN
+    let isAdmin = false
+    let isOwner = false
+    if (isGroup) {
+      try {
+        const metadata = await sock.groupMetadata(from)
+        const admins = metadata.participants
+          .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
+          .map(p => p.id)
+        isAdmin = admins.includes(sender)
+      } catch {
+        isAdmin = false
+      }
+    }
+
+    // 🔹 CALCULAR SI ES OWNER
+    const owners = global.config.owner?.numbers || []
+    isOwner = owners.includes(sender.replace(/[^0-9]/g, ''))
+
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
@@ -157,6 +176,8 @@ async function startBot () {
           sender,
           pushName,
           isGroup,
+          isAdmin,
+          isOwner,
           args,
           command,
           plugins,
