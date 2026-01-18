@@ -1,11 +1,8 @@
 export const handler = async (m, { sock, pushName, plugins }) => {
-  // Validar plugins
-  if (!Array.isArray(plugins) || plugins.length === 0) {
-    return await sock.sendMessage(m.key.remoteJid, { text: '❌ No hay plugins cargados.' })
-  }
 
-  // Reacción rápida
-  await sock.sendMessage(m.key.remoteJid, { react: { text: '⚡', key: m.key } })
+  if (!plugins || plugins.length === 0) {
+    return sock.sendMessage(m.key.remoteJid, { text: '❌ No hay plugins cargados.' })
+  }
 
   const botName = 'ChappieBot'
   const dev = 'SoyGabo'
@@ -25,9 +22,10 @@ export const handler = async (m, { sock, pushName, plugins }) => {
     nsfw: '🔞',
     owner: '👑'
   }
+
   const defaultEmoji = '⬢'
 
-  // Agrupar comandos
+  // Agrupar comandos por tags
   const categories = {}
   let totalCommands = 0
   for (const plugin of plugins) {
@@ -62,12 +60,17 @@ Total comandos: ${totalCommands}
 
   menu += `\n╭─ 𝘾ℎ𝘢𝘱𝘱𝘪𝘦𝘉𝘰𝘵 • Menú ─╮`
 
-  await sock.sendMessage(m.key.remoteJid, { text: menu })
+  // Enviar al grupo o privado usando siempre m.key.remoteJid
+  try {
+    await sock.sendMessage(m.key.remoteJid, { text: menu })
+  } catch (e) {
+    console.log('❌ Error enviando menú:', e)
+  }
 }
 
 handler.command = ['menu', 'help', 'comandos']
 handler.tags = ['info']
-handler.group = true
+handler.group = true // importante para grupos
 handler.botAdmin = false
 
 export default handler
@@ -77,4 +80,4 @@ function getGreeting() {
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
   return '🌙 Buenas noches'
-}
+      }
