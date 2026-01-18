@@ -8,6 +8,7 @@ import { DisconnectReason } from '@whiskeysockets/baileys'
 
 import { connectBot } from './lib/connection.js'
 import config from './config.js'
+import { muteWatcher } from './lib/muteWatcher.js' // 🔹 MUTEWATCHER
 
 // ───── CONFIG GLOBAL ─────
 util.inspect.defaultOptions.depth = 0
@@ -101,6 +102,9 @@ async function startBot () {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
 
+    // 🔹 BORRAR MENSAJES DE USUARIOS SILENCIADOS
+    await muteWatcher(sock, m)
+
     const text = getText(m)
     if (!text || !text.startsWith(global.prefix)) return
 
@@ -123,7 +127,6 @@ async function startBot () {
 
     // 🔹 Ejecutar plugin
     for (const p of plugins) {
-      // si el plugin es función directamente o tiene handler
       const h = p.handler ?? p
       if (!h?.command) continue
 
