@@ -18,36 +18,34 @@ function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
-// ───── HANDLER ON/OFF ─────
-export const handler = async (m, { from, sock, command, args, isGroup, reply, sender }) => {
+// ───── HANDLER ─────
+export const handler = async (m, { from, sock, args, isGroup, isAdmin, reply }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
+  if (!isAdmin) return reply('🚫 Solo los administradores pueden usar este comando')
 
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
-
-  // args[0] será el estado, command será el modo
-  const mode = command.toLowerCase()
-  const state = args?.[0]?.toLowerCase()
-
-  if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
-  if (!['on', 'off'].includes(state)) return reply(`⚠️ Estado inválido. Usa "on" o "off"`)
-
-  // ───── VERIFICAR ADMIN ─────
-  let groupMeta
-  try {
-    groupMeta = await sock.groupMetadata(from)
-  } catch {
-    return reply('❌ No pude obtener info del grupo')
+  if (!args || args.length < 2) {
+    return reply(
+      `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on`
+    )
   }
-  const admins = groupMeta.participants.filter(p => p.admin).map(p => p.id)
-  if (!admins.includes(sender)) return reply('🚫 Solo los administradores pueden usar este comando')
 
-  // ───── ACTUALIZAR SETTINGS ─────
+  const mode = args[0]?.toLowerCase()
+  const state = args[1]?.toLowerCase()
+
+  if (!modes.includes(mode)) {
+    return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
+  }
+  if (!['on', 'off'].includes(state)) {
+    return reply('⚠️ Estado inválido. Usa "on" o "off"')
+  }
+
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
 
   const current = settings[from][mode] ? 'on' : 'off'
   if (current === state) {
-    return reply(`⚠️ El modo "${mode}" ya estaba *${state.toUpperCase()}*`)
+    return reply(`⚠️ El modo "${mode}" ya estaba ${state.toUpperCase()}`)
   }
 
   settings[from][mode] = state === 'on'
