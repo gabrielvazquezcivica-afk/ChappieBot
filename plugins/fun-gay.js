@@ -14,18 +14,21 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   }
   if (groupSettings.enabled && !isAdmin) return // silencioso si no es admin
 
-  // 🔹 Obtener usuario objetivo
-  let targetJid = sender // por defecto quien ejecuta
+  // 🔹 Determinar usuario objetivo y mención
+  let targetJid = sender
   let targetName = m.pushName || 'Usuario'
+  const mentions = []
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
   if (ctx?.mentionedJid?.length) {
     targetJid = ctx.mentionedJid[0]
-    targetName = targetJid.split('@')[0] // fallback: solo número
+    targetName = 'Usuario' // opcional
   } else if (ctx?.participant) {
     targetJid = ctx.participant
-    targetName = ctx.participant.split('@')[0]
+    targetName = 'Usuario'
   }
+
+  mentions.push(targetJid)
 
   // 🔹 Porcentaje y frase
   const porcentaje = Math.floor(Math.random() * 101)
@@ -38,12 +41,14 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   ]
   const frase = frases[Math.floor(Math.random() * frases.length)]
 
-  const text = `🌈 *${targetName}* es ${porcentaje}% gay\n> ${frase}`
-  await sock.sendMessage(from, { text }, { quoted: m })
+  // 🔹 Texto con mención
+  const text = `🌈 *@${targetJid.split('@')[0]}* es ${porcentaje}% gay\n> ${frase}`
+
+  await sock.sendMessage(from, { text, mentions }, { quoted: m })
 }
 
 handler.command = ['gay']
-handler.tags = ['fun','game']
+handler.tags = ['juegos']
 handler.group = true
 handler.admin = false
 handler.menu = true
