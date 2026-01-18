@@ -33,11 +33,11 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   // Reaccionar al mensaje original
   await sock.sendMessage(from, {
-    react: { text: '⚡', key: m.key }
+    react: { text: '💫', key: m.key }
   })
 }
 
-handler.command = ['todos', 'everyone']
+handler.command = ['todos']
 handler.tags = ['group']
 handler.help = ['todos']
 handler.group = true
