@@ -133,8 +133,7 @@ async function startBot () {
 
     // 🔹 CALCULAR SI ES ADMIN
     let isAdmin = false
-    let isOwner = false
-    if (isGroup) {
+    if (isGroup && sender) {
       try {
         const metadata = await sock.groupMetadata(from)
         const admins = metadata.participants
@@ -147,8 +146,10 @@ async function startBot () {
     }
 
     // 🔹 CALCULAR SI ES OWNER
+    let isOwner = false
     const owners = global.config.owner?.numbers || []
-    isOwner = owners.includes(sender.replace(/[^0-9]/g, ''))
+    const senderNumber = sender ? sender.replace(/[^0-9]/g, '') : null
+    if (senderNumber) isOwner = owners.includes(senderNumber)
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
