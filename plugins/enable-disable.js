@@ -22,30 +22,21 @@ function saveSettings(settings) {
 export const handler = async (m, { from, sock, args, isGroup, reply }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
 
-  const admins = (await sock.groupMetadata(from)).participants
-    .filter(p => p.admin)
-    .map(p => p.id)
-
+  const metadata = await sock.groupMetadata(from)
+  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
   if (!admins.includes(m.key.participant)) {
     return reply('⚠️ Solo los administradores pueden usar este comando')
   }
 
+  // El comando usado (welcome, antilink, etc)
+  const mode = m.command.toLowerCase()
+  const state = args[0]?.toLowerCase()
+
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 
-  // ───── LIMPIAR ARGUMENTOS
-  const mode = args[0]?.toLowerCase()
-  const state = args[1]?.toLowerCase()
-
-  if (!mode || !state) {
-    return reply(`⚠️ Uso correcto: .modo <on/off>\nEjemplo: .welcome on`)
-  }
-
-  if (!modes.includes(mode)) {
-    return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
-  }
-
+  if (!modes.includes(mode)) return
   if (!['on', 'off'].includes(state)) {
-    return reply('⚠️ Estado inválido. Usa "on" o "off"')
+    return reply(`⚠️ Uso correcto: .${mode} on/off`)
   }
 
   const settings = loadSettings()
