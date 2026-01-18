@@ -19,25 +19,27 @@ function saveSettings(settings) {
 }
 
 // ───── COMANDO ─────
-export const handler = async (m, { from, sock, args = [], isGroup, sender, reply, command }) => {
+export const handler = async (m, { from, sock, args, isGroup, reply }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
 
-  // Solo admins pueden usar
-  const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
-  if (!admins.includes(sender)) return reply('⚠️ Solo los administradores pueden usar este comando')
-
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
-  const mode = command?.toLowerCase()
-  if (!modes.includes(mode)) return
+  if (!args || args.length < 2) return reply(
+    `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on`
+  )
 
-  if (!args[0]) return reply(`⚠️ Uso correcto: .${mode} on/off`)
+  const mode = args[0]?.toLowerCase()
+  const state = args[1]?.toLowerCase()
 
-  const state = args[0].toLowerCase()
-  if (!['on', 'off'].includes(state)) return reply(`⚠️ Uso correcto: .${mode} on/off`)
+  if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
+  if (!['on', 'off'].includes(state)) return reply('⚠️ Estado inválido. Usa on o off')
 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
+
+  const current = settings[from][mode] === true ? 'on' : 'off'
+  if (current === state) {
+    return reply(`⚠️ El modo "${mode}" ya estaba ${state.toUpperCase()}`)
+  }
 
   settings[from][mode] = state === 'on'
   saveSettings(settings)
