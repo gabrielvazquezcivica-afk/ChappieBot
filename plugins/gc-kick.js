@@ -1,4 +1,4 @@
-export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner, reply }) => {
+export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
   const botJid = sock.user?.id || ''
@@ -6,8 +6,8 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner
 
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  // ⚠️ Solo admins/owner pueden ejecutar
-  if (!isAdmin && !isOwner) return reply(msgs.admin || '⚠️ Solo admins pueden usar este comando')
+  // ⚠️ Solo admins pueden ejecutar
+  if (!isAdmin) return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
 
   const metadata = await sock.groupMetadata(from)
   const groupOwner = metadata.owner
@@ -44,7 +44,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner
         text: `🚨 Usuario expulsado:\n🍁 @${user.split('@')[0]}\n👮 Expulsado por: @${sender.split('@')[0]}\n> ${botName}`,
         mentions: [user, sender]
       },
-      { quoted: m }
+      { quoted: m } // mensaje citado
     )
   } catch (e) {
     console.log('❌ Error kick:', e)
