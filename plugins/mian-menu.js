@@ -96,7 +96,7 @@ Total de comandos: ${totalCommands}\n`
     from,
     {
       image: {
-        url: 'https://i.postimg.cc/jjYq0Hm2/0519561cff59024a52aa893d49d7af17.jpg'
+        url: 'https://i.postimg.cc/wxNGfYpK/1ef93208974f3271c773e4deda477919.jpg'
       },
       caption: menu
     },
