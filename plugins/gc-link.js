@@ -1,26 +1,17 @@
-export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
-  if (!isGroup) {
-    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
-  }
+  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  // ───── VERIFICAR ADMIN ─────
-  if (!isAdmin) {
-    return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
-  }
+  if (!isAdmin) return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
 
-  // ───── OBTENER LINK ─────
+  // Aquí va el resto de tu comando, por ejemplo obtener link:
   let inviteCode
-  try {
-    inviteCode = await sock.groupInviteCode(from)
-  } catch {
-    return reply('❌ No pude obtener el link del grupo')
-  }
+  try { inviteCode = await sock.groupInviteCode(from) } catch { return reply('❌ No pude obtener el link del grupo') }
+
   const link = `https://chat.whatsapp.com/${inviteCode}`
 
-  // ───── OBTENER FOTO DEL GRUPO ─────
   let image = null
   try {
     const groupPic = await sock.profilePictureUrl(from, 'image')
@@ -29,7 +20,6 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
 
   const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
 
-  // ───── ENVIAR MENSAJE ─────
   if (image) {
     await sock.sendMessage(from, { image, caption: text }, { quoted: m })
   } else {
