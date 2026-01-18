@@ -1,21 +1,20 @@
-export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
+export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
+  const botJid = sock.user?.id || ''
+  const owners = global.config.owner?.numbers || []
 
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
+  // ⚠️ Solo admins/owner pueden ejecutar
+  if (!isAdmin && !isOwner) return reply(msgs.admin || '⚠️ Solo admins pueden usar este comando')
+
   const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
   const groupOwner = metadata.owner
-  const botJid = sock.user?.id || ''
 
-  // Verifica si quien ejecuta es admin
-  if (!admins.includes(sender)) return reply(msgs.admin || '⚠️ Solo admins pueden usar este comando')
-
-  // Obtiene usuario objetivo (mención o reply)
-  const user =
-    m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] ||
-    m.message?.extendedTextMessage?.contextInfo?.participant
+  // 🎯 Usuario objetivo: mención o reply
+  const ctx = m.message?.extendedTextMessage?.contextInfo
+  const user = ctx?.mentionedJid?.[0] || ctx?.participant
 
   if (!user) {
     return reply(
@@ -23,18 +22,22 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
     )
   }
 
-  // Protecciones
+  // 🔒 Protecciones
   if (user === groupOwner) return reply('🛡 No puedes expulsar al creador del grupo')
   if (user === botJid) return reply('⚠️ No puedo expulsarme a mí mismo')
 
+  // 🛡 Protección owner del bot
+  const userNumber = user.replace(/[^0-9]/g, '')
+  if (owners.includes(userNumber)) return reply('🛡 No puedes expulsar al OWNER del bot')
+
   try {
-    // Reacción al comando
+    // 🚨 Reacción al comando
     await sock.sendMessage(from, { react: { text: '🚪', key: m.key } })
 
-    // Expulsar usuario
+    // 👢 Expulsar usuario
     await sock.groupParticipantsUpdate(from, [user], 'remove')
 
-    // Mensaje informativo
+    // 📢 Mensaje informativo
     await sock.sendMessage(
       from,
       {
@@ -44,6 +47,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
       { quoted: m }
     )
   } catch (e) {
+    console.log('❌ Error kick:', e)
     reply(msgs.error || '❌ No pude expulsar al usuario')
   }
 }
@@ -54,3 +58,5 @@ handler.group = true
 handler.admin = true
 handler.botAdmin = true
 handler.menu = true
+
+export default handler
