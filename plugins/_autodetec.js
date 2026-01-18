@@ -22,7 +22,7 @@ handler.before = async (m, { sock }) => {
         ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
         : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
-    // ✅ Solo texto
+    // ⚡ Enviar SOLO TEXTO, sin foto
     await sock.sendMessage(id, {
       text: `${text}\n\n> ${botName}`,
       mentions: [user, author],
@@ -49,7 +49,7 @@ handler.before = async (m, { sock }) => {
       if (actor) text += `\n\n👮 Por: @${actor.split('@')[0]}`
       const mentions = actor ? [actor] : []
 
-      // ✅ Enviar solo texto, nunca la foto
+      // ⚡ Enviar SOLO TEXTO, nunca foto
       await sock.sendMessage(id, {
         text: `${text}\n\n> ${botName}`,
         mentions,
