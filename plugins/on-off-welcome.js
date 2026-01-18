@@ -3,11 +3,14 @@ import path from 'path'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 
+// ───── FUNCIONES PARA SETTINGS ─────
 function loadSettings() {
   if (!fs.existsSync(settingsPath)) return {}
   try {
     return JSON.parse(fs.readFileSync(settingsPath))
-  } catch { return {} }
+  } catch {
+    return {}
+  }
 }
 
 function saveSettings(settings) {
@@ -16,6 +19,7 @@ function saveSettings(settings) {
 
 let started = false
 
+// ───── COMANDO WELCOME ON/OFF ─────
 export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, reply }) => {
   const botName = sock.user?.name || 'ChappieBot'
   const settings = loadSettings()
@@ -40,6 +44,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, 
   }
 }
 
+// ───── HANDLER ANTES DE CUALQUIER COMANDO (EVENTO) ─────
 handler.before = async (_, { sock }) => {
   if (started) return
   started = true
@@ -48,7 +53,8 @@ handler.before = async (_, { sock }) => {
     const { id, participants, action, admin } = update
     if (!id.endsWith('@g.us')) return
 
-    // 🔹 Ignorar si es solo un cambio de admin
+    // 🔹 Solo entradas o salidas reales, ignorar cambios de admin
+    if (!['add', 'remove'].includes(action)) return
     if (admin) return
 
     const settings = loadSettings()
@@ -61,38 +67,28 @@ handler.before = async (_, { sock }) => {
     const metadata = await sock.groupMetadata(id)
     const totalMembers = metadata.participants.length
 
-    // ───── TEXTO ─────
+    // ───── TEXTO DE WELCOME / BYE ─────
     let text = ''
     if (action === 'add') {
-      text = groupSettings.customWelcome || 
+      text = groupSettings.customWelcome ||
         `🎉 ¡Bienvenido al grupo!\n👤 @user\n👥 Miembros: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     } else if (action === 'remove') {
-      text = groupSettings.customBye || 
+      text = groupSettings.customBye ||
         `👋 Ha salido del grupo:\n👤 @user\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     }
 
-    // Reemplazar @user por la mención real
+    // 🔹 Reemplazar @user por la mención real
     text = text.replace(/@user/g, `@${user.split('@')[0]}`)
 
-    // ───── FOTO ─────
+    // ───── OBTENER FOTO ─────
     let image = null
     try {
-      try { 
-        const pfp = await sock.profilePictureUrl(user,'image'); 
-        if(pfp) image={url:pfp} 
-      } catch{}
-      if(!image){
-        try{
-          const gpfp = await sock.profilePictureUrl(id,'image'); 
-          if(gpfp) image={url:gpfp}
-        } catch{}
-      }
-      if(!image){
-        try{
-          const bpfp = await sock.profilePictureUrl(sock.user.id,'image'); 
-          if(bpfp) image={url:bpfp}
-        } catch{}
-      }
+      // Foto del usuario
+      try { const pfp = await sock.profilePictureUrl(user,'image'); if(pfp) image={url:pfp} } catch{}
+      // Si no hay, foto del grupo
+      if(!image){try{const gpfp = await sock.profilePictureUrl(id,'image'); if(gpfp) image={url:gpfp}} catch{}}
+      // Si no hay, foto del bot
+      if(!image){try{const bpfp = await sock.profilePictureUrl(sock.user.id,'image'); if(bpfp) image={url:bpfp}} catch{}}
     } catch(e){console.log('❌ Error imagen:',e)}
 
     try {
@@ -106,6 +102,7 @@ handler.before = async (_, { sock }) => {
   })
 }
 
+// ───── CONFIG DEL HANDLER ─────
 handler.command = ['welcome']
 handler.tags = ['on-off']
 handler.group = true
