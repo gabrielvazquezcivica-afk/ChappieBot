@@ -41,26 +41,25 @@ export const handler = async (m, { sock, pushName, plugins }) => {
   }
 
   // Construir menú
-  let menu = `╭─〔 🤖 ${botName.toUpperCase()} 〕─╮
+  let menu = `╭─[ 🤖 ${botName.toUpperCase()} ]─╮
 👋 ${saludo}
 👤 Usuario : ${pushName}
 🤖 Bot     : ${botName}
 👨‍💻 Dev   : ${dev}
 Total comandos: ${totalCommands}
-╰─────────────────────╯`
+╰──────────────────╯`
 
   for (const tag of Object.keys(categories)) {
     const emoji = tagEmoji[tag] || defaultEmoji
-    menu += `\n╔══〔 ${emoji} ${tag.toUpperCase()} 〕══╗`
+    menu += `\n╔══[ ${emoji} ${tag.toUpperCase()} ]══╗`
     for (const cmd of categories[tag]) {
       menu += `\n║ ${emoji}  .${cmd}`
     }
-    menu += `\n╚═════════════════╝`
+    menu += `\n╚═════════════╝`
   }
 
   menu += `\n╭─ 𝘾ℎ𝘢𝘱𝘱𝘪𝘦𝘉𝘰𝘵 • Menú ─╮`
 
-  // Enviar al grupo o privado usando siempre m.key.remoteJid
   try {
     await sock.sendMessage(m.key.remoteJid, { text: menu })
   } catch (e) {
@@ -70,7 +69,7 @@ Total comandos: ${totalCommands}
 
 handler.command = ['menu', 'help', 'comandos']
 handler.tags = ['info']
-handler.group = true // importante para grupos
+handler.group = true
 handler.botAdmin = false
 
 export default handler
@@ -80,4 +79,4 @@ function getGreeting() {
   if (hour >= 5 && hour < 12) return '☀️ Buenos días'
   if (hour >= 12 && hour < 19) return '🌤️ Buenas tardes'
   return '🌙 Buenas noches'
-      }
+}
