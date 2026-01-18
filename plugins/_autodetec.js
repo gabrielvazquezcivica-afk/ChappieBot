@@ -1,81 +1,56 @@
+let started = false
+
 export const handler = async () => {}
-handler.all = async (m, { sock }) => {
-  try {
-    const from = m.key.remoteJid
-    if (!from || !from.endsWith('@g.us')) return
 
-    const msg = m.message?.protocolMessage ||
-                m.message?.groupProtocolMessage
+handler.before = async (m, { sock }) => {
+  if (started) return
+  started = true
 
-    if (!msg) return
+  const botName = sock.user?.name || 'ChappieBot'
 
-    const metadata = await sock.groupMetadata(from)
-    const subject = metadata.subject
-    const actor = m.key.participant
-    const actorTag = actor ? `@${actor.split('@')[0]}` : 'Desconocido'
+  // ───── ADMIN / DEMOTE ─────
+  sock.ev.on('group-participants.update', async (update) => {
+    const { id, participants, action, author } = update
+    if (!id.endsWith('@g.us')) return
+    if (!['promote', 'demote'].includes(action)) return
 
-    let text = ''
+    const user = participants[0]
+    if (!user || !author) return
 
-    // ───── ABRIR / CERRAR GRUPO ─────
-    if (msg.type === 4) {
-      const isClosed = msg.groupChange?.announce
-      text = isClosed
-        ? `🔒 *Grupo cerrado*\n\n👮 Acción por: ${actorTag}`
-        : `🔓 *Grupo abierto*\n\n👮 Acción por: ${actorTag}`
-    }
+    const text =
+      action === 'promote'
+        ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+        : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
-    // ───── CAMBIO DE NOMBRE ─────
-    if (msg.type === 21) {
-      text =
-        `✏️ *Nombre del grupo actualizado*\n\n` +
-        `📌 Nuevo nombre:\n${subject}\n\n` +
-        `👮 Acción por: ${actorTag}`
-    }
-
-    // ───── CAMBIO DE DESCRIPCIÓN ─────
-    if (msg.type === 22) {
-      text =
-        `📝 *Descripción del grupo modificada*\n\n` +
-        `👮 Acción por: ${actorTag}`
-    }
-
-    // ───── ADMIN / DEMOTE ─────
-    if (msg.type === 25) {
-      const action = msg.groupChange?.promote
-      const users = msg.groupChange?.participants || []
-
-      for (const u of users) {
-        text = action
-          ? `⬆️ *Administrador asignado*\n\n👤 Usuario: @${u.split('@')[0]}\n👮 Por: ${actorTag}`
-          : `⬇️ *Administrador removido*\n\n👤 Usuario: @${u.split('@')[0]}\n👮 Por: ${actorTag}`
-
-        await sock.sendMessage(from, {
-          text,
-          mentions: [u, actor],
-          forwarded: true
-        })
-      }
-      return
-    }
-
-    // ───── FOTO DE GRUPO ─────
-    if (msg.type === 26) {
-      text =
-        `🖼️ *Foto del grupo actualizada*\n\n` +
-        `👮 Acción por: ${actorTag}`
-    }
-
-    if (!text) return
-
-    await sock.sendMessage(from, {
-      text,
-      mentions: actor ? [actor] : [],
+    await sock.sendMessage(id, {
+      text: text + `\n\n> ${botName}`,
+      mentions: [user, author],
       forwarded: true
     })
+  })
 
-  } catch (e) {
-    console.log('❌ autodetect error:', e)
-  }
+  // ───── CAMBIOS DEL GRUPO ─────
+  sock.ev.on('groups.update', async (updates) => {
+    for (const g of updates) {
+      const { id, subject, desc, announce, picture } = g
+      if (!id.endsWith('@g.us')) continue
+
+      let text = ''
+
+      if (announce === true) text = '🔒 *El grupo fue cerrado*'
+      if (announce === false) text = '🔓 *El grupo fue abierto*'
+      if (subject) text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
+      if (desc !== undefined) text = '📝 *Descripción del grupo modificada*'
+      if (picture) text = '🖼️ *Foto del grupo actualizada*'
+
+      if (!text) continue
+
+      await sock.sendMessage(id, {
+        text: text + `\n\n> ${botName}`,
+        forwarded: true
+      })
+    }
+  })
 }
 
 export default handler
