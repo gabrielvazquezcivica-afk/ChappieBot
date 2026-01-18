@@ -1,21 +1,12 @@
-export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
   // 🔒 Solo grupos
-  if (!isGroup) {
-    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
-  }
+  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  // 📌 Metadata
-  const metadata = await sock.groupMetadata(from)
-  const participants = metadata.participants
-  const admins = participants.filter(p => p.admin).map(p => p.id)
-
-  // 👮 Verificar admin
-  if (!admins.includes(sender)) {
-    return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
-  }
+  // 👮 Verificar admin usando isAdmin calculado en index.js
+  if (!isAdmin) return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
 
   // 🔹 Obtener link de invitación
   let inviteCode
@@ -32,13 +23,11 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
   try {
     const groupPicUrl = await sock.profilePictureUrl(from, 'image')
     if (groupPicUrl) image = { url: groupPicUrl }
-  } catch {
-    image = null
-  }
+  } catch {}
 
   const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
 
-  // 🔹 Enviar mensaje (con foto si existe, como reenviado)
+  // 🔹 Enviar mensaje (como reenviado)
   try {
     if (image) {
       await sock.sendMessage(from, {
