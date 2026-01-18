@@ -8,7 +8,8 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
 
   // 📌 Metadata
   const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
+  const participants = metadata.participants
+  const admins = participants.filter(p => p.admin).map(p => p.id)
 
   // 👮 Verificar admin
   if (!admins.includes(sender)) {
@@ -28,6 +29,11 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
       '.promote @usuario\n' +
       'o responde a su mensaje'
     )
+  }
+
+  // ⚠️ Ya es admin
+  if (admins.includes(user)) {
+    return reply('⚠️ Ese usuario *ya es administrador*')
   }
 
   try {
