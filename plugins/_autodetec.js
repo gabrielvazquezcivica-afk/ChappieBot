@@ -24,51 +24,44 @@ handler.before = async (m, { sock }) => {
 
     await sock.sendMessage(id, {
       text: text + `\n\n> ${botName}`,
-      mentions: [user, author]
+      mentions: [user, author],
+      contextInfo: {
+        forwardingScore: 999,
+        isForwarded: true
+      }
     })
   })
 
-  // ───── CAMBIOS DEL GRUPO ─────
+  // ───── CAMBIOS DEL GRUPO (solo texto, reenviado) ─────
   sock.ev.on('groups.update', async (updates) => {
     for (const g of updates) {
-      const {
-        id,
-        subject,
-        desc,
-        announce,
-        picture,
-        participants,
-        author
-      } = g
-
+      const { id, subject, desc, announce, author } = g
       if (!id.endsWith('@g.us')) continue
 
-      const actor = author || participants?.[0] || null
-
+      const actor = author || null
       let text = ''
-      let mentions = []
 
-      if (announce === true)
-        text = '🔒 *El grupo fue cerrado*'
-      else if (announce === false)
-        text = '🔓 *El grupo fue abierto*'
-      else if (subject)
-        text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
-      else if (desc !== undefined)
-        text = '📝 *Descripción del grupo modificada*'
-      else if (picture)
-        text = '🖼️ *Foto del grupo actualizada*'
+      // Solo texto, no foto
+      if (announce === true) text = '🔒 *El grupo fue cerrado*'
+      else if (announce === false) text = '🔓 *El grupo fue abierto*'
+      else if (subject) text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
+      else if (desc !== undefined) text = '📝 *Descripción del grupo modificada*'
 
       if (!text) continue
 
       if (actor) {
         text += `\n\n👮 Por: @${actor.split('@')[0]}`
-        mentions.push(actor)
       }
+
+      const mentions = actor ? [actor] : []
 
       await sock.sendMessage(id, {
         text: text + `\n\n> ${botName}`,
-        mentions
+        mentions,
+        contextInfo: {
+          forwardingScore: 999,
+          isForwarded: true
+        }
       })
     }
   })
