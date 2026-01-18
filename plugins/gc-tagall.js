@@ -1,45 +1,42 @@
 export const handler = async (m, { sock, from, isGroup, reply }) => {
-  if (!isGroup) return reply('❌ Solo se puede usar en grupos')
-
-  // Obtener metadata del grupo
-  const metadata = await sock.groupMetadata(from)
-  const participants = metadata.participants
+  const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
-  // Solo admins pueden ejecutar
-  const admins = participants.filter(p => p.admin).map(p => p.id)
+  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
+
+  const metadata = await sock.groupMetadata(from)
+  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
+
   if (!admins.includes(m.key.participant)) {
-    return reply('❌ Solo admins pueden usar este comando')
+    return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
-  // Emoji fijo para cada participante
-  const emoji = '👤'
+  const participants = metadata.participants
 
-  // Construir lista de menciones
-  const mentions = participants.map(p => p.id)
-  let message = `🏜️ *Miembros de ${metadata.subject}* (${participants.length}):\n\n`
+  // Reacción al comando
+  await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })
 
-  participants.forEach((p, i) => {
-    const name = p?.name || p.id.split('@')[0]
-    message += `${emoji} ${i + 1}. @${p.id.split('@')[0]}\n`
-  })
+  // Construir lista con nombre y JID
+  let text = `🍁 Lista de miembros del grupo "${metadata.subject}":\n\n`
+  const mentions = []
 
-  // Mandar mensaje mencionando a todos
+  for (const p of participants) {
+    const name = p?.notify || p?.id.split('@')[0]
+    text += `🍁 ${name}\n`
+    mentions.push(p.id)
+  }
+
+  text += `\n> ${botName}`
+
   await sock.sendMessage(
     from,
-    { text: message, mentions },
+    { text, mentions },
     { quoted: m }
   )
-
-  // Reaccionar al mensaje original
-  await sock.sendMessage(from, {
-    react: { text: '💫', key: m.key }
-  })
 }
 
 handler.command = ['todos']
 handler.tags = ['group']
-handler.help = ['todos']
 handler.group = true
 handler.admin = true
 handler.menu = true
