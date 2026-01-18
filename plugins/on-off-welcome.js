@@ -18,25 +18,45 @@ function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
-// ───── HANDLER ─────
+// ───── HANDLER PRINCIPAL ─────
 let started = false
 
-export const handler = async () => {}
+export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, reply }) => {
+  const botName = sock.user?.name || 'ChappieBot'
+  const settings = loadSettings()
+  if (!settings[from]) settings[from] = {}
 
-handler.before = async (m, { sock }) => {
+  // ───── COMANDO ON/OFF ─────
+  if (command === 'welcome') {
+    if (!isGroup) return reply('⚠️ Solo funciona en grupos')
+    if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
+    if (!args || args.length === 0) return reply('⚠️ Uso: .welcome on | off')
+
+    const state = args[0].toLowerCase()
+    if (!['on','off'].includes(state)) return reply('⚠️ Uso: .welcome on | off')
+
+    if (settings[from].welcome === (state === 'on')) {
+      return reply(`⚠️ El welcome ya estaba *${state.toUpperCase()}*`)
+    }
+
+    settings[from].welcome = state === 'on'
+    saveSettings(settings)
+
+    return reply(`✅ Welcome ahora está *${state.toUpperCase()}*`)
+  }
+}
+
+// ───── DETECCIÓN DE ENTRADAS/SALIDAS ─────
+handler.before = async (_, { sock }) => {
   if (started) return
   started = true
 
-  const botName = sock.user?.name || 'ChappieBot'
-
-  sock.ev.on('group-participants.update', async (update) => {
+  sock.ev.on('group-participants.update', async update => {
     const { id, participants, action } = update
     if (!id.endsWith('@g.us')) return
 
     const settings = loadSettings()
     const groupSettings = settings[id] || {}
-
-    // Si welcome está apagado, no hace nada
     if (!groupSettings.welcome) return
 
     const user = participants?.[0]
@@ -45,79 +65,32 @@ handler.before = async (m, { sock }) => {
     const metadata = await sock.groupMetadata(id)
     const totalMembers = metadata.participants.length
 
-    // ───── TEXTO PERSONALIZADO O POR DEFECTO ─────
     let text = ''
     if (action === 'add') {
       text = groupSettings.customWelcome ||
-        `🎉 ¡Bienvenido al grupo!\n👤 @${user.split('@')[0]}\n👥 Miembros: ${totalMembers}\n> ${botName}`
+        `🎉 ¡Bienvenido al grupo!\n👤 @${user.split('@')[0]}\n👥 Miembros: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     } else if (action === 'remove') {
       text = groupSettings.customBye ||
-        `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${botName}`
+        `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     }
 
-    // ───── OBTENER FOTO ─────
+    // ───── FOTO ─────
     let image = null
     try {
-      // Foto del usuario
-      try {
-        const profilePicUrl = await sock.profilePictureUrl(user, 'image')
-        if (profilePicUrl) image = { url: profilePicUrl }
-      } catch {}
+      try { const pfp = await sock.profilePictureUrl(user,'image'); if(pfp) image={url:pfp} } catch{}
+      if(!image){try{const gpfp = await sock.profilePictureUrl(id,'image'); if(gpfp) image={url:gpfp}} catch{}}
+      if(!image){try{const bpfp = await sock.profilePictureUrl(sock.user.id,'image'); if(bpfp) image={url:bpfp}} catch{}}
+    } catch(e){console.log('❌ Error imagen:',e)}
 
-      // Si no hay, foto del grupo
-      if (!image) {
-        try {
-          const groupPicUrl = await sock.profilePictureUrl(id, 'image')
-          if (groupPicUrl) image = { url: groupPicUrl }
-        } catch {}
-      }
-
-      // Si tampoco, foto del bot
-      if (!image) {
-        try {
-          const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
-          if (botPicUrl) image = { url: botPicUrl }
-        } catch {}
-      }
-    } catch (e) {
-      console.log('❌ Error obteniendo imagen:', e)
-    }
-
-    // ───── ENVIAR MENSAJE ─────
     try {
       const mentions = [user]
       if (image) {
-        await sock.sendMessage(id, { image, caption: text, mentions, quoted: m })
+        await sock.sendMessage(id, { image, caption:text, mentions, quoted:update })
       } else {
-        await sock.sendMessage(id, { text, mentions, quoted: m })
+        await sock.sendMessage(id, { text, mentions, quoted:update })
       }
-    } catch (e) {
-      console.log('❌ Error welcome:', e)
-    }
+    } catch(e){console.log('❌ Error welcome:',e)}
   })
-}
-
-// ───── COMANDO ON/OFF ─────
-export const toggleWelcome = async (m, { sock, from, isGroup, isAdmin, reply, args }) => {
-  if (!isGroup) return reply('⚠️ Solo funciona en grupos')
-  if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
-
-  const settings = loadSettings()
-  if (!settings[from]) settings[from] = {}
-
-  const state = args[0]?.toLowerCase()
-  if (!['on', 'off'].includes(state)) {
-    return reply('⚠️ Uso: .welcome on | off')
-  }
-
-  if (settings[from].welcome === (state === 'on')) {
-    return reply(`⚠️ El welcome ya estaba *${state.toUpperCase()}*`)
-  }
-
-  settings[from].welcome = state === 'on'
-  saveSettings(settings)
-
-  return reply(`✅ Welcome ahora está *${state.toUpperCase()}*`)
 }
 
 handler.command = ['welcome']
