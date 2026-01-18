@@ -1,4 +1,4 @@
-export const handler = async (m, { sock, from, isGroup, isAdmin, isOwner, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
@@ -13,8 +13,8 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, isOwner, reply 
     return reply('⚠️ Responde al mensaje que deseas borrar')
   }
 
-  // 🔹 Verificar admin usando index.js
-  if (!isAdmin && !isOwner) {
+  // 🔹 Verificar admin según index.js
+  if (!isAdmin) {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
