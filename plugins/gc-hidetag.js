@@ -4,27 +4,32 @@ function footer(botName) {
   return `\n\n> ${botName}`
 }
 
-export const handler = async (m, { sock, from, isGroup, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, isOwner, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
-
-  if (!admins.includes(m.key.participant)) {
+  // 🔹 Verificar admin o owner según index.js
+  if (!isAdmin && !isOwner) {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
-  const participants = metadata.participants.map(p => p.id)
+  // 🔹 Obtener todos los participantes
+  let participants = []
+  try {
+    const metadata = await sock.groupMetadata(from)
+    participants = metadata.participants.map(p => p.id)
+  } catch {
+    participants = [m.key.participant] // fallback
+  }
 
   const rawText =
     m.message?.conversation ||
     m.message?.extendedTextMessage?.text ||
     ''
 
-  const cleanText = rawText.slice(2).trim() // quita ".n"
+  const cleanText = rawText.startsWith(global.prefix) ? rawText.slice(2).trim() : rawText.trim() // quita ".n" o prefijo
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const quoted = ctx?.quotedMessage
