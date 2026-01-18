@@ -15,30 +15,40 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
-  // 🔗 Obtener link del grupo
-  const link = await sock.groupInviteCode(from)
-  const invite = `https://chat.whatsapp.com/${link}`
+  // 🔹 Obtener link
+  const inviteCode = await sock.groupInviteCode(from)
+  const link = `https://chat.whatsapp.com/${inviteCode}`
 
-  // 🖼️ Obtener foto del grupo
-  let img
+  // 🔹 Obtener foto del grupo
+  let image
   try {
-    img = await sock.profilePictureUrl(from, 'image')
+    image = await sock.profilePictureUrl(from, 'image')
   } catch {
-    img = null
+    image = null
   }
 
-  // 📤 Enviar sin mostrar quién lo pidió
-  await sock.sendMessage(from, {
-    image: img ? { url: img } : undefined,
-    caption:
-      `🔗 *Link del grupo*\n\n` +
-      `${invite}\n\n` +
-      `> ${botName}`,
-    contextInfo: {
-      forwardingScore: 999,
-      isForwarded: true
-    }
-  })
+  const text =
+    `🔗 *Link del grupo*\n\n` +
+    `${link}\n\n` +
+    `> ${botName}`
+
+  // 🔹 Enviar mensaje
+  if (image) {
+    await sock.sendMessage(
+      from,
+      {
+        image: { url: image },
+        caption: text
+      },
+      { quoted: m }
+    )
+  } else {
+    await sock.sendMessage(
+      from,
+      { text },
+      { quoted: m }
+    )
+  }
 }
 
 handler.command = ['link']
