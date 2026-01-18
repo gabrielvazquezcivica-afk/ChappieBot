@@ -5,7 +5,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   // 🔒 Solo grupos
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  // 👮 Verificar admin usando isAdmin calculado en index.js
+  // 👮 Verificar admin usando isAdmin del index
   if (!isAdmin) return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
 
   // 🔹 Obtener link de invitación
@@ -27,18 +27,18 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
 
   const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
 
-  // 🔹 Enviar mensaje (como reenviado)
+  // 🔹 Enviar mensaje como citado
   try {
     if (image) {
       await sock.sendMessage(from, {
         image,
         caption: text,
-        contextInfo: { forwardingScore: 9999, isForwarded: true }
+        quoted: m
       })
     } else {
       await sock.sendMessage(from, {
         text,
-        contextInfo: { forwardingScore: 9999, isForwarded: true }
+        quoted: m
       })
     }
   } catch (e) {
