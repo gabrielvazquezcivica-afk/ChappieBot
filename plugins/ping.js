@@ -4,7 +4,7 @@ export const handler = async (m, { sock, from }) => {
   })
 }
 
-handler.command = ['ping', 'p']
+handler.command = ['ping']
 handler.help = ['ping']
 handler.tags = ['info']
 handler.menu = true
