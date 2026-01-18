@@ -47,37 +47,35 @@ handler.before = async (m, { sock }) => {
     // ───── TEXTO PERSONALIZADO O POR DEFECTO ─────
     let text = ''
     if (action === 'add') {
-      text = groupSettings.customWelcome || 
+      text = groupSettings.customWelcome ||
         `🎉 ¡Bienvenido al grupo!\n👤 @${user.split('@')[0]}\n👥 Miembros: ${totalMembers}\n> ${botName}`
     } else if (action === 'remove') {
-      text = groupSettings.customBye || 
+      text = groupSettings.customBye ||
         `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${botName}`
     }
 
-    // ───── OBTENER FOTO SOLO PARA ENTRADAS/SALIDAS ─────
+    // ───── OBTENER FOTO PARA ENTRADAS Y SALIDAS ─────
     let image = null
     try {
-      if (action === 'add') {
-        // Foto del usuario
-        let profilePicUrl = null
-        try { profilePicUrl = await sock.profilePictureUrl(user, 'image') } catch {}
-        if (profilePicUrl) image = { url: profilePicUrl }
+      // Foto del usuario
+      let profilePicUrl = null
+      try { profilePicUrl = await sock.profilePictureUrl(user, 'image') } catch {}
+      if (profilePicUrl) image = { url: profilePicUrl }
 
-        // Si no tiene, foto del grupo
-        if (!image) {
-          try {
-            const groupPicUrl = await sock.profilePictureUrl(id, 'image')
-            if (groupPicUrl) image = { url: groupPicUrl }
-          } catch {}
-        }
+      // Si no tiene, foto del grupo
+      if (!image) {
+        try {
+          const groupPicUrl = await sock.profilePictureUrl(id, 'image')
+          if (groupPicUrl) image = { url: groupPicUrl }
+        } catch {}
+      }
 
-        // Si tampoco, foto del bot
-        if (!image) {
-          try {
-            const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
-            if (botPicUrl) image = { url: botPicUrl }
-          } catch {}
-        }
+      // Si tampoco, foto del bot
+      if (!image) {
+        try {
+          const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
+          if (botPicUrl) image = { url: botPicUrl }
+        } catch {}
       }
     } catch (e) {
       console.log('❌ Error obteniendo imagen:', e)
