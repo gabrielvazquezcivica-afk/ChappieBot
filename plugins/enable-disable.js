@@ -19,10 +19,11 @@ function saveSettings(settings) {
 }
 
 // ───── HANDLER ─────
-export const handler = async (m, { from, sock, args, isGroup, isAdmin, reply }) => {
+export const handler = async (m, { from, sock, args, isGroup, isAdmin, isOwner, reply }) => {
   if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
-  if (!isAdmin) return reply('❌ Solo los administradores pueden usar este comando')
+  // Solo admins o owner pueden cambiar modos
+  if (!isAdmin && !isOwner) return reply('❌ Solo los administradores pueden usar este comando')
 
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
 
