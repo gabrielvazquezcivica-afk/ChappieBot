@@ -1,8 +1,11 @@
-export const handler = async (m, { plugins, pushName, sock }) => {
-
+export const handler = async (m, { sock, pushName, plugins }) => {
+  // Validar plugins
   if (!Array.isArray(plugins) || plugins.length === 0) {
     return await sock.sendMessage(m.key.remoteJid, { text: '❌ No hay plugins cargados.' })
   }
+
+  // Reacción rápida
+  await sock.sendMessage(m.key.remoteJid, { react: { text: '⚡', key: m.key } })
 
   const botName = 'ChappieBot'
   const dev = 'SoyGabo'
