@@ -54,7 +54,6 @@ async function loadPlugins () {
       const plugin = await import(
         pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
       )
-      // si exporta default o handler, lo añadimos
       plugins.push(plugin.default ?? plugin)
     } catch (e) {
       console.log(chalk.red('❌ Error plugin:'), file, e)
@@ -78,6 +77,18 @@ async function startBot () {
   await loadPlugins()
 
   const sock = await connectBot()
+
+  // 🔹 EJECUTAR handler.before (AUTODETECT, WATCHERS, ETC)
+  for (const p of plugins) {
+    const h = p.handler ?? p
+    if (typeof h?.before === 'function') {
+      try {
+        await h.before(null, { sock })
+      } catch (e) {
+        console.log(chalk.red('❌ Error before plugin:'), e)
+      }
+    }
+  }
 
   sock.ev.on('connection.update', update => {
     const { connection, lastDisconnect } = update
