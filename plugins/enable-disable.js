@@ -18,26 +18,42 @@ function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
-// ───── HANDLER ─────
-export const handler = async (m, { from, sock, command, args = [], isGroup, reply, isAdmin }) => {
+// ───── HANDLER ON/OFF ─────
+export const handler = async (m, { from, sock, args, isGroup, reply, sender }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
-  if (!isAdmin) return reply('⚠️ Solo los administradores pueden usar este comando')
 
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
+  if (!args || args.length < 2) return reply(
+    `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on`
+  )
 
-  // El comando mismo es el modo, el primer argumento es on/off
-  const mode = command.toLowerCase()
-  const state = args[0]?.toLowerCase()
+  const mode = args[0]?.toLowerCase()
+  const state = args[1]?.toLowerCase()
 
-  if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
-  if (!state || !['on', 'off'].includes(state)) return reply(`⚠️ Uso correcto: .${mode} <on/off>\nEjemplo: .${mode} on`)
+  if (!modes.includes(mode)) return reply(
+    `⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`
+  )
+  if (!['on', 'off'].includes(state)) return reply(
+    '⚠️ Estado inválido. Usa "on" o "off"'
+  )
 
+  // ───── VERIFICAR ADMIN ─────
+  let groupMeta
+  try {
+    groupMeta = await sock.groupMetadata(from)
+  } catch {
+    return reply('❌ No pude obtener info del grupo')
+  }
+  const admins = groupMeta.participants.filter(p => p.admin).map(p => p.id)
+  if (!admins.includes(sender)) return reply('🚫 Solo los administradores pueden usar este comando')
+
+  // ───── ACTUALIZAR SETTINGS ─────
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
 
-  const current = settings[from][mode] === true ? 'on' : 'off'
+  const current = settings[from][mode] ? 'on' : 'off'
   if (current === state) {
-    return reply(`⚠️ El modo "${mode}" ya estaba ${state.toUpperCase()}`)
+    return reply(`⚠️ El modo "${mode}" ya estaba *${state.toUpperCase()}*`)
   }
 
   settings[from][mode] = state === 'on'
