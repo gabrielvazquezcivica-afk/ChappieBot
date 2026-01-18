@@ -2,28 +2,55 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
-  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
+  // 🔒 Solo grupos
+  if (!isGroup) {
+    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
+  }
 
-  if (!isAdmin) return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
+  // 👮 Solo admins pueden usarlo
+  if (!isAdmin) {
+    return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
+  }
 
-  // Aquí va el resto de tu comando, por ejemplo obtener link:
-  let inviteCode
-  try { inviteCode = await sock.groupInviteCode(from) } catch { return reply('❌ No pude obtener el link del grupo') }
-
-  const link = `https://chat.whatsapp.com/${inviteCode}`
-
-  let image = null
   try {
-    const groupPic = await sock.profilePictureUrl(from, 'image')
-    if (groupPic) image = { url: groupPic }
-  } catch {}
+    // 🔹 Obtener link del grupo
+    const inviteCode = await sock.groupInviteCode(from)
+    const link = `https://chat.whatsapp.com/${inviteCode}`
 
-  const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
+    // 🔹 Obtener foto del grupo
+    let image = null
+    try {
+      image = await sock.profilePictureUrl(from, 'image')
+    } catch {
+      image = null
+    }
 
-  if (image) {
-    await sock.sendMessage(from, { image, caption: text }, { quoted: m })
-  } else {
-    await sock.sendMessage(from, { text }, { quoted: m })
+    const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
+
+    // 🔹 Enviar mensaje como si fuera reenviado
+    if (image) {
+      await sock.sendMessage(
+        from,
+        {
+          image: { url: image },
+          caption: text,
+          contextInfo: { forwardingScore: 9999, isForwarded: true }
+        },
+        { quoted: m }
+      )
+    } else {
+      await sock.sendMessage(
+        from,
+        {
+          text,
+          contextInfo: { forwardingScore: 9999, isForwarded: true }
+        },
+        { quoted: m }
+      )
+    }
+  } catch (e) {
+    console.log('❌ Error link:', e)
+    reply(msgs.error || '❌ No pude obtener el link del grupo')
   }
 }
 
