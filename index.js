@@ -57,7 +57,7 @@ async function loadPlugins () {
         plugins.push(plugin.default ?? plugin)
       }
     } catch (e) {
-      console.log(chalk.red('❌ Error plugin:'), file)
+      console.log(chalk.red('❌ Error plugin:'), file, e)
     }
   }
 
