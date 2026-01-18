@@ -1,21 +1,22 @@
-export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
+export const handler = async (m, { sock, from, isGroup, sender, isAdmin, isOwner, reply }) => {
   const msgs = global.config.messages || {}
+  const botName = sock.user?.name || 'ChappieBot'
 
   // 🔒 Solo grupos
   if (!isGroup) {
     return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
   }
 
-  // 📌 Metadata
-  const metadata = await sock.groupMetadata(from)
-  const participants = metadata.participants
-  const admins = participants.filter(p => p.admin).map(p => p.id)
-  const groupOwner = metadata.owner
-
-  // 👮 Verificar admin
-  if (!admins.includes(sender)) {
+  // 👮 Verificar admin usando index.js
+  if (!isAdmin && !isOwner) {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
+
+  // 📌 Metadata para participantes y owner
+  const metadata = await sock.groupMetadata(from)
+  const groupOwner = metadata.owner
+  const participants = metadata.participants.map(p => p.id)
+  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
 
   // 🎯 Usuario objetivo (mención o reply)
   const ctx = m.message?.extendedTextMessage?.contextInfo
@@ -59,7 +60,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
           `🔽 *Administrador removido*\n\n` +
           `👤 Usuario: @${user.split('@')[0]}\n` +
           `👮 Quitado por: @${sender.split('@')[0]}\n\n` +
-          `> ${sock.user?.name || 'ChappieBot'}`,
+          `> ${botName}`,
         mentions: [user, sender]
       },
       { quoted: m }
