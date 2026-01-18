@@ -1,56 +1,79 @@
-export const handler = async (m, {
-  sock,
-  from,
-  sender,
-  isGroup,
-  reply
-}) => {
-  const msgs = global.config.messages
+// ───── HELPERS ─────
+function normalizeJid (u) {
+  return typeof u === 'string' ? u : u?.id
+}
 
-  // ───── SOLO GRUPOS ─────
-  if (!isGroup) return reply(msgs.group)
+function onlyNumber (jid = '') {
+  return normalizeJid(jid)?.replace(/[^0-9]/g, '')
+}
 
-  // ───── SOLO OWNER ─────
-  if (!global.config.owner.jid.includes(sender)) {
-    return reply(msgs.owner)
+// ───── COMANDO AUTOADMIN ─────
+export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
+  const msgs = global.config.messages || {}
+
+  if (!isGroup) {
+    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
   }
 
-  // ───── OBTENER METADATOS ─────
-  const metadata = await sock.groupMetadata(from)
-  const participants = metadata.participants
+  // 🔹 OWNER del bot desde config
+  const owners = global.config.owner?.numbers || []
+  const senderNum = onlyNumber(sender)
 
-  const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'
-  const groupOwner = metadata.owner || metadata.subjectOwner
-
-  // ───── VALIDACIONES ─────
-  if (!groupOwner) {
-    return reply('❌ No se pudo detectar el creador del grupo')
+  if (!owners.includes(senderNum)) {
+    return reply(msgs.owner || '⚠️ Este comando es solo para el propietario')
   }
 
-  const botIsAdmin = participants.find(
-    p => p.id === botJid && (p.admin === 'admin' || p.admin === 'superadmin')
+  let metadata
+  try {
+    metadata = await sock.groupMetadata(from)
+  } catch {
+    return reply(msgs.error || '❌ No pude obtener información del grupo')
+  }
+
+  const participant = metadata.participants.find(
+    p => onlyNumber(p.id) === senderNum
   )
 
-  if (!botIsAdmin) {
-    return reply('⚠️ Dame administrador y vuelve a usar el comando')
+  if (!participant) {
+    return reply('❌ El owner no está en el grupo')
   }
 
-  const ownerIsAdmin = participants.find(
-    p => p.id === groupOwner && (p.admin === 'admin' || p.admin === 'superadmin')
-  )
-
-  if (ownerIsAdmin) {
-    return reply('ℹ️ El creador del grupo ya es administrador')
+  if (participant.admin) {
+    return reply(
+`╭─〔 👑 AUTO ADMIN 〕
+│ El OWNER ya es administrador
+│ Estado: OK
+╰──────────────`
+    )
   }
 
-  // ───── PROMOVER OWNER ─────
-  await sock.groupParticipantsUpdate(from, [groupOwner], 'promote')
+  try {
+    await sock.groupParticipantsUpdate(from, [participant.id], 'promote')
 
-  return reply('👑 Administrador asignado correctamente al creador del grupo')
+    await sock.sendMessage(from, {
+      react: { text: '👑', key: m.key }
+    })
+
+    reply(
+`╭─〔 👑 AUTO ADMIN 〕
+│ OWNER promovido correctamente
+│ Rol: ADMIN
+╰──────────────`
+    )
+  } catch {
+    reply(
+`╭─〔 ❌ ERROR 〕
+│ No pude promover al OWNER
+│ El bot no es admin
+╰────────────`
+    )
+  }
 }
 
 handler.command = ['autoadmin']
-handler.group = true
+handler.tags = ['owner']
 handler.owner = true
+handler.group = true
 handler.menu = true
+
 export default handler
