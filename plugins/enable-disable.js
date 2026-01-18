@@ -19,18 +19,16 @@ function saveSettings(settings) {
 }
 
 // ───── COMANDO ─────
-export const handler = async (m, { from, sock, args, isGroup, reply }) => {
+export const handler = async (m, { from, sock, args = [], isGroup, sender, reply, command }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
 
+  // Solo admins pueden usar
   const metadata = await sock.groupMetadata(from)
   const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
-  if (!admins.includes(m.key.participant)) {
-    return reply('⚠️ Solo los administradores pueden usar este comando')
-  }
+  if (!admins.includes(sender)) return reply('⚠️ Solo los administradores pueden usar este comando')
 
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
-
-  const mode = m.command?.toLowerCase()
+  const mode = command?.toLowerCase()
   if (!modes.includes(mode)) return
 
   if (!args[0]) return reply(`⚠️ Uso correcto: .${mode} on/off`)
