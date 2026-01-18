@@ -22,17 +22,18 @@ handler.before = async (m, { sock }) => {
         ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
         : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
-    // ⚠️
     await sock.sendMessage(id, {
       text: `${text}\n\n> ${botName}`,
-      mentions: [user, author]
+      mentions: [user, author],
+      // 🔹 Solo texto reenviado
+      contextInfo: { isForwarded: true, forwardingScore: 999 }
     })
   })
 
   // ───── CAMBIOS DEL GRUPO ─────
   sock.ev.on('groups.update', async (updates) => {
     for (const g of updates) {
-      const { id, subject, desc, announce, author } = g
+      const { id, announce, subject, desc, author } = g
       if (!id.endsWith('@g.us')) continue
 
       const actor = author || null
@@ -48,10 +49,10 @@ handler.before = async (m, { sock }) => {
       if (actor) text += `\n\n👮 Por: @${actor.split('@')[0]}`
       const mentions = actor ? [actor] : []
 
-      // 
       await sock.sendMessage(id, {
         text: `${text}\n\n> ${botName}`,
-        mentions
+        mentions,
+        contextInfo: { isForwarded: true, forwardingScore: 999 }
       })
     }
   })
