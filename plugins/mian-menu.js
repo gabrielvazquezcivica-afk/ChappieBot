@@ -104,9 +104,9 @@ Total de comandos: ${totalCommands}\n`
   )
 }
 
-handler.command = ['menu', 'help', 'comandos']
+handler.command = ['menu']
 handler.tags = ['info']
-handler.group = null // funciona en grupo y privado
+handler.group = null
 
 export default handler
 
