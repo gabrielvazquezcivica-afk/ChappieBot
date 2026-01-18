@@ -19,27 +19,17 @@ function saveSettings(settings) {
 }
 
 // ───── HANDLER ON/OFF ─────
-export const handler = async (m, { from, sock, args: rawArgs, isGroup, reply, sender }) => {
+export const handler = async (m, { from, sock, command, args, isGroup, reply, sender }) => {
   if (!isGroup) return reply('❌ Solo funciona en grupos')
 
-  // ⚠️ Parsear args correctamente
-  const text = (m.message?.conversation || m.message?.extendedTextMessage?.text || '').trim()
-  const args = rawArgs?.length ? rawArgs : text.slice(global.prefix.length).trim().split(/\s+/).slice(1)
-
-  if (!args || args.length < 2) return reply(
-    `⚠️ Uso correcto: .<modo> <on/off>\nEjemplo: .welcome on`
-  )
-
   const modes = ['welcome', 'antilink', 'nsfw', 'modoadmin', 'anti-spam']
-  const mode = args[0]?.toLowerCase()
-  const state = args[1]?.toLowerCase()
 
-  if (!modes.includes(mode)) return reply(
-    `⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`
-  )
-  if (!['on', 'off'].includes(state)) return reply(
-    '⚠️ Estado inválido. Usa "on" o "off"'
-  )
+  // args[0] será el estado, command será el modo
+  const mode = command.toLowerCase()
+  const state = args?.[0]?.toLowerCase()
+
+  if (!modes.includes(mode)) return reply(`⚠️ Modo inválido. Modos disponibles: ${modes.join(', ')}`)
+  if (!['on', 'off'].includes(state)) return reply(`⚠️ Estado inválido. Usa "on" o "off"`)
 
   // ───── VERIFICAR ADMIN ─────
   let groupMeta
