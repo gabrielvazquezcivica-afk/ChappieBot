@@ -45,7 +45,7 @@ export const handler = async (m, { sock, reply, isGroup, sender }) => {
   }
 }
 
-handler.command = ['kick', 'expulsar']
+handler.command = ['kick']
 handler.tags = ['group']
 handler.group = true
 handler.admin = true
