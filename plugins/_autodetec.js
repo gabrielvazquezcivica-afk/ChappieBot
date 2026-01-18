@@ -25,14 +25,11 @@ handler.before = async (m, { sock }) => {
     await sock.sendMessage(id, {
       text: text + `\n\n> ${botName}`,
       mentions: [user, author],
-      contextInfo: {
-        forwardingScore: 999,
-        isForwarded: true
-      }
+      contextInfo: { forwardingScore: 999, isForwarded: true }
     })
   })
 
-  // ───── CAMBIOS DEL GRUPO (solo texto, reenviado) ─────
+  // ───── CAMBIOS DEL GRUPO (solo texto, sin foto) ─────
   sock.ev.on('groups.update', async (updates) => {
     for (const g of updates) {
       const { id, subject, desc, announce, author } = g
@@ -41,7 +38,7 @@ handler.before = async (m, { sock }) => {
       const actor = author || null
       let text = ''
 
-      // Solo texto, no foto
+      // Solo texto
       if (announce === true) text = '🔒 *El grupo fue cerrado*'
       else if (announce === false) text = '🔓 *El grupo fue abierto*'
       else if (subject) text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
@@ -49,19 +46,14 @@ handler.before = async (m, { sock }) => {
 
       if (!text) continue
 
-      if (actor) {
-        text += `\n\n👮 Por: @${actor.split('@')[0]}`
-      }
+      if (actor) text += `\n\n👮 Por: @${actor.split('@')[0]}`
 
       const mentions = actor ? [actor] : []
 
       await sock.sendMessage(id, {
         text: text + `\n\n> ${botName}`,
         mentions,
-        contextInfo: {
-          forwardingScore: 999,
-          isForwarded: true
-        }
+        contextInfo: { forwardingScore: 999, isForwarded: true }
       })
     }
   })
