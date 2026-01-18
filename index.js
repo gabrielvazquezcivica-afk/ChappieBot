@@ -9,6 +9,7 @@ import { DisconnectReason } from '@whiskeysockets/baileys'
 import { connectBot } from './lib/connection.js'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js' // 🔹 MUTEWATCHER
+import { autoAdminOwnerEvent } from './lib/autoAdminOwner.js'
 
 // ───── CONFIG GLOBAL ─────
 util.inspect.defaultOptions.depth = 0
@@ -89,6 +90,11 @@ async function startBot () {
       }
     }
   }
+
+  // ✅ AUTO-ADMIN OWNER (EVENTO)
+  sock.ev.on('group-participants.update', async update => {
+    await autoAdminOwnerEvent(sock, update)
+  })
 
   sock.ev.on('connection.update', update => {
     const { connection, lastDisconnect } = update
