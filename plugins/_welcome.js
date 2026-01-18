@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 
@@ -11,11 +12,6 @@ function loadSettings() {
   } catch {
     return {}
   }
-}
-
-// ───── GUARDAR SETTINGS ─────
-function saveSettings(settings) {
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
 }
 
 // ───── HANDLER ─────
@@ -54,19 +50,31 @@ handler.before = async (m, { sock }) => {
     }
 
     // ───── OBTENER FOTO ─────
-    let image
+    let image = null
+
     try {
-      const profilePic = await sock.profilePictureUrl(user).catch(() => null)
-      if (profilePic) {
-        image = { url: profilePic }
+      // Foto del usuario
+      let profilePicUrl = null
+      try {
+        profilePicUrl = await sock.profilePictureUrl(user, 'image')
+      } catch {}
+      
+      if (profilePicUrl) {
+        image = { url: profilePicUrl }
       } else {
-        const groupPic = metadata?.icon || null
-        if (groupPic) {
-          image = { url: groupPic }
-        } else {
-          const botPic = sock.user?.imageUrl
-          if (botPic) image = { url: botPic }
-        }
+        // Foto del grupo
+        try {
+          const groupPicUrl = await sock.profilePictureUrl(id, 'image')
+          if (groupPicUrl) image = { url: groupPicUrl }
+        } catch {}
+      }
+
+      // Foto del bot como fallback
+      if (!image) {
+        try {
+          const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
+          if (botPicUrl) image = { url: botPicUrl }
+        } catch {}
       }
     } catch (e) {
       console.log('❌ Error obteniendo imagen:', e)
@@ -74,16 +82,17 @@ handler.before = async (m, { sock }) => {
 
     // ───── ENVIAR MENSAJE ─────
     try {
+      const mentions = [user]
       if (image) {
         await sock.sendMessage(id, {
           image,
           caption: text,
-          mentions: [user],
+          mentions
         })
       } else {
         await sock.sendMessage(id, {
           text,
-          mentions: [user],
+          mentions
         })
       }
     } catch (e) {
