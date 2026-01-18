@@ -1,76 +1,77 @@
-// 🔔 AUTO-DETECT SOLO TEXTO (PROMOTE/DEMOTE, CAMBIOS DE GRUPO)
+let started = false
 
-export function initAutoDetect(sock) {
+export const handler = async () => {}
 
-  // 👑 PROMOTE / DEMOTE
+handler.before = async (m, { sock }) => {
+  if (started) return
+  started = true
+
+  const botName = sock.user?.name || 'ChappieBot'
+
+  // ───── ADMIN / DEMOTE ─────
   sock.ev.on('group-participants.update', async (update) => {
-    const { id, action, participants, actor } = update
-
+    const { id, participants, action, author } = update
     if (!id.endsWith('@g.us')) return
     if (!['promote', 'demote'].includes(action)) return
-    if (!actor) return // si no hay actor → fue el bot o sistema
 
-    const target = participants?.[0]
-    if (!target) return
+    const user = participants?.[0]
+    if (!user || !author) return
 
     const text =
       action === 'promote'
-        ? `👑 @${target.split('@')[0]} ahora es administrador.\n\n👤 Acción realizada por @${actor.split('@')[0]}`
-        : `🧹 @${target.split('@')[0]} ya no es administrador.\n\n👤 Acción realizada por @${actor.split('@')[0]}`
+        ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+        : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
     await sock.sendMessage(id, {
-      text,
-      mentions: [target, actor],
-      contextInfo: {
-        forwardingScore: 9999,
-        isForwarded: true
-      }
+      text: text + `\n\n> ${botName}`,
+      mentions: [user, author]
     })
   })
 
-  // ⚙️ CAMBIOS DEL GRUPO (abrir/cerrar, nombre, descripción, foto)
+  // ───── CAMBIOS DEL GRUPO ─────
   sock.ev.on('groups.update', async (updates) => {
-    for (const u of updates) {
-      const { id, announce, subject, desc, picture, author } = u
+    for (const g of updates) {
+      const {
+        id,
+        subject,
+        desc,
+        announce,
+        picture,
+        participants,
+        author
+      } = g
+
       if (!id.endsWith('@g.us')) continue
-      if (!author) continue // si no hay autor → bot o sistema
 
-      const mentions = [author]
-      const botName = sock.user?.name || 'ChappieBot'
+      const actor = author || participants?.[0] || null
+
       let text = ''
+      let mentions = []
 
-      // 🔒 ABRIR / CERRAR GRUPO
-      if (announce !== undefined) {
-        text = announce
-          ? `🔒 *El grupo fue cerrado (solo admins pueden enviar mensajes)*\n\n👤 Acción realizada por @${author.split('@')[0]}`
-          : `🔓 *El grupo fue abierto (todos pueden enviar mensajes)*\n\n👤 Acción realizada por @${author.split('@')[0]}`
-      }
-
-      // ✏️ CAMBIO DE NOMBRE
-      if (subject) {
-        text = `✏️ *Nombre del grupo cambiado*\n\n📛 Nuevo nombre: *${subject}*\n👤 Acción realizada por @${author.split('@')[0]}`
-      }
-
-      // 📝 CAMBIO DE DESCRIPCIÓN
-      if (desc !== undefined) {
-        text = `📝 *Descripción del grupo modificada*\n\n👤 Acción realizada por @${author.split('@')[0]}`
-      }
-
-      // 📷 CAMBIO DE FOTO (solo texto)
-      if (picture) {
-        text = `🖼️ *Foto del grupo actualizada*\n\n👤 Acción realizada por @${author.split('@')[0]}`
-      }
+      if (announce === true)
+        text = '🔒 *El grupo fue cerrado*'
+      else if (announce === false)
+        text = '🔓 *El grupo fue abierto*'
+      else if (subject)
+        text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
+      else if (desc !== undefined)
+        text = '📝 *Descripción del grupo modificada*'
+      else if (picture)
+        text = '🖼️ *Foto del grupo actualizada*'
 
       if (!text) continue
 
+      if (actor) {
+        text += `\n\n👮 Por: @${actor.split('@')[0]}`
+        mentions.push(actor)
+      }
+
       await sock.sendMessage(id, {
         text: text + `\n\n> ${botName}`,
-        mentions,
-        contextInfo: {
-          forwardingScore: 9999,
-          isForwarded: true
-        }
+        mentions
       })
     }
   })
 }
+
+export default handler
