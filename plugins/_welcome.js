@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 
@@ -25,9 +24,13 @@ handler.before = async (m, { sock }) => {
 
   const botName = sock.user?.name || 'ChappieBot'
 
+  // 🔔 WELCOME / BYE
   sock.ev.on('group-participants.update', async (update) => {
-    const { id, participants, action, author } = update
+    const { id, participants, action } = update
     if (!id.endsWith('@g.us')) return
+
+    // Solo entradas y salidas
+    if (!['add', 'remove'].includes(action)) return
 
     const settings = loadSettings()
     const groupSettings = settings[id] || {}
@@ -35,7 +38,7 @@ handler.before = async (m, { sock }) => {
     // ❌ Si welcome está apagado, no hace nada
     if (!groupSettings.welcome) return
 
-    const user = participants[0]
+    const user = participants?.[0]
     if (!user) return
 
     const metadata = await sock.groupMetadata(id)
@@ -44,37 +47,37 @@ handler.before = async (m, { sock }) => {
     // ───── TEXTO PERSONALIZADO O POR DEFECTO ─────
     let text = ''
     if (action === 'add') {
-      text = groupSettings.customWelcome || `🎉 ¡Bienvenido al grupo!\n👤 @${user.split('@')[0]}\n👥 Miembros: ${totalMembers}\n> ${botName}`
+      text = groupSettings.customWelcome || 
+        `🎉 ¡Bienvenido al grupo!\n👤 @${user.split('@')[0]}\n👥 Miembros: ${totalMembers}\n> ${botName}`
     } else if (action === 'remove') {
-      text = groupSettings.customBye || `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${botName}`
+      text = groupSettings.customBye || 
+        `👋 Ha salido del grupo:\n👤 @${user.split('@')[0]}\n👥 Miembros restantes: ${totalMembers}\n> ${botName}`
     }
 
-    // ───── OBTENER FOTO ─────
+    // ───── OBTENER FOTO SOLO PARA ENTRADAS/SALIDAS ─────
     let image = null
-
     try {
-      // Foto del usuario
-      let profilePicUrl = null
-      try {
-        profilePicUrl = await sock.profilePictureUrl(user, 'image')
-      } catch {}
-      
-      if (profilePicUrl) {
-        image = { url: profilePicUrl }
-      } else {
-        // Foto del grupo
-        try {
-          const groupPicUrl = await sock.profilePictureUrl(id, 'image')
-          if (groupPicUrl) image = { url: groupPicUrl }
-        } catch {}
-      }
+      if (action === 'add') {
+        // Foto del usuario
+        let profilePicUrl = null
+        try { profilePicUrl = await sock.profilePictureUrl(user, 'image') } catch {}
+        if (profilePicUrl) image = { url: profilePicUrl }
 
-      // Foto del bot como fallback
-      if (!image) {
-        try {
-          const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
-          if (botPicUrl) image = { url: botPicUrl }
-        } catch {}
+        // Si no tiene, foto del grupo
+        if (!image) {
+          try {
+            const groupPicUrl = await sock.profilePictureUrl(id, 'image')
+            if (groupPicUrl) image = { url: groupPicUrl }
+          } catch {}
+        }
+
+        // Si tampoco, foto del bot
+        if (!image) {
+          try {
+            const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
+            if (botPicUrl) image = { url: botPicUrl }
+          } catch {}
+        }
       }
     } catch (e) {
       console.log('❌ Error obteniendo imagen:', e)
@@ -84,16 +87,9 @@ handler.before = async (m, { sock }) => {
     try {
       const mentions = [user]
       if (image) {
-        await sock.sendMessage(id, {
-          image,
-          caption: text,
-          mentions
-        })
+        await sock.sendMessage(id, { image, caption: text, mentions })
       } else {
-        await sock.sendMessage(id, {
-          text,
-          mentions
-        })
+        await sock.sendMessage(id, { text, mentions })
       }
     } catch (e) {
       console.log('❌ Error welcome:', e)
