@@ -18,16 +18,23 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   }
   const link = `https://chat.whatsapp.com/${inviteCode}`
 
-  // 🔹 Obtener foto del grupo
+  // 🔹 Obtener foto del grupo o del bot
   let image = null
   try {
-    const groupPicUrl = await sock.profilePictureUrl(from, 'image')
-    if (groupPicUrl) image = { url: groupPicUrl }
-  } catch {}
+    try {
+      const groupPicUrl = await sock.profilePictureUrl(from, 'image')
+      if (groupPicUrl) image = { url: groupPicUrl }
+    } catch {
+      const botPicUrl = await sock.profilePictureUrl(sock.user.id, 'image')
+      if (botPicUrl) image = { url: botPicUrl }
+    }
+  } catch (e) {
+    console.log('❌ Error obteniendo imagen:', e)
+  }
 
   const text = `🔗 *Link del grupo*\n\n${link}\n\n> ${botName}`
 
-  // 🔹 Enviar mensaje como citado
+  // 🔹 Enviar mensaje como **citado al mensaje original** y con foto si existe
   try {
     if (image) {
       await sock.sendMessage(from, {
