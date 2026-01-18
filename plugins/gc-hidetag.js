@@ -4,14 +4,14 @@ function footer(botName) {
   return `\n\n> ${botName}`
 }
 
-export const handler = async (m, { sock, from, isGroup, isAdmin, isOwner, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  // 🔹 Verificar admin o owner según index.js
-  if (!isAdmin && !isOwner) {
+  // 🔹 Verificar admin según index.js
+  if (!isAdmin) {
     return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
   }
 
@@ -29,7 +29,9 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, isOwner, reply 
     m.message?.extendedTextMessage?.text ||
     ''
 
-  const cleanText = rawText.startsWith(global.prefix) ? rawText.slice(2).trim() : rawText.trim() // quita ".n" o prefijo
+  const cleanText = rawText.startsWith(global.prefix)
+    ? rawText.slice(2).trim()
+    : rawText.trim() // quita ".n" o prefijo
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const quoted = ctx?.quotedMessage
@@ -79,3 +81,5 @@ handler.help = ['n <texto>']
 handler.group = true
 handler.admin = true
 handler.menu = true
+
+export default handler
