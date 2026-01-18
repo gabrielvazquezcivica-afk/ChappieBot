@@ -99,7 +99,7 @@ Total comandos: ${totalCommands}
 
 handler.command = ['menu', 'help', 'comandos']              
 handler.tags = ['info']              
-handler.group = false              
+handler.group = true              
 
 export default handler              
 
