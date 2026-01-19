@@ -4,37 +4,54 @@ import os from 'os'
 import { spawn } from 'child_process'
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 
-export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }) => {
+export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
   const botName = sock.user?.name || 'ChappieBot'
 
-  // ───── 🔒 MODO ADMIN SILENCIOSO ─────
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
   if (fs.existsSync(modoadminPath)) {
-    const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = modoadminSettings[from] || { enabled: false }
+    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = modoadminData[from] || { enabled: false }
   }
-  if (groupSettings.enabled && !isAdmin) return
-  // ─────────────────────────────────────
+  if (groupSettings.enabled && isGroup) {
+    let isAdmin = false
+    try {
+      const metadata = await sock.groupMetadata(from)
+      const participants = metadata.participants || []
+      isAdmin = participants.some(
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+      )
+    } catch { isAdmin = false }
+    if (!isAdmin) return // silencioso para no-admins
+  }
+  /* ─────────────────────────────────── */
 
-  const ctx = m.message?.extendedTextMessage?.contextInfo
-  const quoted = ctx?.quotedMessage
+  /* ───── DETECTAR MEDIA RESPONDIDA ───── */
+  const quoted =
+    m.message?.extendedTextMessage?.contextInfo ||
+    m.message?.imageMessage?.contextInfo ||
+    m.message?.videoMessage?.contextInfo
+
+  const qmsg = quoted?.quotedMessage
+
   const msg =
     m.message?.imageMessage ||
     m.message?.videoMessage ||
-    quoted?.imageMessage ||
-    quoted?.videoMessage ||
-    quoted?.viewOnceMessageV2?.message?.imageMessage ||
-    quoted?.viewOnceMessageV2?.message?.videoMessage
+    qmsg?.imageMessage ||
+    qmsg?.videoMessage ||
+    qmsg?.viewOnceMessageV2?.message?.imageMessage ||
+    qmsg?.viewOnceMessageV2?.message?.videoMessage
 
-  if (!msg) return reply('❌ Responde a una imagen o video')
+  if (!msg) return reply('❌ Responde a una imagen o video válido')
 
   const isVideo = !!msg.seconds
   if (isVideo && msg.seconds > 10) return reply('❌ El video debe durar máximo 10 segundos')
 
   let input, output
+
   try {
-    // ───── 📥 DESCARGAR MEDIA ─────
+    /* ───── DESCARGAR MEDIA ───── */
     const type = isVideo ? 'video' : 'image'
     const stream = await downloadContentFromMessage(msg, type)
 
@@ -46,43 +63,39 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
     output = path.join(tmp, `stk_out_${Date.now()}.webp`)
     fs.writeFileSync(input, buffer)
 
-    // ───── 🛠 FFMPEG ─────
+    /* ───── PROCESAR CON FFMPEG ───── */
     await new Promise((resolve, reject) => {
-      let args
-      if (isVideo) {
-        // Video -> sticker animado (.webp)
-        args = [
-          '-i', input,
-          '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000,fps=15',
-          '-loop', '0',
-          '-preset', 'default',
-          '-an',
-          '-vsync', '0',
-          output
-        ]
-      } else {
-        // Imagen -> sticker estático
-        args = [
-          '-i', input,
-          '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000',
-          output
-        ]
-      }
+      const args = isVideo
+        ? [
+            '-i', input,
+            '-vf',
+            'scale=512:512:force_original_aspect_ratio=decrease,' +
+            'pad=512:512:-1:-1:color=0x00000000,' +
+            'fps=15,format=rgba,setsar=1',
+            '-loop', '0',
+            '-t', '10',
+            '-preset', 'default',
+            '-an',
+            '-vsync', '0',
+            output
+          ]
+        : [
+            '-i', input,
+            '-vf',
+            'scale=512:512:force_original_aspect_ratio=decrease,' +
+            'pad=512:512:-1:-1:color=0x00000000',
+            output
+          ]
 
       const ff = spawn('ffmpeg', args)
       ff.on('error', reject)
-      ff.on('close', code => (code === 0 ? resolve() : reject(new Error('FFmpeg falló'))))
+      ff.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg falló')))
     })
 
-    // ───── 📤 ENVIAR STICKER ─────
+    /* ───── ENVIAR STICKER ───── */
     await sock.sendMessage(
       from,
-      {
-        sticker: fs.readFileSync(output),
-        mimetype: 'image/webp',
-        packname: botName,
-        author: botName
-      },
+      { sticker: fs.readFileSync(output) },
       { quoted: m }
     )
 
@@ -95,7 +108,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
   }
 }
 
-handler.command = ['s'']
+handler.command = ['s']
 handler.tags = ['stickers']
 handler.menu = true
 handler.group = false
