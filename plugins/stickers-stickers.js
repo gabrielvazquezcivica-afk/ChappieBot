@@ -14,10 +14,9 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
     const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminSettings[from] || { enabled: false }
   }
-  if (groupSettings.enabled && !isAdmin) return // silencioso si no es admin
+  if (groupSettings.enabled && !isAdmin) return
   // ─────────────────────────────────────
 
-  // ───── 🔎 DETECTAR MEDIA ─────
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const quoted = ctx?.quotedMessage
   const msg =
@@ -49,36 +48,38 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
 
     // ───── 🛠 FFMPEG ─────
     await new Promise((resolve, reject) => {
-      const args = isVideo
-        ? [
-            '-i', input,
-            '-vf',
-            'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000,fps=15,format=rgba,setsar=1',
-            '-loop', '0',
-            '-t', '10',
-            '-preset', 'default',
-            '-an',
-            '-vsync', '0',
-            output
-          ]
-        : [
-            '-i', input,
-            '-vf',
-            'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000',
-            output
-          ]
+      let args
+      if (isVideo) {
+        // Video -> sticker animado (.webp)
+        args = [
+          '-i', input,
+          '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000,fps=15',
+          '-loop', '0',
+          '-preset', 'default',
+          '-an',
+          '-vsync', '0',
+          output
+        ]
+      } else {
+        // Imagen -> sticker estático
+        args = [
+          '-i', input,
+          '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000',
+          output
+        ]
+      }
 
       const ff = spawn('ffmpeg', args)
       ff.on('error', reject)
       ff.on('close', code => (code === 0 ? resolve() : reject(new Error('FFmpeg falló'))))
     })
 
-    // ───── 📤 ENVIAR STICKER CON NOMBRE DEL BOT EN EL PAQUETE ─────
+    // ───── 📤 ENVIAR STICKER ─────
     await sock.sendMessage(
       from,
       {
         sticker: fs.readFileSync(output),
-        fileName: `${botName}.webp`, // nombre del paquete
+        mimetype: 'image/webp',
         packname: botName,
         author: botName
       },
@@ -94,7 +95,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
   }
 }
 
-handler.command = ['s']
+handler.command = ['s'']
 handler.tags = ['stickers']
 handler.menu = true
 handler.group = false
