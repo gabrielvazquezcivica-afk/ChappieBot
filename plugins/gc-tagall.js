@@ -17,7 +17,7 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })
 
   // Texto con solo el nombre del grupo y total de miembros
-  let text = `"${metadata.subject}"\nmiembros: ${participants.length}\n\n`
+  let text = `${metadata.subject}\n𝐦𝐢𝐞𝐦𝐛𝐫𝐨𝐬: ${participants.length}\n\n`
 
   const mentions = []
 
