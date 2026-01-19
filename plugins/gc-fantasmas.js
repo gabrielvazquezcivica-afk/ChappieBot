@@ -1,0 +1,74 @@
+import fs from 'fs'
+import path from 'path'
+
+const messagesPath = path.join('./data/messages.json')
+
+// Cargar mensajes desde archivo
+function loadMessages() {
+  if (!fs.existsSync(messagesPath)) return {}
+  try {
+    return JSON.parse(fs.readFileSync(messagesPath))
+  } catch {
+    return {}
+  }
+}
+
+// Guardar mensajes
+function saveMessages(data) {
+  fs.writeFileSync(messagesPath, JSON.stringify(data, null, 2))
+}
+
+export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
+  if (!isGroup) return reply('⚠️ Solo funciona en grupos')
+  if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
+
+  const msgsData = loadMessages()
+  if (!msgsData[from]) msgsData[from] = {}
+
+  const metadata = await sock.groupMetadata(from)
+  const participants = metadata.participants
+
+  // Filtrar usuarios que enviaron menos de 10 mensajes
+  const ghosts = participants.filter(p => {
+    const count = msgsData[from][p.id] || 0
+    return count < 10
+  })
+
+  if (!ghosts.length) return reply('🎉 Todos los usuarios han escrito más de 10 mensajes')
+
+  // Reacción al comando
+  await sock.sendMessage(from, { react: { text: '👻', key: m.key } })
+
+  // Construir lista de menciones
+  let text = `👻 Fantasmas del grupo "${metadata.subject}":\n\n`
+  const mentions = []
+
+  for (const p of ghosts) {
+    const name = p.notify || p.id.split('@')[0]
+    text += `🍁 @${name}\n`
+    mentions.push(p.id)
+  }
+
+  await sock.sendMessage(from, { text, mentions }, { quoted: m })
+}
+
+// ───── GUARDAR CADA MENSAJE EN EL GRUPO ─────
+export const before = async (m, { from, isGroup }) => {
+  if (!isGroup) return
+
+  const msgsData = loadMessages()
+  if (!msgsData[from]) msgsData[from] = {}
+
+  const sender = m.key.participant
+  msgsData[from][sender] = (msgsData[from][sender] || 0) + 1
+
+  saveMessages(msgsData)
+}
+
+handler.command = ['fantasmas']
+handler.tags = ['group']
+handler.group = true
+handler.admin = true
+handler.menu = true
+
+export default handler
