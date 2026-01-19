@@ -14,7 +14,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
     const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminSettings[from] || { enabled: false }
   }
-  if (groupSettings.enabled && !isAdmin) return // Silencioso si no es admin
+  if (groupSettings.enabled && !isAdmin) return // silencioso si no es admin
   // ─────────────────────────────────────
 
   // ───── 🔎 DETECTAR MEDIA ─────
@@ -53,7 +53,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
         ? [
             '-i', input,
             '-vf',
-            `scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000,fps=15,format=rgba,setsar=1,drawtext=text='${botName}':x=10:y=470:fontsize=24:fontcolor=white:box=1:boxcolor=0x00000080`,
+            'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000,fps=15,format=rgba,setsar=1',
             '-loop', '0',
             '-t', '10',
             '-preset', 'default',
@@ -64,7 +64,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
         : [
             '-i', input,
             '-vf',
-            `scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000,drawtext=text='${botName}':x=10:y=470:fontsize=24:fontcolor=white:box=1:boxcolor=0x00000080`,
+            'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=0x00000000',
             output
           ]
 
@@ -73,8 +73,17 @@ export const handler = async (m, { sock, from, sender, reply, isGroup, isAdmin }
       ff.on('close', code => (code === 0 ? resolve() : reject(new Error('FFmpeg falló'))))
     })
 
-    // ───── 📤 ENVIAR STICKER ─────
-    await sock.sendMessage(from, { sticker: fs.readFileSync(output) }, { quoted: m })
+    // ───── 📤 ENVIAR STICKER CON NOMBRE DEL BOT EN EL PAQUETE ─────
+    await sock.sendMessage(
+      from,
+      {
+        sticker: fs.readFileSync(output),
+        fileName: `${botName}.webp`, // nombre del paquete
+        packname: botName,
+        author: botName
+      },
+      { quoted: m }
+    )
 
   } catch (e) {
     console.error('STICKER ERROR:', e)
