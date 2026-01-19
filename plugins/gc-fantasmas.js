@@ -40,7 +40,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
 
   for (const p of ghosts) {
     const name = p.notify || p.id.split('@')[0]
-    text += `🍁 @${name}\n`
+    text += `👻 @${name}\n`
     mentions.push(p.id)
   }
 
