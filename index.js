@@ -154,6 +154,48 @@ async function startBot () {
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
+    // ───── SALUDO AUTOMÁTICO CON FRASES ALEATORIAS Y COOLDOWN ─────
+const greetingWords = ['hola', 'hola bot', 'buenas', 'hey', 'hi', 'buenos días', 'buenas tardes']
+const greetingReplies = [
+  '👋 ¡Hola, @user! ¿Cómo estás?',
+  '😎 ¡Qué gusto verte, @user!',
+  '✨ ¡Hola hola! Espero que tengas un gran día, @user',
+  '👋 ¡Hey, @user! Bienvenido',
+  '🌟 ¡Hola @user! ¿Qué tal todo?'
+]
+
+// Cooldown por usuario en milisegundos
+const GREETING_COOLDOWN = 5 * 60 * 1000 // 5 minutos
+if (!global.lastGreeting) global.lastGreeting = {} // { jid: timestamp }
+
+// Solo si el mensaje no es comando
+if (text && !text.startsWith(global.prefix)) {
+  const lowerText = text.toLowerCase()
+  const matched = greetingWords.find(g => lowerText.includes(g))
+  if (matched) {
+    const userJid = isGroup ? m.key.participant : from
+    const now = Date.now()
+    if (!global.lastGreeting[userJid] || now - global.lastGreeting[userJid] > GREETING_COOLDOWN) {
+      global.lastGreeting[userJid] = now
+
+      // Elegir frase aleatoria
+      const template = greetingReplies[Math.floor(Math.random() * greetingReplies.length)]
+      const senderName = pushName || 'Usuario'
+      const replyText = template.replace(/@user/g, senderName)
+
+      try {
+        await sock.sendMessage(
+          from,
+          { text: replyText, mentions: isGroup ? [userJid] : [] },
+          { quoted: m }
+        )
+      } catch (e) {
+        console.error('❌ Error saludo automático:', e)
+      }
+    }
+  }
+}
+
     // 📟 LOG DE CONSOLA
     console.log(
       chalk.blue('\n📩 COMANDO'),
