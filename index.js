@@ -154,46 +154,31 @@ async function startBot () {
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
-    // ───── SALUDO AUTOMÁTICO CON FRASES ALEATORIAS Y COOLDOWN ─────
-const greetingWords = ['hola', 'hola bot', 'buenas', 'hey', 'hi', 'buenos días', 'buenas tardes']
-const greetingReplies = [
-  '👋 ¡Hola, @user! ¿Cómo estás?',
-  '😎 ¡Qué gusto verte, @user!',
-  '✨ ¡Hola hola! Espero que tengas un gran día, @user',
-  '👋 ¡Hey, @user! Bienvenido',
-  '🌟 ¡Hola @user! ¿Qué tal todo?'
-]
+    // 🕒 SALUDO AUTOMÁTICO SIN PREFIJO + ANTISPAM
+global.lastGreeting ||= {}
 
-// Cooldown por usuario en milisegundos
-const GREETING_COOLDOWN = 5 * 60 * 1000 // 5 minutos
-if (!global.lastGreeting) global.lastGreeting = {} // { jid: timestamp }
+const lower = text.toLowerCase().trim()
 
-// Solo si el mensaje no es comando
-if (text && !text.startsWith(global.prefix)) {
-  const lowerText = text.toLowerCase()
-  const matched = greetingWords.find(g => lowerText.includes(g))
-  if (matched) {
-    const userJid = isGroup ? m.key.participant : from
-    const now = Date.now()
-    if (!global.lastGreeting[userJid] || now - global.lastGreeting[userJid] > GREETING_COOLDOWN) {
-      global.lastGreeting[userJid] = now
+const now = Date.now()
+const last = global.lastGreeting[sender] || 0
 
-      // Elegir frase aleatoria
-      const template = greetingReplies[Math.floor(Math.random() * greetingReplies.length)]
-      const senderName = pushName || 'Usuario'
-      const replyText = template.replace(/@user/g, senderName)
+// ⏱️ 30 segundos de cooldown
+if (['hola', 'hola joshi', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches'].includes(lower)) {
+  if (now - last < 30000) return
+  global.lastGreeting[sender] = now
 
-      try {
-        await sock.sendMessage(
-          from,
-          { text: replyText, mentions: isGroup ? [userJid] : [] },
-          { quoted: m }
-        )
-      } catch (e) {
-        console.error('❌ Error saludo automático:', e)
-      }
-    }
-  }
+  const hour = new Date().getHours()
+  let saludo = '👋 Hola'
+
+  if (hour >= 5 && hour < 12) saludo = '🌅 Buenos días'
+  else if (hour >= 12 && hour < 19) saludo = '🌇 Buenas tardes'
+  else saludo = '🌙 Buenas noches'
+
+  await sock.sendMessage(from, {
+    text: `${saludo}, ${pushName}`,
+  }, { quoted: m })
+
+  return
 }
 
     // 📟 LOG DE CONSOLA
