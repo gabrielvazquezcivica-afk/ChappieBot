@@ -51,6 +51,9 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
   let input, output
 
   try {
+    /* ───── REACCIÓN INICIAL ───── */
+    await sock.sendMessage(from, { react: { text: '⏳', key: m.key } }) // reloj mientras procesa
+
     /* ───── DESCARGAR MEDIA ───── */
     const type = isVideo ? 'video' : 'image'
     const stream = await downloadContentFromMessage(msg, type)
@@ -98,6 +101,9 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
       { sticker: fs.readFileSync(output) },
       { quoted: m }
     )
+
+    /* ───── REACCIÓN FINAL ───── */
+    await sock.sendMessage(from, { react: { text: '✅', key: m.key } }) // check cuando termina
 
   } catch (e) {
     console.error('STICKER ERROR:', e)
