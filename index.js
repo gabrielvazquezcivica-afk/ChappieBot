@@ -154,33 +154,6 @@ async function startBot () {
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
-    // 🕒 SALUDO AUTOMÁTICO SIN PREFIJO + ANTISPAM
-global.lastGreeting ||= {}
-
-const lower = text.toLowerCase().trim()
-
-const now = Date.now()
-const last = global.lastGreeting[sender] || 0
-
-// ⏱️ 30 segundos de cooldown
-if (['hola', 'hola joshi', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches'].includes(lower)) {
-  if (now - last < 30000) return
-  global.lastGreeting[sender] = now
-
-  const hour = new Date().getHours()
-  let saludo = '👋 Hola'
-
-  if (hour >= 5 && hour < 12) saludo = '🌅 Buenos días'
-  else if (hour >= 12 && hour < 19) saludo = '🌇 Buenas tardes'
-  else saludo = '🌙 Buenas noches'
-
-  await sock.sendMessage(from, {
-    text: `${saludo}, ${pushName}`,
-  }, { quoted: m })
-
-  return
-}
-
     // 📟 LOG DE CONSOLA
     console.log(
       chalk.blue('\n📩 COMANDO'),
