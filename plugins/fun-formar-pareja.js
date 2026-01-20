@@ -79,7 +79,7 @@ export const handler = async (m, {
 }
 
 // 📋 CONFIG
-handler.command = ['formarparej']
+handler.command = ['formarpareja']
 handler.tags = ['juegos']
 handler.group = true
 handler.menu = true
