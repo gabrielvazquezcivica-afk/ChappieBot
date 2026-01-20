@@ -3,7 +3,7 @@ import path from 'path'
 
 const nsfwFile = path.join(process.cwd(), './data/nsfw.json')
 
-// Cargar o inicializar la base de datos
+// Cargar o inicializar la DB
 let nsfwDB = {}
 try {
   if (fs.existsSync(nsfwFile)) {
@@ -14,14 +14,24 @@ try {
   nsfwDB = {}
 }
 
-// Guardar la DB en disco
+// Guardar DB
 function saveDB() {
   fs.writeFileSync(nsfwFile, JSON.stringify(nsfwDB, null, 2))
 }
 
-// Plugin para activar/desactivar NSFW
+// Plugin NSFW ON/OFF
 export const handler = async (m, { sock, from, args, reply, isGroup, sender }) => {
   if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
+
+  // ⚡ Obtener metadata del grupo
+  const metadata = await sock.groupMetadata(from)
+  const participants = metadata.participants || []
+
+  // ⚡ Verificar si es admin
+  const isAdmin = participants.some(
+    p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+  )
+  if (!isAdmin) return reply('🚫 Solo administradores del grupo pueden activar o desactivar NSFW')
 
   const option = args[0]?.toLowerCase()
   if (!option || !['on', 'off'].includes(option)) {
