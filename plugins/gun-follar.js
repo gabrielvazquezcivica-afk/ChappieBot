@@ -3,7 +3,7 @@ import fs from 'fs'
 export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
 
@@ -29,7 +29,7 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
     }
     if (!isAdmin) return
   }
-  /* ─────────────────────────────────────────────── */
+  /* ─────────────────────────────────── */
 
   // Detectar mención o respuesta
   const ctx =
@@ -40,25 +40,25 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   const target = ctx?.mentionedJid?.[0] || ctx?.participant
   if (!target) return reply('⚠️ Menciona a alguien o responde a un mensaje')
 
+  // ✅ Construir menciones correctamente
   const mentions = [sender, target]
 
+  // Nombre visibles para el texto
   const name1 = sender.split('@')[0]
   const name2 = target.split('@')[0]
 
-  const text = `🤤👅🥵 *ACABAS DE FOLLAR!* 🥵👅🤤  
+  // 📝 Texto con @menciones
+  const text = `🤤👅🥵 *ACABAS DE FOLLAR!* 🥵👅🤤
 
-*${name1}* se acaba de follar a la perra de *${name2}* a 4 patas mientras gemía como una maldita perra (Aaah...Aaah, no pares, sigue, sigue) y la has dejado tan reventada que no puede ni sostener su propio cuerpo la maldita perra
+@${name1} se acaba de follar a la perra de @${name2} a 4 patas mientras gemía como una maldita perra (Aaah...Aaah, no pares, sigue, sigue) y la has dejado tan reventada que no puede ni sostener su propio cuerpo la maldita perra
 
-🤤 *${name2} ya te han follado! 🥵*`
+🤤 @${name2} ya te han follado! 🥵`
 
-  await sock.sendMessage(
-    from,
-    {
-      text,
-      mentions
-    },
-    { quoted: m }
-  )
+  // Enviar mensaje
+  await sock.sendMessage(from, {
+    text,
+    mentions
+  }, { quoted: m })
 }
 
 handler.command = ['follar']
