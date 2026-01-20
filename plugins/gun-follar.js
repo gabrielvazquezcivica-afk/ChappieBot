@@ -5,70 +5,70 @@ export const handler = async (m, {
   from,
   sender,
   isGroup,
-  reply,
-  args
+  reply
 }) => {
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
-  if (!isGroup) return reply('🚫 Este comando solo funciona en grupos')
+  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  let groupSettings = { enabled: false }  
+  const modoadminPath = './data/modoadmin.json'  
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
-  let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
-  if (fs.existsSync(modoadminPath)) {
-    try {
-      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-      groupSettings = modoadminData[from] || { enabled: false }
-    } catch {
-      groupSettings = { enabled: false }
-    }
-  }
+  if (fs.existsSync(modoadminPath)) {  
+    try {  
+      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))  
+      groupSettings = modoadminData[from] || { enabled: false }  
+    } catch {  
+      groupSettings = { enabled: false }  
+    }  
+  }  
 
-  if (groupSettings.enabled) {
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      const isAdmin = participants.some(
-        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-      if (!isAdmin) return // 🚫 bloqueo silencioso
-    } catch {}
-  }
-  /* ─────────────────────────────────── */
+  if (groupSettings.enabled) {  
+    let isAdmin = false  
+    try {  
+      const metadata = await sock.groupMetadata(from)  
+      const participants = metadata.participants || []  
+      isAdmin = participants.some(  
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')  
+      )  
+    } catch {  
+      isAdmin = false  
+    }  
+    if (!isAdmin) return // 🚫 bloqueo silencioso  
+  }  
+  /* ─────────────────────────────────────────────── */  
 
-  /* ───── 🎯 DETECTAR MENCIÓN / RESPUESTA ───── */
-  let userJid
-  const ctx =
-    m.message?.extendedTextMessage?.contextInfo ||
-    m.message?.imageMessage?.contextInfo ||
+  // 🎯 Detectar mención o respuesta
+  const ctx = 
+    m.message?.extendedTextMessage?.contextInfo || 
+    m.message?.imageMessage?.contextInfo || 
     m.message?.videoMessage?.contextInfo
 
-  if (ctx?.mentionedJid?.length) {
-    userJid = ctx.mentionedJid[0]
-  } else if (ctx?.participant) {
-    userJid = ctx.participant
-  } else {
-    return reply('❌ Menciona o responde a alguien para usar este comando')
-  }
+  const target = ctx?.mentionedJid?.[0] || ctx?.participant
+  if (!target) return reply('⚠️ Menciona a alguien o responde a un mensaje')
 
-  const name = userJid.split('@')[0]
-  const text = args.join(' ') || name
+  const name1 = sender.split('@')[0]
+  const name2 = target.split('@')[0]
 
-  /* ───── 📤 MENSAJE ───── */
-  await sock.sendMessage(from, {
-    text: `🤤👅🥵 *𝐀𝐂𝐀𝐁𝐀𝐒 𝐃𝐄 𝐅𝐎𝐋𝐋𝐀𝐑𝐓𝐄𝐋@!* 🥵👅🤤
+  const text = `🤤👅🥵 *ACABAS DE FOLLAR!* 🥵👅🤤
 
-*𝙏𝙚 𝙖𝙘𝙖𝙗𝙖𝙨 𝙙𝙚 𝙛𝙤𝙡𝙡𝙖𝙧 𝙖 𝙡𝙖 𝙥𝙚𝙧𝙧𝙖 𝙙𝙚* *${text}* ⁩
-*𝙖 𝟰 𝙥𝙖𝙩𝙖𝙨 𝙢𝙞𝙚𝙣𝙩𝙧𝙖𝙨 𝙩𝙚 𝙜𝙚𝙢𝙞𝙖 𝙘𝙤𝙢𝙤 𝙪𝙣𝙖 𝙢𝙖𝙡𝙙𝙞𝙩𝙖 𝙥𝙚𝙧𝙧𝙖 "𝐀𝐚𝐚𝐡.., 𝐀𝐚𝐚𝐡𝐡, 𝐬𝐢𝐠𝐮𝐞, 𝐧𝐨 𝐩𝐚𝐫𝐞𝐬, 𝐧𝐨 𝐩𝐚𝐫𝐞𝐬.." 𝙮 𝙡𝙖 𝙝𝙖𝙨 𝙙𝙚𝙟𝙖𝙙𝙤 𝙩𝙖𝙣 𝙧𝙚𝙫𝙚𝙣𝙩𝙖𝙙𝙖 𝙦𝙪𝙚 𝙣𝙤 𝙥𝙪𝙚𝙙𝙚 𝙨𝙤𝙨𝙩𝙚𝙣𝙚𝙧 𝙣𝙞 𝙨𝙪 𝙥𝙧𝙤𝙥𝙞𝙤 𝙘𝙪𝙚𝙧𝙥𝙤 𝙡𝙖 𝙢𝙖𝙡𝙙𝙞𝙩𝙖 𝙯𝙤𝙧𝙧𝙖!*
+*${name1}* se acaba de follar a la perra de *${name2}* a 4 patas mientras gemía como una maldita perra (Aaah...Aaah, no pares, sigue, sigue.
 
-*${text}*   
-🤤🥵 *¡𝐘𝐀 𝐓𝐄 𝐇𝐀𝐍 𝐅𝐎𝐋𝐋𝐀𝐃𝐎!* 🥵🤤`,
-    mentions: [userJid]
-  }, { quoted: m })
+🤤 *${name2} ya te han follado! 🥵*`
+
+  await sock.sendMessage(
+    from,
+    {
+      text: text,
+      mentions: [sender, target]
+    },
+    { quoted: m }
+  )
 }
 
-handler.help = ['follar']
+handler.command = ['follar']
 handler.tags = ['juegos']
-handler.command = /^(follar|violar)$/i
-handler.register = false
+handler.group = true
+handler.menu = true
+handler.help = ['follar @usuario']
 
 export default handler
