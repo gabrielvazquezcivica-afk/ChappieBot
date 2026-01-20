@@ -15,6 +15,17 @@ function loadJSON(file) {
   }
 }
 
+// ───── DETECTAR ESTADO REAL ─────
+function isEnabled(data, groupId) {
+  if (!data[groupId]) return false
+  const v = data[groupId]
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'object') {
+    return Object.values(v).includes(true)
+  }
+  return false
+}
+
 export const handler = async (m, {
   sock,
   from,
@@ -26,15 +37,15 @@ export const handler = async (m, {
   if (!isGroup) return reply('⚠️ Este comando solo funciona en grupos')
   if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
 
-  // 📊 Metadata
   const metadata = await sock.groupMetadata(from)
-  const total = metadata.participants.length
-  const name = metadata.subject
 
-  // ⚙️ Estados
-  const antilink = loadJSON(antilinkPath)[from]?.enabled
-  const modoadmin = loadJSON(modoadminPath)[from]?.enabled
-  const welcome = loadJSON(welcomePath)[from]?.enabled
+  const antilinkData = loadJSON(antilinkPath)
+  const modoadminData = loadJSON(modoadminPath)
+  const welcomeData = loadJSON(welcomePath)
+
+  const antilink = isEnabled(antilinkData, from)
+  const modoadmin = isEnabled(modoadminData, from)
+  const welcome = isEnabled(welcomeData, from)
 
   // 🎯 Reacción
   await sock.sendMessage(from, {
@@ -43,20 +54,20 @@ export const handler = async (m, {
 
   const text = `
 ╭───〔 📌 INFO DEL GRUPO 〕───╮
-│ 📛 Nombre : ${name}
-│ 👥 Miembros : ${total}
+│ 📛 Nombre : ${metadata.subject}
+│ 👥 Miembros : ${metadata.participants.length}
 │
 │ ⚙️ Opciones:
-│ 🔗 Antilink : ${antilink ? '🟢 ON' : '🔴 OFF'}
+│ 🔗 Antilink  : ${antilink ? '🟢 ON' : '🔴 OFF'}
 │ 🔒 ModoAdmin : ${modoadmin ? '🟢 ON' : '🔴 OFF'}
-│ 👋 Welcome : ${welcome ? '🟢 ON' : '🔴 OFF'}
+│ 👋 Welcome   : ${welcome ? '🟢 ON' : '🔴 OFF'}
 ╰──────────────────────────╯
 `.trim()
 
   await sock.sendMessage(from, { text }, { quoted: m })
 }
 
-handler.command = ['grupoinf']
+handler.command = ['infogrupo']
 handler.tags = ['group']
 handler.group = true
 handler.admin = true
