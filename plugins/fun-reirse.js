@@ -22,12 +22,12 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) 
       const isAdmin = participants.some(
         p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
       )
-      if (!isAdmin) return // 🚫 bloqueo silencioso
+      if (!isAdmin) return // bloqueo silencioso
     } catch {}
   }
   /* ─────────────────────────────────── */
 
-  /* ───── 🎯 Detectar mención o reply ───── */
+  /* ───── Detectar mención o reply ───── */
   let who
   const ctx =
     m.message?.extendedTextMessage?.contextInfo ||
@@ -49,7 +49,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) 
   // 😹 reacción inicial
   await sock.sendMessage(from, { react: { text: '😹', key: m.key } })
 
-  const texto = `😹 *@${name1}* se está riendo de *@${name2}*`
+  const texto = '😹 *' + name1 + '* se está riendo de *' + name2 + '*'
 
   // 🎞️ Videos aleatorios
   const videos = [
@@ -78,8 +78,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) 
   )
 }
 
-// 📋 CONFIG
-handler.command = ['reirse]
+handler.command = ['reirse']
 handler.tags = ['juegos']
 handler.menu = true
 handler.group = true
