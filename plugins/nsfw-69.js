@@ -3,67 +3,37 @@ import path from 'path'
 
 const nsfwFile = path.join('./data/nsfw.json')
 
-// Cargar estado NSFW al iniciar
-let nsfwData = {}
-if (fs.existsSync(nsfwFile)) {
-  nsfwData = JSON.parse(fs.readFileSync(nsfwFile))
-} else {
-  fs.writeFileSync(nsfwFile, JSON.stringify({}))
-}
+export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
+  if (!isGroup) return
 
-function saveNSFW() {
-  fs.writeFileSync(nsfwFile, JSON.stringify(nsfwData, null, 2))
-}
+  // Cargar estado NSFW
+  let nsfwData = {}
+  if (fs.existsSync(nsfwFile)) {
+    nsfwData = JSON.parse(fs.readFileSync(nsfwFile))
+  }
 
-export const handler = async (m, { sock, from, sender, isGroup, reply, args }) => {
-
-  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
-
-  // Inicializar grupo en NSFW
-  if (!nsfwData[from]) nsfwData[from] = { enabled: false }
-
-  const groupNSFW = nsfwData[from]
-
-  // Activar/desactivar NSFW (solo admins)
-  if (args[0] === 'on' || args[0] === 'off') {
-
-    const metadata = await sock.groupMetadata(from)
-    const participants = metadata.participants || []
-
-    const isAdmin = participants.some(
-      p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+  if (!nsfwData[from]?.enabled) {
+    return reply(
+      '🔞 *Comandos NSFW desactivados*\nUn admin debe activar con:\n.nsfw on'
     )
-
-    if (!isAdmin) return reply('❌ Solo admins pueden activar o desactivar NSFW')
-
-    groupNSFW.enabled = args[0] === 'on'
-    saveNSFW()
-
-    return reply(`✅ Comandos NSFW ${groupNSFW.enabled ? 'activados' : 'desactivados'} para este grupo`)
   }
 
-  // ❌ Bloquear si NSFW está desactivado
-  if (!groupNSFW.enabled) {
-    return reply('🔞 *Comandos NSFW desactivados*\nUn admin debe activar con:\n.nsfw on')
-  }
-
-  /* ───── 👤 TARGET ───── */
+  // 👤 TARGET
   let target
   const ctx = m.message?.extendedTextMessage?.contextInfo
-
   if (ctx?.mentionedJid?.length) target = ctx.mentionedJid[0]
   else if (ctx?.participant) target = ctx.participant
   else return reply('❌ Etiqueta o responde a alguien')
 
-  const user1 = '@' + sender.split('@')[0]
-  const user2 = '@' + target.split('@')[0]
+  const name1 = '@' + sender.split('@')[0]
+  const name2 = '@' + target.split('@')[0]
 
-  const texto = `${user1} está haciendo un 69 con ${user2}`
+  const texto = `😈 *${name1}* está haciendo travesuras con *${name2}* 😈`
 
-  /* ───── 🔥 REACCIÓN ───── */
+  // 🔥 REACCIÓN
   await sock.sendMessage(from, { react: { text: '🔥', key: m.key } })
 
-  /* ───── 🎞️ VIDEOS ───── */
+  // 🎞️ VIDEOS (ampliada la lista)
   const videos = [
     'https://telegra.ph/file/bb4341187c893748f912b.mp4',
     'https://telegra.ph/file/c7f154b0ce694449a53cc.mp4',
@@ -73,12 +43,14 @@ export const handler = async (m, { sock, from, sender, isGroup, reply, args }) =
     'https://telegra.ph/file/16f43effd7357e82c94d3.mp4',
     'https://telegra.ph/file/55cb31314b168edd732f8.mp4',
     'https://telegra.ph/file/1cbaa4a7a61f1ad18af01.mp4',
-    'https://telegra.ph/file/1083c19087f6997ec8095.mp4'
+    'https://telegra.ph/file/1083c19087f6997ec8095.mp4',
+    'https://telegra.ph/file/3a2c1b5e21f1d0a0f4a3b.mp4',
+    'https://telegra.ph/file/2d1c8d3e1b8f4b7c8c7e4.mp4',
+    'https://telegra.ph/file/9e2b1f4c3d7a5b6f8a2c1.mp4'
   ]
-
   const video = videos[Math.floor(Math.random() * videos.length)]
 
-  /* ───── 📤 ENVIAR ───── */
+  // 📤 ENVIAR
   await sock.sendMessage(
     from,
     {
@@ -91,12 +63,9 @@ export const handler = async (m, { sock, from, sender, isGroup, reply, args }) =
   )
 }
 
-/* ───── CONFIGURACIÓN ───── */
 handler.command = ['69']
 handler.group = true
-handler.menu = false
-handler.menu2 = true
 handler.tags = ['nsfw']
-handler.help = ['69 @usuario', 'nsfw on/off']
+handler.help = ['69 @usuario']
 
 export default handler
