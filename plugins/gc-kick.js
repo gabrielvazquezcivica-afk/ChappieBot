@@ -1,20 +1,37 @@
-export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
+export const handler = async (m, {
+  sock,
+  from,
+  isGroup,
+  sender,
+  isAdmin,
+  reply
+}) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
-  const botJid = sock.user?.id || ''
+  const botJid = sock.user?.id
   const owners = global.config.owner?.numbers || []
 
-  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
+  if (!isGroup)
+    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
-  // ⚠️ Solo admins pueden ejecutar
-  if (!isAdmin) return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
+  // ⚠️ Solo admins
+  if (!isAdmin)
+    return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')
 
-  const metadata = await sock.groupMetadata(from)
+  let metadata
+  try {
+    metadata = await sock.groupMetadata(from)
+  } catch (e) {
+    return reply('⚠️ No tengo permisos para obtener información del grupo')
+  }
+
   const groupOwner = metadata.owner
 
   // 🎯 Usuario objetivo
   const ctx = m.message?.extendedTextMessage?.contextInfo
-  const user = ctx?.mentionedJid?.[0] || ctx?.participant
+  const user =
+    ctx?.mentionedJid?.[0] ||
+    ctx?.participant
 
   if (!user) {
     return reply(
@@ -22,58 +39,76 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
     )
   }
 
-  // 🚨 SI INTENTAN SACAR AL BOT
+  /* ───── 🛡 PROTECCIONES ───── */
+
+  // ❌ No kick creator
+  if (user === groupOwner)
+    return reply('🛡 No puedes expulsar al creador del grupo')
+
+  // 🧠 Número limpio
+  const userNumber = user.replace(/[^0-9]/g, '')
+
+  // 🛡 Protección owner del bot
+  if (owners.includes(userNumber))
+    return reply('🛡 No puedes expulsar al OWNER del bot')
+
+  /* ───── 😈 ANTI KICK AL BOT ───── */
   if (user === botJid) {
     const frases = [
-      '😹 Buen intento, pero aquí mando yo',
-      '🤖 ¿Expulsarme a mí? error 404 cerebro no encontrado',
-      '😂 Intenta con otro bot, este no',
-      '🛡️ Protección anti-tontos activada'
+      '😈 ¿Intentaste sacarme? Error fatal.',
+      '🤖 Buena suerte la próxima vez.',
+      '🧠 Pensaste que sería tan fácil?',
+      '😂 Yo no salgo, tú sí.'
     ]
 
     const frase = frases[Math.floor(Math.random() * frases.length)]
 
-    try {
-      await sock.sendMessage(from, {
-        text: `${frase}\n\n👢 Ahora sales tú @${sender.split('@')[0]}\n> ${botName}`,
-        mentions: [sender]
-      }, { quoted: m })
+    // 🎭 Mensaje troll
+    await sock.sendMessage(from, {
+      text: `${frase}\n\n🚪 *Expulsando al traidor...*`,
+      mentions: [sender],
+      quoted: m
+    })
 
-      // 👢 Eliminar al que intentó sacar al bot
+    // 🚨 Intentar expulsar al admin
+    try {
       await sock.groupParticipantsUpdate(from, [sender], 'remove')
     } catch (e) {
-      console.log('❌ AntiKickBot ERROR:', e)
+      if (e?.data === 403) {
+        return reply('⚠️ No tengo permisos para defenderme.\nNecesito ser *ADMIN*.')
+      }
+      console.log('❌ Anti-kick error:', e)
     }
-
     return
   }
 
-  // 🔒 Protecciones normales
-  if (user === groupOwner) return reply('🛡 No puedes expulsar al creador del grupo')
-
-  const userNumber = user.replace(/[^0-9]/g, '')
-  if (owners.includes(userNumber)) return reply('🛡 No puedes expulsar al OWNER del bot')
-
+  /* ───── 🚪 KICK NORMAL ───── */
   try {
-    // 🚨 Reacción
-    await sock.sendMessage(from, { react: { text: '🚪', key: m.key } })
+    // Reacción
+    await sock.sendMessage(from, {
+      react: { text: '🚪', key: m.key }
+    })
 
-    // 👢 Expulsar usuario
     await sock.groupParticipantsUpdate(from, [user], 'remove')
 
-    // 📢 Mensaje informativo
     await sock.sendMessage(
       from,
       {
-        text: `🚨 Usuario expulsado:
-🍁 @${user.split('@')[0]}
+        text:
+`🚨 *USUARIO EXPULSADO*
+
+🍁 Usuario: @${user.split('@')[0]}
 👮 Expulsado por: @${sender.split('@')[0]}
 > ${botName}`,
         mentions: [user, sender]
       },
       { quoted: m }
     )
+
   } catch (e) {
+    if (e?.data === 403) {
+      return reply('⚠️ No tengo permisos para expulsar usuarios.\nHazme *ADMIN*.')
+    }
     console.log('❌ Error kick:', e)
     reply(msgs.error || '❌ No pude expulsar al usuario')
   }
