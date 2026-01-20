@@ -1,13 +1,11 @@
 import fs from 'fs'
 
 export const handler = async (m, { sock, from, sender, isGroup, reply, owner }) => {
-  // ❌ Solo grupos
   if (!isGroup) return reply('🚫 Este comando solo funciona en grupos')
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  /* ───── MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
-
   if (fs.existsSync(modoadminPath)) {
     try {
       const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
@@ -16,61 +14,50 @@ export const handler = async (m, { sock, from, sender, isGroup, reply, owner }) 
       groupSettings = { enabled: false }
     }
   }
-
-  if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
+  if (groupSettings.enabled) {
     try {
       const metadata = await sock.groupMetadata(from)
       const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {
-      isAdmin = false
-    }
-    if (!isAdmin) return // 🚫 bloqueo silencioso
+      const isAdmin = participants.some(p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin'))
+      if (!isAdmin) return
+    } catch {}
   }
-  /* ─────────────────────────────────────────────── */
+  /* ──────────────────────────────── */
 
   // ───── Detectar objetivo ─────
-  let who = null
-  if (m.quoted?.sender) who = m.quoted.sender
-  else if (m.mentionedJid?.length) who = m.mentionedJid[0]
-  else if (m.sender) who = m.sender
-  else who = sock.user?.id || ''
+  const metadata = await sock.groupMetadata(from)
+  const participants = metadata.participants || []
 
-  const senderId = sender || m.sender || sock.user?.id || ''
+  let who = m.quoted?.sender || m.mentionedJid?.[0] || sender
+  // Buscar nombre bonito en metadata
+  const contact = participants.find(p => p.id === who)
+  const name2 = contact?.notify || contact?.id.split('@')[0] || 'Desconocido'
+
+  const senderContact = participants.find(p => p.id === sender)
+  const name1 = senderContact?.notify || sender.split('@')[0]
 
   // 💞 Reacción inicial
-  await sock.sendMessage(from, {
-    react: { text: '🫦', key: m.key }
-  })
+  await sock.sendMessage(from, { react: { text: '🫦', key: m.key } })
 
-  const name1 = senderId.split('@')[0]
-  const name2 = who.split('@')[0]
-
-  // ───── Texto final ─────
   const chaqueta = [
     '_Iniciando chaqueta. . ._',
     `╭━━╮╭╭╭╮\n┃▔╲┣╈╈╈╈━━━╮\n┃┈┈▏.╰╯╯╯╭╮━┫\n┃┈--.╭━━━━╈╈━╯\n╰━━╯-.                ╰╯`,
     `╭━━╮╭╭╭╮\n┃▔╲┣╈╈╈╈━━━╮\n┃┈┈▏.╰╯╯╯╭╮━┫\n┃┈--.╭━━━━╈╈━╯\n╰━━╯-.                ╰╯`,
-    `╭━━╮╭╭╭╮\n┃▔╲┣╈╈╈╈━━━╮\n┃┈┈▏.╰╯╯╯╭╮━┫\n┃┈--.╭━━━━╈╈━╯\n╰━━╯-.                ╰╯`,
+    `╭━━╮.    ╭╭╭╮\n┃▔╲┣━━╈╈╈╈━━╮\n┃┈┈▏.    .╰╯╯╯╭╮┫\n┃┈--.╭━━━━━━╈╈╯\n╰━━╯-.           . ╰╯`,
     `              .               .   ╭\n╭━━╮╭╭╭╮.           ╭ ╯\n┃▔╲┣╈╈╈╈━━━╮╭╯╭\n┃┈┈▏.╰╯╯╯╭╮━┫  \n┃┈--.╭━━━━╈╈━╯╰╮╰\n╰━━╯-.        ╰╯...-    ╰ ╮\n   .         . .  .  .. . . .  . .. .  ╰\n\n*[ 🔥 ] @${name1} SE HA CORRIDO GRACIAS A @${name2}.*`
   ]
 
-  // ───── Enviar animación / edición ─────
-  let { key } = await sock.sendMessage(from, { text: chaqueta[0] })
-
+  // ───── Enviar animación ─────
+  let sent = await sock.sendMessage(from, { text: chaqueta[0] })
   for (let i = 1; i < chaqueta.length; i++) {
     await sock.sendMessage(from, {
       text: chaqueta[i],
-      edit: key,
-      mentions: [senderId, who]
+      edit: sent.key,
+      mentions: [sender, who]
     })
   }
 }
 
-// ───── CONFIG ─────
 handler.command = ['chaqueta']
 handler.tags = ['juegos']
 handler.group = true
