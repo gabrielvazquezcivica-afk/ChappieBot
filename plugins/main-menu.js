@@ -20,7 +20,7 @@ export const handler = async (m, {
 
   // 🎯 Emoji por categoría
   const tagEmoji = {              
-    info: '🗽',
+    info: '🌟',
     frases: '📖',
     group: '🎪',
     descargas: '🎧',
@@ -35,7 +35,7 @@ export const handler = async (m, {
     'on-off': '📴'
   }              
 
-  const cmdEmoji = '🚀→' // emoji fijo para comandos
+  const cmdEmoji = '🚀', '💫', '🔥' // emoji fijo para comandos
 
   // 📂 Agrupar comandos
   const categories = {}              
