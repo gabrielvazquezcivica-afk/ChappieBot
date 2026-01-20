@@ -12,7 +12,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   const metadata = await sock.groupMetadata(from)
   const groupOwner = metadata.owner
 
-  // 🎯 Usuario objetivo: mención o reply
+  // 🎯 Usuario objetivo
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const user = ctx?.mentionedJid?.[0] || ctx?.participant
 
@@ -22,16 +22,40 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
     )
   }
 
-  // 🔒 Protecciones
-  if (user === groupOwner) return reply('🛡 No puedes expulsar al creador del grupo')
-  if (user === botJid) return reply('⚠️ No puedo expulsarme a mí mismo')
+  // 🚨 SI INTENTAN SACAR AL BOT
+  if (user === botJid) {
+    const frases = [
+      '😹 Buen intento, pero aquí mando yo',
+      '🤖 ¿Expulsarme a mí? error 404 cerebro no encontrado',
+      '😂 Intenta con otro bot, este no',
+      '🛡️ Protección anti-tontos activada'
+    ]
 
-  // 🛡 Protección owner del bot
+    const frase = frases[Math.floor(Math.random() * frases.length)]
+
+    try {
+      await sock.sendMessage(from, {
+        text: `${frase}\n\n👢 Ahora sales tú @${sender.split('@')[0]}\n> ${botName}`,
+        mentions: [sender]
+      }, { quoted: m })
+
+      // 👢 Eliminar al que intentó sacar al bot
+      await sock.groupParticipantsUpdate(from, [sender], 'remove')
+    } catch (e) {
+      console.log('❌ AntiKickBot ERROR:', e)
+    }
+
+    return
+  }
+
+  // 🔒 Protecciones normales
+  if (user === groupOwner) return reply('🛡 No puedes expulsar al creador del grupo')
+
   const userNumber = user.replace(/[^0-9]/g, '')
   if (owners.includes(userNumber)) return reply('🛡 No puedes expulsar al OWNER del bot')
 
   try {
-    // 🚨 Reacción al comando
+    // 🚨 Reacción
     await sock.sendMessage(from, { react: { text: '🚪', key: m.key } })
 
     // 👢 Expulsar usuario
@@ -41,10 +65,13 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
     await sock.sendMessage(
       from,
       {
-        text: `🚨 Usuario expulsado:\n🍁 @${user.split('@')[0]}\n👮 Expulsado por: @${sender.split('@')[0]}\n> ${botName}`,
+        text: `🚨 Usuario expulsado:
+🍁 @${user.split('@')[0]}
+👮 Expulsado por: @${sender.split('@')[0]}
+> ${botName}`,
         mentions: [user, sender]
       },
-      { quoted: m } // mensaje citado
+      { quoted: m }
     )
   } catch (e) {
     console.log('❌ Error kick:', e)
