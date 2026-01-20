@@ -5,7 +5,6 @@ const antilinkPath = path.join(process.cwd(), 'data/antilink.json')
 const modoadminPath = path.join(process.cwd(), 'data/modoadmin.json')
 const welcomePath = path.join(process.cwd(), 'data/welcome.json')
 
-// ───── CARGAR JSON SEGURO ─────
 function loadJSON(file) {
   if (!fs.existsSync(file)) return {}
   try {
@@ -13,17 +12,6 @@ function loadJSON(file) {
   } catch {
     return {}
   }
-}
-
-// ───── DETECTAR ESTADO REAL ─────
-function isEnabled(data, groupId) {
-  if (!data[groupId]) return false
-  const v = data[groupId]
-  if (typeof v === 'boolean') return v
-  if (typeof v === 'object') {
-    return Object.values(v).includes(true)
-  }
-  return false
 }
 
 export const handler = async (m, {
@@ -34,8 +22,8 @@ export const handler = async (m, {
   reply
 }) => {
 
-  if (!isGroup) return reply('⚠️ Este comando solo funciona en grupos')
-  if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
+  if (!isGroup) return reply('⚠️ Solo funciona en grupos')
+  if (!isAdmin) return reply('⚠️ Solo admins')
 
   const metadata = await sock.groupMetadata(from)
 
@@ -43,25 +31,36 @@ export const handler = async (m, {
   const modoadminData = loadJSON(modoadminPath)
   const welcomeData = loadJSON(welcomePath)
 
-  const antilink = isEnabled(antilinkData, from)
-  const modoadmin = isEnabled(modoadminData, from)
-  const welcome = isEnabled(welcomeData, from)
+  /* ───── DETECCIÓN REAL ───── */
 
-  // 🎯 Reacción
+  // 🔗 ANTILINK → true / false directo
+  const antilink =
+    antilinkData[from] === true
+
+  // 🔒 MODO ADMIN → enabled
+  const modoadmin =
+    modoadminData[from]?.enabled === true
+
+  // 👋 WELCOME → welcome === true
+  const welcome =
+    welcomeData[from]?.welcome === true
+
+  /* ───────────────────────── */
+
   await sock.sendMessage(from, {
     react: { text: 'ℹ️', key: m.key }
   })
 
   const text = `
-╭───〔 📌 INFO DEL GRUPO 〕───╮
-│ 📛 Nombre : ${metadata.subject}
+╭──〔 📌 INFO DEL GRUPO 〕──╮
+│ 📛 Nombre   : ${metadata.subject}
 │ 👥 Miembros : ${metadata.participants.length}
 │
 │ ⚙️ Opciones:
 │ 🔗 Antilink  : ${antilink ? '🟢 ON' : '🔴 OFF'}
 │ 🔒 ModoAdmin : ${modoadmin ? '🟢 ON' : '🔴 OFF'}
 │ 👋 Welcome   : ${welcome ? '🟢 ON' : '🔴 OFF'}
-╰──────────────────────────╯
+╰────────────────────────╯
 `.trim()
 
   await sock.sendMessage(from, { text }, { quoted: m })
