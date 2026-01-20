@@ -35,7 +35,7 @@ export const handler = async (m, {
     'on-off': '📴'
   }              
 
-  const cmdEmoji = '🧿' // emoji fijo para comandos
+  const cmdEmoji = '🚀→' // emoji fijo para comandos
 
   // 📂 Agrupar comandos
   const categories = {}              
