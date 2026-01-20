@@ -38,6 +38,12 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender }) =
     return reply('⚠️ Uso: .nsfw on / off')
   }
 
+  // Estado actual
+  const current = nsfwDB[from] || false
+  if ((option === 'on' && current) || (option === 'off' && !current)) {
+    return reply(`⚠️ NSFW ya está ${option === 'on' ? 'activado' : 'desactivado'} en este grupo`)
+  }
+
   nsfwDB[from] = option === 'on' ? true : false
   saveDB()
 
