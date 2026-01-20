@@ -1,6 +1,6 @@
 import fs from 'fs'
 
-export const handler = async (m, { sock, from, isGroup, sender, reply, owner, args }) => {
+export const handler = async (m, { sock, from, isGroup, sender, reply, args }) => {
   if (!isGroup) return reply('🚫 Este comando solo funciona en grupos')
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
@@ -35,21 +35,20 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner, ar
   participants = participants.sort(() => Math.random() - 0.5).slice(0, 10)
 
   const emojis = ['🔥','💥','✨','💫','🌟','🎉','😂','😎','🥳','💖','👑','💯']
-  
-  // Construir mensaje
+
   let texto = `🏆 Top ${category} del grupo:\n\n`
   let mentions = []
 
   participants.forEach((jid, i) => {
-    const name = metadata.participants.find(p => p.id === jid)?.notify || jid.split('@')[0]
+    const member = metadata.participants.find(p => p.id === jid)
+    const name = member?.notify || member?.id.split('@')[0]
     const emoji = emojis[i % emojis.length]
-    texto += `${emoji} ${name}\n`
+    texto += `${emoji} @${name}\n`
     mentions.push(jid)
   })
 
   texto += `\n> ¡Felicidades a los top 10! 🎉`
 
-  // Enviar mensaje
   await sock.sendMessage(from, { text: texto, mentions }, { quoted: m })
 }
 
