@@ -23,23 +23,16 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   }    
     
   // 🔒 Protecciones    
-  if (user === groupOwner) 
-    return reply('🛡 No puedes expulsar al creador del grupo')    
-    
-  // ⛔ PROTECCIÓN DEL BOT (MENSAJE CLARO)
-  if (user === botJid) 
-    return reply('🤖 No pueden expulsar al bot del grupo')    
+  if (user === groupOwner) return reply('🛡 No puedes expulsar al creador del grupo')    
+  if (user === botJid) return reply('⚠️ No puedo expulsarme a mí mismo')    
     
   // 🛡 Protección owner del bot    
   const userNumber = user.replace(/[^0-9]/g, '')    
-  if (owners.includes(userNumber)) 
-    return reply('🛡 No puedes expulsar al OWNER del bot')    
+  if (owners.includes(userNumber)) return reply('🛡 No puedes expulsar al OWNER del bot')    
     
   try {    
     // 🚨 Reacción al comando    
-    await sock.sendMessage(from, { 
-      react: { text: '🚪', key: m.key } 
-    })    
+    await sock.sendMessage(from, { react: { text: '🚪', key: m.key } })    
     
     // 👢 Expulsar usuario    
     await sock.groupParticipantsUpdate(from, [user], 'remove')    
@@ -48,13 +41,10 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
     await sock.sendMessage(    
       from,    
       {    
-        text: `🚨 Usuario expulsado:
-🍁 @${user.split('@')[0]}
-👮 Expulsado por: @${sender.split('@')[0]}
-> ${botName}`,    
+        text: `🚨 Usuario expulsado:\n🍁 @${user.split('@')[0]}\n👮 Expulsado por: @${sender.split('@')[0]}\n> ${botName}`,    
         mentions: [user, sender]    
       },    
-      { quoted: m }    
+      { quoted: m } // mensaje citado    
     )    
   } catch (e) {    
     console.log('❌ Error kick:', e)    
