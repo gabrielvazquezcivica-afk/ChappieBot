@@ -12,7 +12,7 @@ export const handler = async (m, {
   }              
 
   // ⚡ Reacción al abrir menú
-  await sock.sendMessage(from, { react: { text: '⚡', key: m.key } })
+  await sock.sendMessage(from, { react: { text: '🎭', key: m.key } })
 
   const botName = 'ChappieBot'
   const dev = 'SoyGabo'
@@ -20,12 +20,12 @@ export const handler = async (m, {
 
   // 🎯 Emoji por categoría
   const tagEmoji = {              
-    info: '🍄',
+    info: '🗽',
     frases: '📖',
-    group: '🐉',
+    group: '🎪',
     descargas: '🎧',
-    juegos: '🎡',
-    ff: '🔫',
+    juegos: '🎠',
+    ff: '🕹️',
     registro: '📚',
     rpg: '💰',
     tools: '🧰',
