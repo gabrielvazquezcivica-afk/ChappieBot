@@ -16,19 +16,25 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   // Reacción al comando
   await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })
 
-  // Texto con solo el nombre del grupo y total de miembros
-  let text = `${metadata.subject}\n𝐦𝐢𝐞𝐦𝐛𝐫𝐨𝐬: ${participants.length}\n\n`
+  // ───── DISEÑO TIPO INFOGRUPO ─────
+  let text = `╭━━━〔 📣 MENCIÓN GENERAL 〕━━━╮
+┃ 📛 Grupo : ${metadata.subject}
+┃ 👥 Miembros : ${participants.length}
+╰━━━━━━━━━━━━━━━━━━━━━━╯
+
+╭━━━〔 🚀 USUARIOS 🚀 〕━━━╮
+`
 
   const mentions = []
 
-  // Construir lista de menciones
   for (const p of participants) {
     const name = p?.notify || p?.id.split('@')[0]
-    text += `🍁→ @${name}\n`
-    mentions.push(p.id) // JID exacto
+    text += `┃ 🛸 @${name}\n`
+    mentions.push(p.id)
   }
 
-  text += `\n> ${botName}`
+  text += `╰━━━━━━━━━━━━━━━━━━━━━━╯
+> ${botName}`
 
   await sock.sendMessage(
     from,
