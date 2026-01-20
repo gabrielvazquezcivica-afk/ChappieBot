@@ -3,7 +3,7 @@ import fs from 'fs'
 export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) => {
   if (!isGroup) return reply('🚫 Este comando solo funciona en grupos')
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  /* ───── 🔒 MODO ADMIN (SILENCIOSO) ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
   if (fs.existsSync(modoadminPath)) {
@@ -38,18 +38,20 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) 
   else if (ctx?.participant) who = ctx.participant
   else who = sender
 
-  // 👥 Obtener nombres reales
+  // 👥 Obtener nombres reales del grupo
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants || []
+
   const target = participants.find(p => p.id === who)
-  const name2 = target?.notify || who.split('@')[0]
   const senderContact = participants.find(p => p.id === sender)
+
   const name1 = senderContact?.notify || sender.split('@')[0]
+  const name2 = target?.notify || who.split('@')[0]
 
   // 😹 reacción inicial
   await sock.sendMessage(from, { react: { text: '😹', key: m.key } })
 
-  const texto = '😹 *' + name1 + '* se está riendo de *' + name2 + '*'
+  const texto = `😹 *@${name1}* se está riendo de *@${name2}*`
 
   // 🎞️ Videos aleatorios
   const videos = [
