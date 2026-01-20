@@ -1,6 +1,6 @@
 import fs from 'fs'
 
-export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) => {
+export const handler = async (m, { sock, from, isGroup, sender, reply, owner, args }) => {
   if (!isGroup) return reply('🚫 Este comando solo funciona en grupos')
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
@@ -13,7 +13,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) 
     } catch { groupSettings = { enabled: false } }
   }
 
-  if (groupSettings.enabled && isGroup) {
+  if (groupSettings.enabled) {
     try {
       const metadata = await sock.groupMetadata(from)
       const participants = metadata.participants || []
@@ -25,41 +25,38 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) 
   }
   /* ─────────────────────────────────── */
 
-  // ───── Obtener participantes del grupo ─────
+  const category = args[0] ? args.join(' ') : 'del grupo'
+
   const metadata = await sock.groupMetadata(from)
-  let participants = metadata.participants.map(p => p.id).filter(id => id !== sock.user.id)
+  let participants = metadata.participants.map(p => p.id)
+  if (participants.length === 0) return reply('❌ No hay miembros en el grupo')
 
-  if (participants.length < 2) return reply('❌ No hay suficientes miembros para generar un Top')
+  // Mezclar y tomar hasta 10
+  participants = participants.sort(() => Math.random() - 0.5).slice(0, 10)
 
-  // ───── Seleccionar 10 personas aleatorias ─────
-  participants = participants.sort(() => 0.5 - Math.random()).slice(0, 10)
+  const emojis = ['🔥','💥','✨','💫','🌟','🎉','😂','😎','🥳','💖','👑','💯']
+  
+  // Construir mensaje
+  let texto = `🏆 Top ${category} del grupo:\n\n`
+  let mentions = []
 
-  // ───── Nombres de los participantes ─────
-  const participantNames = participants.map(id => {
-    const contact = metadata.participants.find(p => p.id === id)
-    return contact?.notify || id.split('@')[0]
+  participants.forEach((jid, i) => {
+    const name = metadata.participants.find(p => p.id === jid)?.notify || jid.split('@')[0]
+    const emoji = emojis[i % emojis.length]
+    texto += `${emoji} ${name}\n`
+    mentions.push(jid)
   })
 
-  // ───── Frase con emojis aleatorios ─────
-  const emojis = ['🔥','✨','💥','🌟','💫','❤️','💎','💡','🎉','⚡','🎶','😎','🫶','💀','🧨','🌈','💐','🍀','🍭','🎁']
-  const texto = participantNames.map(name => {
-    const emoji = emojis[Math.floor(Math.random() * emojis.length)]
-    return `${emoji} ${name}`
-  }).join(' ')
+  texto += `\n> ¡Felicidades a los top 10! 🎉`
 
-  const finalText = `🏆 Top 10 del grupo 🏆\n\n${texto}\n\n> ¡Felicitaciones a los mejores del grupo!`
-
-  await sock.sendMessage(
-    from,
-    { text: finalText, mentions: participants },
-    { quoted: m }
-  )
+  // Enviar mensaje
+  await sock.sendMessage(from, { text: texto, mentions }, { quoted: m })
 }
 
 handler.command = ['top']
 handler.tags = ['juegos']
 handler.menu = true
 handler.group = true
-handler.help = ['top']
+handler.help = ['top <categoría>']
 
 export default handler
