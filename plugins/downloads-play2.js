@@ -1,34 +1,15 @@
-import yts from 'yt-search'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { spawn } from 'child_process'
+import { google } from 'googleapis'
+
+const YT_API_KEY = 'AIzaSyBDC1a2MaAyr2DE2qDnN9IVInwkWFZB348'
 
 export const handler = async (m, { sock, from, args, reply, isGroup, owner }) => {
   const sender = m.key.participant
-
-  /* ───── MODO ADMIN SILENCIOSO ───── */
-  if (isGroup) {
-    if (!global.db) global.db = {}
-    if (!global.db.groups) global.db.groups = {}
-    if (!global.db.groups[from]) global.db.groups[from] = { modoadmin: false }
-
-    const groupSettings = global.db.groups[from]
-    if (groupSettings.modoadmin) {
-      try {
-        const metadata = await sock.groupMetadata(from)
-        const parts = metadata.participants || []
-        const ownerJids = owner?.jid || []
-
-        if (!ownerJids.includes(sender)) {
-          const isAdmin = parts.some(
-            p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
-          )
-          if (!isAdmin) return
-        }
-      } catch {}
-    }
-  }
-  /* ───────────────────────────────── */
-
   const text = args.join(' ').trim()
+
   if (!text) return reply(
 `╭─❖ 「 🎬 JOSHI VIDEO 」 ❖─╮
 │ ✍️ Ejemplo:
@@ -37,17 +18,46 @@ export const handler = async (m, { sock, from, args, reply, isGroup, owner }) =>
   )
 
   try {
-    // 🔍 BUSCAR VIDEO
-    const search = await yts(text)
-    if (!search.all.length) return reply('❌ No encontré resultados')
+    /* ───── 🔍 BUSCAR VIDEO YT API ───── */
+    const youtube = google.youtube({ version: 'v3', auth: YT_API_KEY })
+    const res = await youtube.search.list({
+      part: 'snippet',
+      q: text,
+      maxResults: 5,
+      type: 'video'
+    })
 
-    const video = search.all.find(v => v.seconds) || search.all[0]
-    const { title, url, thumbnail, author, timestamp, views, ago } = video
+    if (!res.data.items?.length) return reply('❌ No encontré resultados')
 
-    // 🎬 REACCIÓN
+    const videoId = res.data.items[0].id.videoId
+    const { title, channelTitle, thumbnails } = res.data.items[0].snippet
+    const url = `https://www.youtube.com/watch?v=${videoId}`
+    const thumbnail = thumbnails.high?.url || thumbnails.default?.url
+
+    /* 🎬 Reacción de búsqueda */
     await sock.sendMessage(from, { react: { text: '🎬', key: m.key } })
 
-    // 📊 INFO DEL VIDEO
+    /* ⬇️ DESCARGA TEMPORAL CON yt-dlp */
+    const tmpPath = path.join(os.tmpdir(), `${Date.now()}.mp4`)
+    await new Promise((resolve, reject) => {
+      const yt = spawn(
+        'yt-dlp',
+        [
+          '-f', 'bv*[height<=720]+ba/b[height<=720]',
+          '--merge-output-format', 'mp4',
+          '--no-playlist',
+          '--no-warnings',
+          '--quiet',
+          '-o', tmpPath,
+          url
+        ],
+        { stdio: 'ignore' }
+      )
+      yt.on('close', code => code === 0 ? resolve() : reject(new Error('yt-dlp falló')))
+      yt.on('error', reject)
+    })
+
+    /* 📊 INFORMACIÓN DEL VIDEO */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
@@ -55,49 +65,26 @@ export const handler = async (m, { sock, from, args, reply, isGroup, owner }) =>
 ║   🎬 JOSHI VIDEO SYSTEM   ║
 ╠════════════════════════════╣
 ║ 🎥 Título   : ${title}
-║ 👤 Canal    : ${author?.name || 'Desconocido'}
-║ ⏱ Duración : ${timestamp}
-║ 👁 Vistas   : ${views?.toLocaleString() || 'N/A'}
-║ 📅 Subido   : ${ago || 'N/A'}
+║ 👤 Canal    : ${channelTitle}
 ╚════════════════════════════╝
 
 ⏳ Enviando video...`
     }, { quoted: m })
 
-    // ⬇️ STREAM DIRECTO CON yt-dlp
-    await new Promise((resolve, reject) => {
-      const yt = spawn('yt-dlp', [
-        '-f', 'bv*[height<=720]+ba/b[height<=720]',
-        '--merge-output-format', 'mp4',
-        '--no-playlist',
-        '--no-warnings',
-        '--quiet',
-        '-o', '-', // ❗ salida a stdout
-        url
-      ])
+    /* 📤 ENVIAR VIDEO */
+    const video = fs.readFileSync(tmpPath)
+    fs.unlinkSync(tmpPath)
+    await sock.sendMessage(from, {
+      video,
+      mimetype: 'video/mp4',
+      caption: `🎬 ${title}`
+    }, { quoted: m })
 
-      let chunks = []
-      yt.stdout.on('data', data => chunks.push(data))
-      yt.stderr.on('data', () => {}) // ignorar errores de consola
-      yt.on('close', code => {
-        if (code === 0) resolve(Buffer.concat(chunks))
-        else reject(new Error('yt-dlp falló'))
-      })
-      yt.on('error', reject)
-    }).then(async buffer => {
-      // 📤 ENVIAR VIDEO
-      await sock.sendMessage(from, {
-        video: buffer,
-        mimetype: 'video/mp4',
-        caption: `🎬 ${title}`
-      }, { quoted: m })
-    })
-
-    // ✅ REACCIÓN FINAL
+    /* ✅ REACCIÓN FINAL */
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
-    console.error('PLAY2 STREAM ERROR:', e?.message || e)
+    console.error('PLAY2 ERROR:', e)
     reply(
 `╭─❖ 「 ERROR 」 ❖─╮
 │ ❌ No se pudo enviar el video
