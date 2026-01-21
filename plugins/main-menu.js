@@ -39,15 +39,15 @@ export const handler = async (m, {
   const cmdEmojiByTag = {
     info: '💫',
     frases: '🍃',
-    group: '✨',
+    group: '🍁',
     descargas: '🎵',
     juegos: '🎯',
-    ff: '🕹️',
+    ff: '🚀',
     registro: '📝',
     rpg: '💎',
     tools: '🔧',
     stickers: '🖌️',
-    owner: '👑',
+    owner: '🤴🏻',
     nsfw: '🔥',
     'on-off': '📳'
   }    
