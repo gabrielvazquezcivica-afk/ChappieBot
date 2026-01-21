@@ -1,6 +1,5 @@
 export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config?.messages || {}
-  const botName = sock.user?.name || 'ChappieBot'
 
   // 🔹 Solo grupos
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
@@ -13,23 +12,25 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   if (!isAdmin) return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
 
   try {
-    // 🗑️ Borrar mensaje correctamente usando protocolMessage
+    // 🗑️ Clave del mensaje a borrar
+    const key = {
+      remoteJid: from,
+      fromMe: ctx.participant === sock.user.id || false, // true si es del bot
+      id: ctx.stanzaId,
+      participant: ctx.participant
+    }
+
+    // 🗑️ Enviar protocolMessage para borrar
     await sock.sendMessage(from, {
       protocolMessage: {
-        key: {
-          remoteJid: from,
-          fromMe: false,
-          id: ctx.stanzaId,
-          participant: ctx.participant
-        },
+        key,
         type: 0
       }
     })
 
     // ⚡ Reacción de confirmación
-    await sock.sendMessage(from, {
-      react: { text: '🗑️', key: m.key }
-    })
+    await sock.sendMessage(from, { react: { text: '🗑️', key: m.key } })
+
   } catch (e) {
     console.log('❌ Error al borrar mensaje:', e)
     reply(msgs.error || '❌ No pude borrar el mensaje')
