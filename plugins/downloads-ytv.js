@@ -3,10 +3,9 @@ import os from 'os'
 import path from 'path'
 import { spawn } from 'child_process'
 
-const modoadminPath = path.join(process.cwd(), 'data/modoadmin.json')
+const modoadminPath = './data/modoadmin.json'
 
-// ───── CARGAR MODO ADMIN ─────
-function loadModoAdmin () {
+function loadModoAdmin() {
   if (!fs.existsSync(modoadminPath)) return {}
   try {
     return JSON.parse(fs.readFileSync(modoadminPath))
@@ -25,35 +24,39 @@ export const handler = async (m, {
   owner
 }) => {
 
-  /* ───── 👑 MODO ADMIN (CHAPPIEBOT) ───── */
+  /* ───── 👑 MODO ADMIN (SILENCIOSO - REAL) ───── */
   if (isGroup) {
     const modoadminData = loadModoAdmin()
-    const groupModoAdmin = modoadminData[from]?.enabled === true
+    const groupMode = modoadminData[from]?.enabled === true
 
-    if (groupModoAdmin) {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
+    if (groupMode) {
+      try {
+        const metadata = await sock.groupMetadata(from)
+        const participants = metadata.participants || []
+        const ownerJids = owner?.jid || []
 
-      const ownerJids = owner?.jid || []
-
-      if (!ownerJids.includes(sender)) {
-        const isAdmin = participants.some(
-          p => p.id === sender &&
-          (p.admin === 'admin' || p.admin === 'superadmin')
-        )
-        if (!isAdmin) return // 🚫 bloqueo silencioso
+        if (!ownerJids.includes(sender)) {
+          const isAdmin = participants.some(
+            p =>
+              p.id === sender &&
+              (p.admin === 'admin' || p.admin === 'superadmin')
+          )
+          if (!isAdmin) return // 🚫 bloqueo silencioso
+        }
+      } catch {
+        return
       }
     }
   }
-  /* ─────────────────────────────────── */
+  /* ─────────────────────────────────────────── */
 
   if (!args[0]) {
-    return reply(`
-╭──〔 🎥 YOUTUBE VIDEO 〕──╮
+    return reply(
+`╭─❖ 「 🎥 YOUTUBE VIDEO 」 ❖─╮
 │ 📌 Uso:
 │ .ytv <link>
-╰──〔 🤖 ChappieBot 〕──╯
-`.trim())
+╰──────────────────────────╯`
+    )
   }
 
   const url = args[0]
@@ -62,49 +65,60 @@ export const handler = async (m, {
   }
 
   await sock.sendMessage(from, {
-    react: { text: '⏳', key: m.key }
+    react: { text: '⚡', key: m.key }
   })
 
-  const tmpPath = path.join(os.tmpdir(), `${Date.now()}.mp4`)
+  const tmp = path.join(os.tmpdir(), `${Date.now()}.mp4`)
 
   try {
     await new Promise((resolve, reject) => {
-      const yt = spawn('yt-dlp', [
-        '-f',
-        'bv*[ext=mp4][height<=480]+ba[ext=m4a]/b[ext=mp4][height<=480]',
-        '--merge-output-format', 'mp4',
-        '--no-playlist',
-        '-o', tmpPath,
-        url
-      ])
+      const yt = spawn(
+        'yt-dlp',
+        [
+          '-f', '18', // ⚡ 360p progresivo (audio + video)
+          '--no-playlist',
+          '--no-warnings',
+          '--quiet',
+          '-o', tmp,
+          url
+        ],
+        { stdio: 'ignore' }
+      )
 
-      yt.on('close', code => {
-        code === 0 ? resolve() : reject(new Error('yt-dlp falló'))
-      })
+      yt.on('close', code => code === 0 ? resolve() : reject())
+      yt.on('error', reject)
     })
 
-    const video = fs.readFileSync(tmpPath)
-    fs.unlinkSync(tmpPath)
+    if (!fs.existsSync(tmp)) {
+      return reply('❌ No se pudo generar el video')
+    }
 
-    await sock.sendMessage(from, {
-      video,
-      mimetype: 'video/mp4',
-      caption: '🎬 YouTube MP4'
-    }, { quoted: m })
+    const video = fs.readFileSync(tmp)
+    fs.unlinkSync(tmp)
+
+    await sock.sendMessage(
+      from,
+      {
+        video,
+        mimetype: 'video/mp4'
+      },
+      { quoted: m }
+    )
 
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
     })
 
   } catch (e) {
-    console.error('YTMP4 ERROR:', e)
-    reply('❌ No se pudo descargar el video')
+    console.error('YTV ERROR:', e)
+    reply('❌ Error al descargar el video')
   }
 }
 
 handler.command = ['ytv']
 handler.tags = ['descargas']
+handler.help = ['ytv <link>']
 handler.menu = true
-handler.group = true
+handler.group = false
 
 export default handler
