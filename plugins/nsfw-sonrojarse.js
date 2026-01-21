@@ -3,24 +3,26 @@ import path from 'path'
 
 const nsfwFile = path.join(process.cwd(), './data/nsfw.json')
 
-// Cargar DB NSFW
-let nsfwDB = {}
-try {
-  if (fs.existsSync(nsfwFile)) {
-    nsfwDB = JSON.parse(fs.readFileSync(nsfwFile))
+// Función para leer la DB NSFW cada vez
+function getNSFWDB() {
+  try {
+    if (fs.existsSync(nsfwFile)) {
+      return JSON.parse(fs.readFileSync(nsfwFile))
+    }
+  } catch (e) {
+    console.error('Error cargando NSFW DB:', e)
   }
-} catch (e) {
-  console.error('Error cargando NSFW DB:', e)
-  nsfwDB = {}
+  return {}
 }
 
 export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
 
-  // 🛑 Solo grupos
   if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
-  // ⚠️ Comprobar NSFW
+  // ⚠️ Leer estado NSFW dinámicamente
+  const nsfwDB = getNSFWDB()
   const nsfwEnabled = nsfwDB[from] || false
+
   if (!nsfwEnabled) {
     return reply(
       '🔞 *Comandos NSFW desactivados*\n\n' +
