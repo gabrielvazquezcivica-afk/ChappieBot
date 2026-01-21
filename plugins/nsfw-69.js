@@ -14,10 +14,13 @@ try {
   nsfwDB = {}
 }
 
-export const handler = async (m, { sock, from, sender, reply }) => {
+function saveDB() {
+  fs.writeFileSync(nsfwFile, JSON.stringify(nsfwDB, null, 2))
+}
 
-  // 🛑 Solo grupos
-  if (!m.isGroup) return
+export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
+
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
   // 🔞 Verificar si NSFW está activado en este grupo
   const nsfwActive = nsfwDB[from] || false
@@ -60,8 +63,7 @@ export const handler = async (m, { sock, from, sender, reply }) => {
     'https://telegra.ph/file/16f43effd7357e82c94d3.mp4',
     'https://telegra.ph/file/55cb31314b168edd732f8.mp4',
     'https://telegra.ph/file/1cbaa4a7a61f1ad18af01.mp4',
-    'https://telegra.ph/file/1083c19087f6997ec8095.mp4',
-    'https://telegra.ph/file/0b1e2c3d4f5a6b7c8d9e.mp4'
+    'https://telegra.ph/file/1083c19087f6997ec8095.mp4'
   ]
 
   const video = videos[Math.floor(Math.random() * videos.length)]
@@ -79,7 +81,7 @@ export const handler = async (m, { sock, from, sender, reply }) => {
   )
 }
 
-handler.command = ['69', 'sixnine']
+handler.command = ['69']
 handler.group = true
 handler.menu = true
 handler.tags = ['nsfw']
