@@ -103,6 +103,19 @@ async function startBot () {
       console.log(chalk.green('✅ Conectado | Comandos activos'))
     }
 
+    // ───── AVISO BOT LISTO ─────
+      try {
+        const readyChat = global.config.bot.readyChat || null
+        if (readyChat) {
+          await sock.sendMessage(readyChat, {
+            text: '✅ ChappieBot listo y operativo'
+          })
+        }
+      } catch (e) {
+        console.log(chalk.red('❌ No se pudo enviar mensaje de inicio:'), e.message)
+      }
+  }
+
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
       console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
