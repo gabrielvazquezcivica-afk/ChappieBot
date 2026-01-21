@@ -2,6 +2,25 @@ let started = false
 
 export const handler = async () => {}
 
+/* ───── QUOTED GLOBAL (NO TOCA LÓGICA) ───── */
+const izumi = (titulo = 'CHAPPIE BOT') => ({
+  key: {
+    fromMe: false,
+    participant: '0@s.whatsapp.net',
+    remoteJid: 'status@broadcast'
+  },
+  message: {
+    orderMessage: {
+      itemCount: 1,
+      message: titulo,
+      footerText: 'ChappieBot',
+      surface: 2,
+      sellerJid: '0@s.whatsapp.net'
+    }
+  }
+})
+/* ─────────────────────────────────────── */
+
 handler.before = async (m, { sock }) => {
   if (started) return
   started = true
