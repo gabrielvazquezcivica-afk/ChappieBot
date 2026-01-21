@@ -17,10 +17,7 @@ export const handler = async (m, { sock, isGroup, sender, reply }) => {
 
   if (!admins.includes(sender)) {
     return reply(
-`╭─❌ ACCESO DENEGADO
-│ 👮 Solo ADMINISTRADORES
-│ pueden usar este comando
-╰─🤖 ChappieBot`
+`❌ Solo ADMINISTRADORES pueden usar este comando`
     )
   }
 
@@ -36,12 +33,17 @@ export const handler = async (m, { sock, isGroup, sender, reply }) => {
     await sock.sendMessage(from, {
       delete: {
         remoteJid: from,
-        fromMe: false, // permite borrar mensajes de otros si el bot es admin
+        fromMe: false,
         id: ctx.stanzaId,
         participant: ctx.participant
       }
     })
-    reply('✅ Mensaje eliminado correctamente')
+
+    // ✅ Reacción al borrar
+    await sock.sendMessage(from, {
+      react: { text: '🗑️', key: m.key }
+    })
+
   } catch (e) {
     console.error('DELETE ERROR:', e)
     reply(
