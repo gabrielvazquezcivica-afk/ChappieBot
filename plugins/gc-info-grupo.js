@@ -3,6 +3,7 @@ import path from 'path'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 const modoadminPath = path.join(process.cwd(), 'data/modoadmin.json')
+const nsfwPath = path.join(process.cwd(), 'data/nsfw.json')
 
 // ───── LOADERS ─────
 function loadSettings() {
@@ -18,6 +19,15 @@ function loadModoAdmin() {
   if (!fs.existsSync(modoadminPath)) return {}
   try {
     return JSON.parse(fs.readFileSync(modoadminPath))
+  } catch {
+    return {}
+  }
+}
+
+function loadNSFW() {
+  if (!fs.existsSync(nsfwPath)) return {}
+  try {
+    return JSON.parse(fs.readFileSync(nsfwPath))
   } catch {
     return {}
   }
@@ -39,14 +49,17 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   // ───── CARGAR CONFIGS ─────
   const settings = loadSettings()
   const modoadminData = loadModoAdmin()
+  const nsfwData = loadNSFW()
 
   const groupSettings = settings[from] || {}
   const groupModoAdmin = modoadminData[from] || { enabled: false }
+  const groupNSFW = nsfwData[from] === true
 
   // ───── ESTADOS REALES ─────
   const welcome = groupSettings.welcome === true
   const antilink = groupSettings.antilink === true
   const modoadmin = groupModoAdmin.enabled === true
+  const nsfw = groupNSFW
 
   // ───── TEXTO ─────
   let text = `╭━━━〔 📊 INFO DEL GRUPO 〕━━━╮
@@ -58,6 +71,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
 ┃ 🔗 Antilink  : ${antilink ? '🟢 ENCENDIDO' : '🔴 APAGADO'}
 ┃ 👑 ModoAdmin : ${modoadmin ? '🟢 ENCENDIDO' : '🔴 APAGADO'}
 ┃ 👋 Welcome   : ${welcome ? '🟢 ENCENDIDO' : '🔴 APAGADO'}
+┃ 🔞 NSFW      : ${nsfw ? '🟢 ENCENDIDO' : '🔴 APAGADO'}
 ╰━━━━━━━━━━━━━━━━━━━━━━╯
 
 > ${sock.user?.name || 'ChappieBot'}`
