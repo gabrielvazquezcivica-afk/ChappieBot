@@ -1,29 +1,50 @@
-import config from '../config.js'
+// ───── REINICIAR BOT ─────
+import { exec } from 'child_process'
 
-export const handler = async (m, { sock, from, reply }) => {
-
-  const sender = m.key.participant || m.key.remoteJid
-
-  // 🔒 SOLO OWNER según config.js
-  const ownerJids = Array.isArray(config.owner) ? config.owner : [config.owner]
-  if (!ownerJids.includes(sender)) {
-    return reply('❌ Solo *OWNER* puede usar este comando')
-  }
-
-  // ✅ Aviso de reinicio
-  await sock.sendMessage(from, {
-    text: '🔄 Reiniciando *ChappieBot*...\n⏳ Espera unos segundos',
-  }, { quoted: m })
-
-  // ⏱ Pequeña espera antes de reiniciar
-  setTimeout(() => {
-    process.exit(0)
-  }, 1500)
+function onlyNumber(jid = '') {
+  return typeof jid === 'string' ? jid.replace(/[^0-9]/g, '') : jid?.id?.replace(/[^0-9]/g, '')
 }
 
-handler.command = ['restart']
+export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
+  const msgs = global.config.messages || {}
+
+  if (!isGroup) {
+    return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
+  }
+
+  // 🔹 OWNER del bot desde config
+  const owners = global.config.owner?.numbers || []
+  const senderNum = onlyNumber(sender)
+
+  if (!owners.includes(senderNum)) {
+    return reply(msgs.owner || '⚠️ Este comando es solo para el propietario')
+  }
+
+  try {
+    await sock.sendMessage(from, {
+      text: '♻️ Reiniciando ChappieBot...'
+    })
+
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
+
+    // ───── REINICIO ─────
+    setTimeout(() => {
+      //
+      process.exit(0)
+    }, 1000)
+
+  } catch (e) {
+    console.error('RESTART ERROR:', e)
+    reply('❌ Error al intentar reiniciar el bot')
+  }
+}
+
+handler.command = ['reiniciar']
 handler.tags = ['owner']
 handler.owner = true
+handler.group = true
 handler.menu = true
 
 export default handler
