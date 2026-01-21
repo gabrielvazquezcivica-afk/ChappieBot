@@ -1,4 +1,4 @@
-import { config } from '../config.js' // Ajusta la ruta si tu config está en otra carpeta
+import config from '../config.js'
 
 export const handler = async (m, { sock, from, reply }) => {
 
@@ -21,7 +21,7 @@ export const handler = async (m, { sock, from, reply }) => {
   }, 1500)
 }
 
-handler.command = ['reiniciar']
+handler.command = ['restart']
 handler.tags = ['owner']
 handler.owner = true
 handler.menu = true
