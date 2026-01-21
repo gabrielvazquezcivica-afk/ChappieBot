@@ -1,24 +1,15 @@
-// owner-reiniciar.js
-export const handler = async (m, { sock, reply, owner, sender }) => {
+export const handler = async (m, { sock, from, sender, reply }) => {
   const owners = global.config.owner?.numbers || []
-  const senderNum = sender.split('@')[0]
-
-  if (!owners.includes(senderNum)) {
-    return reply('❌ Este comando es solo para el OWNER')
+  const onlyNumber = jid => jid.replace(/[^0-9]/g, '')
+  if (!owners.includes(onlyNumber(sender))) {
+    return reply('❌ Solo el OWNER puede usar este comando')
   }
 
-  await sock.sendMessage(m.key.remoteJid, {
-    react: { text: '🔄', key: m.key }
-  })
-
-  reply('♻️ Reiniciando ChappieBot...')
-
-  // ❗ Esto detiene el proceso
-  process.exit(0)
+  await sock.sendMessage(from, { text: '♻️ Reiniciando ChappieBot…' })
+  process.exit(0) // Sale para que start.sh lo reinicie
 }
 
 handler.command = ['reiniciar']
-handler.tags = ['owner']
 handler.owner = true
 handler.group = false
 handler.menu = true
