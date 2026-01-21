@@ -1,44 +1,57 @@
-export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
-  const msgs = global.config?.messages || {}
+export const handler = async (m, { sock, isGroup, sender, reply }) => {
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
-  // 🔹 Solo grupos
-  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
+  const from = m.key.remoteJid
 
-  // 🔹 Debe responder a un mensaje
+  // 📌 Obtener metadata del grupo
+  let metadata
+  try {
+    metadata = await sock.groupMetadata(from)
+  } catch (e) {
+    return reply('⚠️ No pude obtener información del grupo')
+  }
+
+  const admins = metadata.participants
+    .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
+    .map(p => p.id)
+
+  if (!admins.includes(sender)) {
+    return reply(
+`╭─❌ ACCESO DENEGADO
+│ 👮 Solo ADMINISTRADORES
+│ pueden usar este comando
+╰─🤖 ChappieBot`
+    )
+  }
+
+  // 📌 Mensaje citado
   const ctx = m.message?.extendedTextMessage?.contextInfo
-  if (!ctx?.stanzaId) return reply('⚠️ Responde al mensaje que deseas borrar')
-
-  // 🔹 Verificar admin
-  if (!isAdmin) return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
+  if (!ctx?.stanzaId) {
+    return reply('❌ Responde al mensaje que deseas borrar')
+  }
 
   try {
-    // 🗑️ Clave del mensaje a borrar
-    const key = {
-      remoteJid: from,
-      fromMe: ctx.participant === sock.user.id || false, // true si es del bot
-      id: ctx.stanzaId,
-      participant: ctx.participant
-    }
-
-    // 🗑️ Enviar protocolMessage para borrar
     await sock.sendMessage(from, {
-      protocolMessage: {
-        key,
-        type: 0
+      delete: {
+        remoteJid: from,
+        fromMe: ctx.participant === sock.user.id, // 👈 permite borrar mensajes del bot
+        id: ctx.stanzaId,
+        participant: ctx.participant
       }
     })
-
-    // ⚡ Reacción de confirmación
-    await sock.sendMessage(from, { react: { text: '🗑️', key: m.key } })
-
   } catch (e) {
-    console.log('❌ Error al borrar mensaje:', e)
-    reply(msgs.error || '❌ No pude borrar el mensaje')
+    console.error('DELETE ERROR:', e)
+    reply(
+`❌ No pude borrar el mensaje
+⚠️ Asegúrate que el bot sea ADMIN`
+    )
   }
 }
 
+// ───── CONFIG PARA MENÚ ─────
 handler.command = ['del']
 handler.tags = ['group']
+handler.help = ['del (responder mensaje)', 'delete (responder mensaje)']
 handler.group = true
 handler.admin = true
 handler.botAdmin = true
