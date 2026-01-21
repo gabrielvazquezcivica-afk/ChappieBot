@@ -2,24 +2,18 @@ let started = false
 
 export const handler = async () => {}
 
-/* ───── QUOTED GLOBAL (NO TOCA LÓGICA) ───── */
-const izumi = (titulo = 'CHAPPIE BOT') => ({
+/* ───── QUOTED SISTEMA (WHATSAPP REAL) ───── */
+const sistema = () => ({
   key: {
     fromMe: false,
     participant: '0@s.whatsapp.net',
     remoteJid: 'status@broadcast'
   },
   message: {
-    orderMessage: {
-      itemCount: 1,
-      message: titulo,
-      footerText: 'ChappieBot',
-      surface: 2,
-      sellerJid: '0@s.whatsapp.net'
-    }
+    conversation: ''
   }
 })
-/* ─────────────────────────────────────── */
+/* ───────────────────────────────────────── */
 
 handler.before = async (m, { sock }) => {
   if (started) return
@@ -27,10 +21,10 @@ handler.before = async (m, { sock }) => {
 
   const botName = sock.user?.name || 'ChappieBot'
 
-  // ───── ADMIN / DEMOTE ─────
+  /* ───── ADMIN / DEMOTE ───── */
   sock.ev.on('group-participants.update', async (update) => {
     const { id, participants, action, author } = update
-    if (!id.endsWith('@g.us')) return
+    if (!id?.endsWith('@g.us')) return
     if (!['promote', 'demote'].includes(action)) return
 
     const user = participants?.[0]
@@ -38,16 +32,20 @@ handler.before = async (m, { sock }) => {
 
     const text =
       action === 'promote'
-        ? `👑 *Administrador asignado*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
-        : `👤 *Administrador removido*\n\n👤 Usuario: @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+        ? `👑 Administrador asignado\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+        : `👤 Administrador removido\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
-    await sock.sendMessage(id, {
-      text: text + `\n\n> ${botName}`,
-      mentions: [user, author]
-    })
+    await sock.sendMessage(
+      id,
+      {
+        text: text + `\n\n> ${botName}`,
+        mentions: [user, author]
+      },
+      { quoted: sistema() }
+    )
   })
 
-  // ───── CAMBIOS DEL GRUPO ─────
+  /* ───── CAMBIOS DEL GRUPO ───── */
   sock.ev.on('groups.update', async (updates) => {
     for (const g of updates) {
       const {
@@ -56,27 +54,26 @@ handler.before = async (m, { sock }) => {
         desc,
         announce,
         picture,
-        participants,
-        author
+        author,
+        participants
       } = g
 
-      if (!id.endsWith('@g.us')) continue
+      if (!id?.endsWith('@g.us')) continue
 
       const actor = author || participants?.[0] || null
-
       let text = ''
       let mentions = []
 
       if (announce === true)
-        text = '🔒 *El grupo fue cerrado*'
+        text = '🔒 El grupo fue cerrado'
       else if (announce === false)
-        text = '🔓 *El grupo fue abierto*'
+        text = '🔓 El grupo fue abierto'
       else if (subject)
-        text = `✏️ *Nombre del grupo cambiado*\n\n📌 ${subject}`
+        text = `✏️ Nombre del grupo cambiado\n\n📌 ${subject}`
       else if (desc !== undefined)
-        text = '📝 *Descripción del grupo modificada*'
+        text = '📝 Descripción del grupo modificada'
       else if (picture)
-        text = '🖼️ *Foto del grupo actualizada*'
+        text = '🖼️ Foto del grupo actualizada'
 
       if (!text) continue
 
@@ -85,10 +82,14 @@ handler.before = async (m, { sock }) => {
         mentions.push(actor)
       }
 
-      await sock.sendMessage(id, {
-        text: text + `\n\n> ${botName}`,
-        mentions
-      })
+      await sock.sendMessage(
+        id,
+        {
+          text: text + `\n\n> ${botName}`,
+          mentions
+        },
+        { quoted: sistema() }
+      )
     }
   })
 }
