@@ -3,11 +3,11 @@ export const handler = async (m, { sock, isGroup, sender, reply }) => {
 
   const from = m.key.remoteJid
 
-  // 📌 Obtener metadata del grupo
+  // 📌 Metadata del grupo
   let metadata
   try {
     metadata = await sock.groupMetadata(from)
-  } catch (e) {
+  } catch {
     return reply('⚠️ No pude obtener información del grupo')
   }
 
@@ -25,20 +25,23 @@ export const handler = async (m, { sock, isGroup, sender, reply }) => {
   }
 
   // 📌 Mensaje citado
-  const ctx = m.message?.extendedTextMessage?.contextInfo
-  if (!ctx?.stanzaId) {
-    return reply('❌ Responde al mensaje que deseas borrar')
-  }
+  const ctx =
+    m.message?.extendedTextMessage?.contextInfo ||
+    m.message?.imageMessage?.contextInfo ||
+    m.message?.videoMessage?.contextInfo
+
+  if (!ctx?.stanzaId) return reply('❌ Responde al mensaje que deseas borrar')
 
   try {
     await sock.sendMessage(from, {
       delete: {
         remoteJid: from,
-        fromMe: ctx.participant === sock.user.id, // 👈 permite borrar mensajes del bot
+        fromMe: false, // permite borrar mensajes de otros si el bot es admin
         id: ctx.stanzaId,
         participant: ctx.participant
       }
     })
+    reply('✅ Mensaje eliminado correctamente')
   } catch (e) {
     console.error('DELETE ERROR:', e)
     reply(
@@ -48,7 +51,6 @@ export const handler = async (m, { sock, isGroup, sender, reply }) => {
   }
 }
 
-// ───── CONFIG PARA MENÚ ─────
 handler.command = ['del']
 handler.tags = ['group']
 handler.help = ['del (responder mensaje)', 'delete (responder mensaje)']
