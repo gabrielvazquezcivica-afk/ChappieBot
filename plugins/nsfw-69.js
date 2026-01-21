@@ -6,12 +6,17 @@ const nsfwFile = path.join('./data/nsfw.json')
 export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   if (!isGroup) return
 
-  // Cargar estado NSFW
+  // ✅ 
   let nsfwData = {}
   if (fs.existsSync(nsfwFile)) {
-    nsfwData = JSON.parse(fs.readFileSync(nsfwFile))
+    try {
+      nsfwData = JSON.parse(fs.readFileSync(nsfwFile))
+    } catch (e) {
+      console.error('Error leyendo nsfw.json', e)
+    }
   }
 
+  // 🔞 Comprobar si NSFW está activado para este grupo
   if (!nsfwData[from]?.enabled) {
     return reply(
       '🔞 *Comandos NSFW desactivados*\nUn admin debe activar con:\n.nsfw on'
@@ -33,7 +38,7 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   // 🔥 REACCIÓN
   await sock.sendMessage(from, { react: { text: '🔥', key: m.key } })
 
-  // 🎞️ VIDEOS (ampliada la lista)
+  // 🎞️ VIDEOS
   const videos = [
     'https://telegra.ph/file/bb4341187c893748f912b.mp4',
     'https://telegra.ph/file/c7f154b0ce694449a53cc.mp4',
@@ -44,9 +49,7 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
     'https://telegra.ph/file/55cb31314b168edd732f8.mp4',
     'https://telegra.ph/file/1cbaa4a7a61f1ad18af01.mp4',
     'https://telegra.ph/file/1083c19087f6997ec8095.mp4',
-    'https://telegra.ph/file/3a2c1b5e21f1d0a0f4a3b.mp4',
-    'https://telegra.ph/file/2d1c8d3e1b8f4b7c8c7e4.mp4',
-    'https://telegra.ph/file/9e2b1f4c3d7a5b6f8a2c1.mp4'
+    'https://telegra.ph/file/3a2c1b5e21f1d0a0f4a3b.mp4'
   ]
   const video = videos[Math.floor(Math.random() * videos.length)]
 
