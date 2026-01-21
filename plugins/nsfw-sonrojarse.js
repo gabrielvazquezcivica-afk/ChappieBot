@@ -1,61 +1,59 @@
 import fs from 'fs'
-import path from 'path'
 
-const nsfwFile = path.join(process.cwd(), './data/nsfw.json')
+export const handler = async (m, { sock, from, isGroup, sender, reply, owner }) => {
+  if (!isGroup) return reply('🚫 Este comando solo funciona en grupos')
 
-// Función para leer la DB NSFW cada vez
-function getNSFWDB() {
-  try {
-    if (fs.existsSync(nsfwFile)) {
-      return JSON.parse(fs.readFileSync(nsfwFile))
+  /* ───── 🔒 MODO ADMIN (SILENCIOSO) ───── */
+  let groupSettings = { enabled: false }
+  const modoadminPath = './data/modoadmin.json'
+  if (fs.existsSync(modoadminPath)) {
+    try {
+      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
+      groupSettings = modoadminData[from] || { enabled: false }
+    } catch {
+      groupSettings = { enabled: false }
     }
-  } catch (e) {
-    console.error('Error cargando NSFW DB:', e)
-  }
-  return {}
-}
-
-export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
-
-  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
-
-  // ⚠️ Leer estado NSFW dinámicamente
-  const nsfwDB = getNSFWDB()
-  const nsfwEnabled = nsfwDB[from] || false
-
-  if (!nsfwEnabled) {
-    return reply(
-      '🔞 *Comandos NSFW desactivados*\n\n' +
-      'Un admin puede activarlo con:\n.nsfw on'
-    )
   }
 
-  /* ───── 👤 TARGET ───── */
-  let target
-  const ctx = m.message?.extendedTextMessage?.contextInfo
-
-  if (ctx?.mentionedJid?.length) {
-    target = ctx.mentionedJid[0]
-  } else if (ctx?.participant) {
-    target = ctx.participant
-  } else {
-    target = sender
+  if (groupSettings.enabled && isGroup) {
+    try {
+      const metadata = await sock.groupMetadata(from)
+      const participants = metadata.participants || []
+      const isAdmin = participants.some(
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+      )
+      if (!isAdmin) return // bloqueo silencioso
+    } catch {}
   }
+  /* ─────────────────────────────────── */
 
-  const user1 = '@' + sender.split('@')[0]
-  const user2 = '@' + target.split('@')[0]
+  /* ───── Detectar mención o reply ───── */
+  let who
+  const ctx =
+    m.message?.extendedTextMessage?.contextInfo ||
+    m.message?.imageMessage?.contextInfo ||
+    m.message?.videoMessage?.contextInfo
 
-  const texto =
-    target === sender
-      ? `${user1} se sonrojó solito 😏`
-      : `${user1} se sonrojó por ${user2}`
+  if (ctx?.mentionedJid?.length) who = ctx.mentionedJid[0]
+  else if (ctx?.participant) who = ctx.participant
+  else who = sender
 
-  /* ───── 🤭 REACCIÓN ───── */
-  await sock.sendMessage(from, {
-    react: { text: '🤭', key: m.key }
-  })
+  // 👥 Obtener nombres reales del grupo
+  const metadata = await sock.groupMetadata(from)
+  const participants = metadata.participants || []
 
-  /* ───── 🎞️ VIDEOS ───── */
+  const target = participants.find(p => p.id === who)
+  const senderContact = participants.find(p => p.id === sender)
+
+  const name1 = senderContact?.notify || sender.split('@')[0]
+  const name2 = target?.notify || who.split('@')[0]
+
+  // 😳 reacción inicial
+  await sock.sendMessage(from, { react: { text: '😳', key: m.key } })
+
+  const texto = `😳 *@${name1}* se sonrojó por *@${name2}*`
+
+  // 🎞️ Videos aleatorios
   const videos = [
     'https://telegra.ph/file/a4f925aac453cad828ef2.mp4',
     'https://telegra.ph/file/f19318f1e8dad54303055.mp4',
@@ -68,22 +66,22 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
 
   const video = videos[Math.floor(Math.random() * videos.length)]
 
-  /* ───── 📤 ENVIAR ───── */
   await sock.sendMessage(
     from,
     {
       video: { url: video },
       gifPlayback: true,
       caption: texto,
-      mentions: [sender, target]
+      mentions: [sender, who]
     },
     { quoted: m }
   )
 }
 
-/* ───── CONFIGURACIÓN ───── */
+/* ───── CONFIG ───── */
 handler.command = ['sonrojarse']
+handler.tags = ['juegos']
+handler.menu = true
 handler.group = true
-handler.tags = ['nsfw']
 
 export default handler
