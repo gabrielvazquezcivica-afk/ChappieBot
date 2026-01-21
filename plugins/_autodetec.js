@@ -2,8 +2,8 @@ let started = false
 
 export const handler = async () => {}
 
-  // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
-const izumi = (titulo = 'CHAPPIE BOT', thumbBuffer = null) => ({
+// ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
+const sistema = (titulo = 'CHAPPIE BOT') => ({
   key: {
     fromMe: false,
     participant: '0@s.whatsapp.net',
@@ -11,10 +11,9 @@ const izumi = (titulo = 'CHAPPIE BOT', thumbBuffer = null) => ({
   },
   message: {
     orderMessage: {
-      itemCount: 20,
+      itemCount: 1,
       message: titulo,
       footerText: 'ChappieBot',
-      thumbnail: thumbBuffer,
       surface: 2,
       sellerJid: '0@s.whatsapp.net'
     }
