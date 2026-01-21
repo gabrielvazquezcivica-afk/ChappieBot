@@ -1,28 +1,42 @@
-// owner-reiniciar.js
-export const handler = async (m, { sock, from, sender, reply, owner }) => {
-  const owners = global.config.owner?.numbers || [];
-  const senderNum = sender.split('@')[0];
+import fs from 'fs'
+import { spawn } from 'child_process'
+import path from 'path'
 
-  if (!owners.includes(senderNum)) {
-    return reply('⚠️ Este comando es solo para el OWNER');
+export const handler = async (m, { sock, from, sender, isOwner, reply }) => {
+  if (!isOwner) return reply('⚠️ Solo el owner puede usar este comando')
+
+  // ⏳ Aviso de reinicio
+  await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
+  await reply('🔄 Reiniciando ChappieBot...')
+
+  // ───── Ejecutar reinicio ─────
+  try {
+    const scriptPath = path.resolve('./start.sh')
+    if (!fs.existsSync(scriptPath)) {
+      return reply('❌ No encontré el archivo start.sh para reiniciar')
+    }
+
+    // Ejecuta el script en background
+    spawn('sh', [scriptPath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref()
+
+    // Reacción de reiniciado
+    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+  } catch (e) {
+    console.error('REINICIAR ERROR:', e)
+    return reply('❌ Error al reiniciar ChappieBot')
   }
 
-  // ✅ Aviso antes de reiniciar
-  await sock.sendMessage(from, {
-    react: { text: '🔄', key: m.key }
-  });
+  // Terminar proceso actual
+  process.exit(0)
+}
 
-  await reply('♻️ Reiniciando el bot, espera unos segundos...');
+handler.command = ['reiniciar']
+handler.tags = ['owner']
+handler.owner = true
+handler.group = false
+handler.menu = true
 
-  // Espera 2 segundos para que el mensaje se vea
-  setTimeout(() => {
-    process.exit(0); // Esto cierra el bot y tu start.sh lo reiniciará
-  }, 2000);
-};
-
-// ───── CONFIG ─────
-handler.command = ['reiniciar'];
-handler.tags = ['owner'];
-handler.owner = true;
-
-export default handler;
+export default handler
