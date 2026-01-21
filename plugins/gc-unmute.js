@@ -38,6 +38,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
   }
 
   const mutes = loadMutes()        
+
   if (!mutes[from] || !mutes[from].includes(user)) {        
     return reply('⚠️ Ese usuario no está silenciado')        
   }        
