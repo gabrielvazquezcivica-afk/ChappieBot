@@ -17,7 +17,7 @@ export const handler = async (m, {
   }
 
   // 🗺️ Imagen del mapa Kalahari
-  const imageUrl = 'https://telegra.ph/file/1d3f4b0b8e0c8f0f7b6c2.jpg'
+  const imageUrl = 'https://i.postimg.cc/dtRHjtmS/ZXATELMIBFDPPCBWVKLJVENBYM.jpg'
 
   // 📸 Reacción
   await sock.sendMessage(from, {
