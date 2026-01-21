@@ -2,23 +2,25 @@ let started = false
 
 export const handler = async () => {}
 
-  const izumi = {
-    key: {
-      fromMe: false,
-      participant: "0@s.whatsapp.net",
-      remoteJid: "status@broadcast"
-},
-    message: {
-      orderMessage: {
-        itemCount: 20,
-        message: titulo,
-        footerText: "ChappieBot",
-        thumbnail: thumbBuffer,
-        surface: 2,
-        sellerJid: "0@s.whatsapp.net"
-}
-}
+  // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
+const izumi = (titulo = 'CHAPPIE BOT', thumbBuffer = null) => ({
+  key: {
+    fromMe: false,
+    participant: '0@s.whatsapp.net',
+    remoteJid: 'status@broadcast'
+  },
+  message: {
+    orderMessage: {
+      itemCount: 20,
+      message: titulo,
+      footerText: 'ChappieBot',
+      thumbnail: thumbBuffer,
+      surface: 2,
+      sellerJid: '0@s.whatsapp.net'
+    }
   }
+})
+// ─────────────────────────────────────
 
 handler.before = async (m, { sock }) => {
   if (started) return
