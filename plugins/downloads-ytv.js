@@ -2,15 +2,14 @@ import fetch from 'node-fetch'
 import fs from 'fs'
 import path from 'path'
 
-/* ───── PATH MODOADMIN ───── */
 const modoadminPath = path.join(process.cwd(), 'data/modoadmin.json')
 
-const ytv = async (url) => {
-  const api = `https://api.stellarwa.xyz/dl/ytmp4?url=${encodeURIComponent(url)}&key=proyectsV2`
+const ytmp4 = async (url) => {
+  const api = `https://api.yanzbotz.my.id/api/downloader/ytmp4?url=${encodeURIComponent(url)}`
   const res = await fetch(api)
   const json = await res.json()
-  if (!json?.data?.dl) return null
-  return json.data
+  if (!json?.result?.download) return null
+  return json.result
 }
 
 export const handler = async (m, {
@@ -23,53 +22,46 @@ export const handler = async (m, {
   owner
 }) => {
 
-  /* ───── 👑 MODO ADMIN (CHAPPIEBOT · SILENCIOSO) ───── */
+  /* ───── 👑 MODO ADMIN (CHAPPIEBOT) ───── */
   if (isGroup && fs.existsSync(modoadminPath)) {
-    let modoadmin = {}
+    let data = {}
     try {
-      modoadmin = JSON.parse(fs.readFileSync(modoadminPath))
+      data = JSON.parse(fs.readFileSync(modoadminPath))
     } catch {}
 
-    if (modoadmin[from]?.enabled) {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-
-      const ownerJids = owner?.jid || []
-      const isAdmin = participants.some(
+    if (data[from]?.enabled) {
+      const meta = await sock.groupMetadata(from)
+      const isAdmin = meta.participants.some(
         p => p.id === sender &&
         (p.admin === 'admin' || p.admin === 'superadmin')
       )
-
+      const ownerJids = owner?.jid || []
       if (!isAdmin && !ownerJids.includes(sender)) return
     }
   }
-  /* ─────────────────────────────────────────────── */
+  /* ─────────────────────────────────── */
 
   if (!args[0]) {
     return reply(`
 ╭──〔 🎥 YOUTUBE VIDEO 〕──╮
 │ 📌 Uso:
 │ .ytv <link>
-│
-│ 🔗 Ejemplo:
-│ .ytv https://youtu.be/xxxxx
 ╰──〔 🤖 ChappieBot 〕──╯
 `.trim())
   }
 
   const link = args[0]
-  if (!/youtu\.be|youtube\.com/.test(link)) {
-    return reply('❌ Ese no es un link válido de YouTube')
+  if (!/youtube\.com|youtu\.be/.test(link)) {
+    return reply('❌ Link de YouTube inválido')
   }
 
-  // ⏳ reacción inicial
   await sock.sendMessage(from, {
     react: { text: '⏳', key: m.key }
   })
 
   let data
   try {
-    data = await ytv(link)
+    data = await ytmp4(link)
   } catch (e) {
     console.error(e)
     return reply('❌ Error descargando el video')
@@ -78,30 +70,25 @@ export const handler = async (m, {
   if (!data) return reply('❌ No se pudo obtener el video')
 
   const caption = `
-╭──〔 🎬 YOUTUBE VIDEO 〕──╮
+╭──〔 🎬 YOUTUBE 〕──╮
 │ 🎥 ${data.title}
-│ ⏱ Duración: ${data.duration}
-│ 👀 Vistas: ${data.views?.toLocaleString() || 'N/A'}
-│ 📦 Calidad: MP4
+│ ⏱ ${data.duration}
+│ 📦 MP4
 ╰──〔 🤖 ChappieBot 〕──╯
 `.trim()
 
-  // 🎬 enviar video
   await sock.sendMessage(from, {
-    video: { url: data.dl },
+    video: { url: data.download },
     caption
   }, { quoted: m })
 
-  // ✅ reacción final
   await sock.sendMessage(from, {
     react: { text: '✅', key: m.key }
   })
 }
 
-/* ───── CONFIG ───── */
 handler.command = ['ytv']
 handler.tags = ['descargas']
-handler.help = ['ytv <link youtube>']
 handler.menu = true
 handler.group = true
 
