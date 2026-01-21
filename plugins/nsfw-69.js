@@ -3,27 +3,24 @@ import path from 'path'
 
 const nsfwFile = path.join(process.cwd(), './data/nsfw.json')
 
-// Cargar o inicializar la DB
-let nsfwDB = {}
-try {
-  if (fs.existsSync(nsfwFile)) {
-    nsfwDB = JSON.parse(fs.readFileSync(nsfwFile))
+// Función para leer NSFW DB
+function getNSFWDB() {
+  try {
+    if (!fs.existsSync(nsfwFile)) return {}
+    return JSON.parse(fs.readFileSync(nsfwFile))
+  } catch (e) {
+    console.error('Error leyendo NSFW DB:', e)
+    return {}
   }
-} catch (e) {
-  console.error('Error cargando NSFW DB:', e)
-  nsfwDB = {}
-}
-
-function saveDB() {
-  fs.writeFileSync(nsfwFile, JSON.stringify(nsfwDB, null, 2))
 }
 
 export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
-
   if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
 
-  // 🔞 Verificar si NSFW está activado en este grupo
+  // 🔞 Leer estado real de NSFW desde el archivo
+  const nsfwDB = getNSFWDB()
   const nsfwActive = nsfwDB[from] || false
+
   if (!nsfwActive) {
     return reply(
       '🔞 *Comandos NSFW desactivados en este grupo*\n' +
@@ -31,7 +28,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
     )
   }
 
-  // 👤 TARGET
+  // 👤 Target
   let target
   const ctx = m.message?.extendedTextMessage?.contextInfo
 
@@ -53,7 +50,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
     react: { text: '🔥', key: m.key }
   })
 
-  // 🎞️ Videos
+  // 🎞️ Videos NSFW
   const videos = [
     'https://telegra.ph/file/bb4341187c893748f912b.mp4',
     'https://telegra.ph/file/c7f154b0ce694449a53cc.mp4',
@@ -83,7 +80,6 @@ export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
 
 handler.command = ['69']
 handler.group = true
-handler.menu = true
 handler.tags = ['nsfw']
 handler.help = ['69 @usuario']
 
