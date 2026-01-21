@@ -2,18 +2,23 @@ let started = false
 
 export const handler = async () => {}
 
-/* ───── QUOTED SISTEMA (WHATSAPP REAL) ───── */
-const sistema = () => ({
-  key: {
-    fromMe: false,
-    participant: '0@s.whatsapp.net',
-    remoteJid: 'status@broadcast'
-  },
-  message: {
-    conversation: ''
+  const izumi = {
+    key: {
+      fromMe: false,
+      participant: "0@s.whatsapp.net",
+      remoteJid: "status@broadcast"
+},
+    message: {
+      orderMessage: {
+        itemCount: 20,
+        message: titulo,
+        footerText: "ChappieBot",
+        thumbnail: thumbBuffer,
+        surface: 2,
+        sellerJid: "0@s.whatsapp.net"
+}
+}
   }
-})
-/* ───────────────────────────────────────── */
 
 handler.before = async (m, { sock }) => {
   if (started) return
