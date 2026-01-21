@@ -36,7 +36,7 @@ export const handler = async (m, {
 }
 
 handler.command = ['bermuda']
-handler.tags = ['juegos']
+handler.tags = ['ff']
 handler.help = ['bermuda']
 handler.menu = true
 handler.group = true
