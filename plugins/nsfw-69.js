@@ -79,8 +79,9 @@ export const handler = async (m, { sock, from, sender, reply }) => {
   )
 }
 
-handler.command = ['69']
+handler.command = ['69', 'sixnine']
 handler.group = true
+handler.menu = true
 handler.tags = ['nsfw']
 handler.help = ['69 @usuario']
 
