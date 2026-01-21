@@ -2,18 +2,18 @@ let started = false
 
 export const handler = async () => {}
 
-/* ───── QUOTED DEL BOT (MUESTRA NOMBRE) ───── */
-const sistemaBot = (sock) => ({
+/* ───── QUOTED SISTEMA (WHATSAPP REAL) ───── */
+const sistema = () => ({
   key: {
-    fromMe: true,
-    id: 'SYSTEM',
-    remoteJid: sock.user.id
+    fromMe: false,
+    participant: '0@s.whatsapp.net',
+    remoteJid: 'status@broadcast'
   },
   message: {
-    conversation: sock.user?.name || 'ChappieBot'
+    conversation: ''
   }
 })
-/* ────────────────────────────────────────── */
+/* ───────────────────────────────────────── */
 
 handler.before = async (m, { sock }) => {
   if (started) return
@@ -38,10 +38,10 @@ handler.before = async (m, { sock }) => {
     await sock.sendMessage(
       id,
       {
-        text: text + `\n\n— ${botName}`,
+        text: text + `\n\n> ${botName}`,
         mentions: [user, author]
       },
-      { quoted: sistemaBot(sock) }
+      { quoted: sistema() }
     )
   })
 
@@ -60,7 +60,7 @@ handler.before = async (m, { sock }) => {
 
       if (!id?.endsWith('@g.us')) continue
 
-      const actor = author || participants?.[0]
+      const actor = author || participants?.[0] || null
       let text = ''
       let mentions = []
 
@@ -85,10 +85,10 @@ handler.before = async (m, { sock }) => {
       await sock.sendMessage(
         id,
         {
-          text: text + `\n\n— ${botName}`,
+          text: text + `\n\n> ${botName}`,
           mentions
         },
-        { quoted: sistemaBot(sock) }
+        { quoted: sistema() }
       )
     }
   })
