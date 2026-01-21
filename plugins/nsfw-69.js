@@ -81,8 +81,6 @@ export const handler = async (m, { sock, from, sender, reply }) => {
 
 handler.command = ['69']
 handler.group = true
-handler.menu = false
-handler.menu2 = true
 handler.tags = ['nsfw']
 handler.help = ['69 @usuario']
 
