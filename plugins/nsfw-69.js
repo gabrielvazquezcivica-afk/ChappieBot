@@ -10,13 +10,15 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   let nsfwData = {}
   if (fs.existsSync(nsfwFile)) {
     try {
-      nsfwData = JSON.parse(fs.readFileSync(nsfwFile))
+      const raw = fs.readFileSync(nsfwFile, 'utf-8')
+      nsfwData = JSON.parse(raw)
     } catch (e) {
-      console.error('Error leyendo nsfw.json', e)
+      console.error('Error leyendo nsfw.json:', e)
+      return reply('❌ Error al leer la configuración NSFW')
     }
   }
 
-  // 🔞 Comprobar si NSFW está activado para este grupo
+  // 🔞 
   if (!nsfwData[from]?.enabled) {
     return reply(
       '🔞 *Comandos NSFW desactivados*\nUn admin debe activar con:\n.nsfw on'
@@ -24,8 +26,8 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   }
 
   // 👤 TARGET
-  let target
   const ctx = m.message?.extendedTextMessage?.contextInfo
+  let target
   if (ctx?.mentionedJid?.length) target = ctx.mentionedJid[0]
   else if (ctx?.participant) target = ctx.participant
   else return reply('❌ Etiqueta o responde a alguien')
