@@ -56,7 +56,7 @@ export const handler = async (m, {
 }
 
 handler.command = ['12vs12']
-handler.tags = ['juegos']
+handler.tags = ['ff']
 handler.help = ['12vs12']
 handler.menu = true
 handler.group = true
