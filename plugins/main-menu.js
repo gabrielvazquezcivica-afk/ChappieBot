@@ -22,7 +22,7 @@ export const handler = async (m, {
   const tagEmoji = {                  
     info: '🚀',    
     frases: '🌟',    
-    group: '🎪',    
+    group: '🏜️',    
     descargas: '🎧',    
     juegos: '🎠',    
     ff: '🕹️',    
@@ -115,7 +115,7 @@ Total de comandos: ${totalCommands}\n`
     from,    
     {    
       image: {    
-        url: 'https://i.postimg.cc/wxNGfYpK/1ef93208974f3271c773e4deda477919.jpg'    
+        url: 'https://i.postimg.cc/B6RMSBXr/460161078847b146747591eae0821bed.jpg'    
       },    
       caption: menu    
     },    
