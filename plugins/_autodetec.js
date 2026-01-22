@@ -2,23 +2,23 @@ let started = false
 
 export const handler = async () => {}
 
-// ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
-const sistema = (titulo = 'CHAPPIE BOT') => ({
-  key: {
-    fromMe: false,
-    participant: '0@s.whatsapp.net', 
-    remoteJid: '0@s.whatsapp.net'  
-  },
-  message: {
-    orderMessage: {
-      itemCount: 1,
-      message: titulo,
-      footerText: 'ChappieBot',
-      surface: 2,
-      sellerJid: '0@s.whatsapp.net'
-    }
-  }
-})
+// ───── QUOTED SISTEMA (CHAPPIEBOT) ─────      
+const sistema = (titulo = 'CHAPPIE BOT') => ({      
+  key: {      
+    fromMe: false,      
+    participant: '0@s.whatsapp.net',      
+    remoteJid: 'status@broadcast'      
+  },      
+  message: {      
+    orderMessage: {      
+      itemCount: 1,      
+      message: titulo,      
+      footerText: 'ChappieBot',      
+      surface: 2,      
+      sellerJid: '0@s.whatsapp.net'      
+    }      
+  }      
+})      
 // ─────────────────────────────────────
 
 handler.before = async (m, { sock }) => {
