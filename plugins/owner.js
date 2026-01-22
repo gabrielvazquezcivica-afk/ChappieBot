@@ -19,13 +19,13 @@ export const handler = async (m, { sock, from }) => {
 
   // ───── TEXTO DISEÑO CHAPPIEBOT ─────
   const text = `
-╔═════════════〔 👑 CREATOR 〕═════════════╗
+╔════════〔 👑 CREATOR 〕══════╗
 ║ 🤖 Bot: ${config.bot.name}
 ║ 👤 Nombre: ${config.owner.name}
 ║ 📞 Número: ${ownerNumber}
 ║
 ║ 📸 Instagram: ${instagramURL}
-╚════════════════════════════════════════╝
+╚═════════════════════════════╝
 
 ✨ Contacto directo del creador
 🚀 Powered by ChappieBot
