@@ -16,7 +16,7 @@ const config = {
 
   // ───── BOT ─────
   bot: {
-    name: 'CHAPPIEBOT',
+    name: '𝐂𝐡𝐚𝐩𝐩𝐢𝐞𝐁𝐨𝐭',
     prefix: '.',
     public: true,
     version: '1.0.0'
@@ -24,7 +24,7 @@ const config = {
 
   // ───── OWNER ─────
   owner: {
-    name: 'SoyGabo',
+    name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
 
     // números crudos
     numbers: [
