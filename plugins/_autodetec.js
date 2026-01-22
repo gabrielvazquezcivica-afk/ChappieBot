@@ -6,8 +6,8 @@ export const handler = async () => {}
 const sistema = (titulo = 'CHAPPIE BOT') => ({
   key: {
     fromMe: false,
-    participant: '0@s.whatsapp.net',
-    remoteJid: 'status@broadcast'
+    participant: '0@s.whatsapp.net', 
+    remoteJid: '0@s.whatsapp.net'  
   },
   message: {
     orderMessage: {
