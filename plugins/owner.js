@@ -15,7 +15,7 @@ export const handler = async (m, { sock, from }) => {
   const instagramURL = `https://instagram.com/${instagramUser}`
 
   // 🖼 Imagen del owner
-  const ownerImage = 'https://i.ibb.co/0JcN6gT/owner.jpg' // cambia si quieres
+  const ownerImage = 'https://i.postimg.cc/Z5jgVfmX/file-00000000c4407230be23ee400c514cf9.jpg' // cambia si quieres
 
   // ───── TEXTO CORTO ─────
   const text = `
