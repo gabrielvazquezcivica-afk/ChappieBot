@@ -1,25 +1,25 @@
-// plugins/antiPrivate.js
-export async function before(m, { sock, isAdmin, isBotAdmin, isOwner, isROwner }) {
+// plugins/_antiprivado.js
+export async function before(m, { sock, isOwner, isROwner }) {
   try {
+    if (!m) return true                // ❌ Ignorar si m es null
+    if (!m.key) return true            // ❌ Ignorar si no tiene key
+    if (!m.message) return true        // ❌ Ignorar si no tiene mensaje
+
     // 🚫 Ignorar mensajes del bot
-    if (m.key?.fromMe) return true
+    if (m.key.fromMe) return true
+
     // 🚫 Ignorar mensajes de grupos
-    if (m.key.remoteJid.endsWith('@g.us')) return false
-    // 🚫 Ignorar mensajes vacíos
-    if (!m.message) return true
-
-    const text = m.message.conversation || m.message.extendedTextMessage?.text || ''
-    const checkWords = ['PIEDRA', 'PAPEL', 'TIJERA', 'serbot', 'jadibot']
-
-    if (checkWords.some(w => text.includes(w))) return true
+    if (m.key.remoteJid?.endsWith('@g.us')) return false
 
     // 🔹 Obtener configuración del bot
-    const botSettings = global.db.data?.settings?.[sock.user.id] || {}
+    const botSettings = global.db.data?.settings?.[sock.user?.id] || {}
     const antiPrivate = botSettings.antiPrivate || false
 
     // 🔹 Si antiPrivate está activo y no es owner ni root owner
     if (antiPrivate && !isOwner && !isROwner) {
       const senderJid = m.key.remoteJid
+      if (!senderJid) return true
+
       const senderNum = m.key.participant || senderJid
       const mention = senderNum.split('@')[0]
 
