@@ -83,7 +83,7 @@ export const handler = async (m, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_token: 'test', // pon tu API real
+        api_token: '8b7f5fad3caed297e6c850af7bc63a90', // pon tu API real
         audio: buffer.toString('base64'),
         return: 'spotify,apple_music'
       })
