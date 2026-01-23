@@ -1,49 +1,45 @@
 import config from '../config.js'
 
-export const handler = async (m, {
-  sock,
-  from,
-  sender,
-  reply
-}) => {
+function onlyNumber(jid = '') {
+  return jid?.toString().replace(/[^0-9]/g, '')
+}
 
-  // 🔒 OWNER DESDE CONFIG (string o array)
-  let owners = config.owner || []
-  if (!Array.isArray(owners)) owners = [owners]
-
-  owners = owners.map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net')
-
-  if (!owners.includes(sender)) {
-    return reply('❌ Solo el owner puede usar este comando')
-  }
-
-  await sock.sendMessage(from, {
-    react: { text: '🧹', key: m.key }
-  })
-
-  let total = 0
-
+export const handler = async (m, { sock, reply }) => {
   try {
-    const chats = Object.keys(sock.chats || {})
+    // ───── VERIFICAR OWNER ─────
+    const senderJid = m.key?.participant || m.sender
+    const senderNum = onlyNumber(senderJid)
+    const ownerNums = Array.isArray(config.owner.numbers) 
+      ? config.owner.numbers.map(n => onlyNumber(n)) 
+      : []
 
-    for (const jid of chats) {
-      await sock.chatModify(
-        { clear: { messages: true } },
-        jid
-      )
-      total++
+    if (!ownerNums.includes(senderNum)) {
+      return reply('🚫 Solo el OWNER del bot puede usar este comando.')
     }
 
-    await reply(`🧹 Chats vaciados correctamente: *${total}*`)
+    // ───── MENSAJE INICIAL ─────
+    await sock.sendMessage(m.key.remoteJid, { text: '🧹 Limpiando todas las conversaciones...' })
+
+    // ───── BORRAR TODOS LOS CHATS ─────
+    const chats = Object.keys(sock.chats || {})
+    for (const chat of chats) {
+      try {
+        await sock.sendMessage(chat, { delete: {} }) // opcional, borrar mensajes individuales
+        await sock.chatModify({ clear: true }, chat) // intentamos vaciar el chat
+      } catch {}
+    }
+
+    // ───── MENSAJE FINAL ─────
+    await sock.sendMessage(m.key.remoteJid, { text: '✅ Todas las conversaciones han sido limpiadas.' })
 
   } catch (e) {
-    console.error(e)
-    reply('❌ Error al limpiar los chats')
+    console.error('ERROR limpiarchats:', e)
+    reply('❌ Ocurrió un error al intentar limpiar los chats.')
   }
 }
 
 handler.command = ['limpiarchats']
 handler.tags = ['owner']
+handler.owner = true
 handler.menu = true
-
 export default handler
