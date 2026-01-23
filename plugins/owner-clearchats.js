@@ -5,21 +5,14 @@ function onlyNumber (jid = '') {
   return jid?.toString().replace(/[^0-9]/g, '')
 }
 
-export const handler = async (m, {
-  sock,
-  sender,
-  reply
-}) => {
-
-  // 👑 Validar OWNER
+export const handler = async (m, { sock, sender, reply }) => {
   const owners = config.owner?.numbers || []
   const senderNum = onlyNumber(sender)
 
   if (!owners.includes(senderNum)) {
-    return reply('🔒 Este comando es solo para el *OWNER* del bot')
+    return reply('🔒 Solo el OWNER puede usar este comando')
   }
 
-  // ⏳ Reacción inicio
   await sock.sendMessage(m.chat, {
     react: { text: '🧹', key: m.key }
   })
@@ -27,30 +20,38 @@ export const handler = async (m, {
   let total = 0
 
   try {
-    const chats = Object.keys(sock.store.chats || {})
+    const chats = Object.keys(sock.store?.chats || {})
 
     for (const jid of chats) {
-      await sock.chatModify(
-        { clear: { messages: [] } },
-        jid
-      )
-      total++
-    }
+      // 🚫 ignorar estados y jids raros
+      if (
+        !jid ||
+        typeof jid !== 'string' ||
+        jid === 'status@broadcast' ||
+        !jid.includes('@')
+      ) continue
 
-    await sock.sendMessage(m.chat, {
-      react: { text: '✅', key: m.key }
-    })
+      try {
+        await sock.chatModify(
+          { clear: { messages: [] } },
+          jid
+        )
+        total++
+      } catch {
+        // ignorar errores por chat individual
+      }
+    }
 
     reply(
 `╭─〔 🧹 LIMPIEZA COMPLETA 〕
 │ ✔️ Chats limpiados: ${total}
-│ 🤖 Historial del bot reiniciado
+│ 🧠 Historial borrado
 ╰─〔 CHAPPIEBOT 〕`
     )
 
   } catch (e) {
     console.error(e)
-    reply('❌ Ocurrió un error al limpiar los chats')
+    reply('❌ Error al limpiar los chats')
   }
 }
 
