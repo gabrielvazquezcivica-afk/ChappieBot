@@ -7,8 +7,12 @@ export const handler = async (m, {
   reply
 }) => {
 
-  // 🔒 SOLO OWNER (desde config)
-  const owners = (config.owner || []).map(v => v + '@s.whatsapp.net')
+  // 🔒 OWNER DESDE CONFIG (string o array)
+  let owners = config.owner || []
+  if (!Array.isArray(owners)) owners = [owners]
+
+  owners = owners.map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net')
+
   if (!owners.includes(sender)) {
     return reply('❌ Solo el owner puede usar este comando')
   }
@@ -20,7 +24,6 @@ export const handler = async (m, {
   let total = 0
 
   try {
-    // Chats cargados en memoria
     const chats = Object.keys(sock.chats || {})
 
     for (const jid of chats) {
@@ -31,7 +34,7 @@ export const handler = async (m, {
       total++
     }
 
-    await reply(`🧹 Conversaciones vaciadas: *${total}*`)
+    await reply(`🧹 Chats vaciados correctamente: *${total}*`)
 
   } catch (e) {
     console.error(e)
