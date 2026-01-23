@@ -1,60 +1,59 @@
-import config from '../config.js'
+export const handler = async (m, {
+  sock,
+  from,
+  sender,
+  owner,
+  reply
+}) => {
 
-function onlyNumber(jid = '') {
-  return jid.replace(/[^0-9]/g, '')
-}
-
-export const handler = async (m, { sock, from, sender, reply }) => {
-  const owners = config.owner?.numbers || []
-  const senderNum = onlyNumber(sender)
-
-  if (!owners.includes(senderNum)) {
-    return reply('🔒 Solo el OWNER puede usar este comando')
+  // 🔒 SOLO OWNER
+  const owners = owner?.jid || []
+  if (!owners.includes(sender)) {
+    return reply('❌ Solo el owner puede usar este comando')
   }
 
   await sock.sendMessage(from, {
     react: { text: '🧹', key: m.key }
   })
 
-  let cleared = 0
+  let total = 0
 
-  const chats = Object.keys(sock.store.chats || {})
+  try {
+    // Obtener chats directamente desde Baileys
+    const chats = await sock.groupFetchAllParticipating()
+      .then(groups => Object.keys(groups))
+      .catch(() => [])
 
-  for (const jid of chats) {
-    if (
-      !jid ||
-      jid === 'status@broadcast' ||
-      !jid.includes('@')
-    ) continue
+    // Limpiar chats privados abiertos
+    const recentChats = sock.chats || {}
 
-    try {
+    for (const jid of Object.keys(recentChats)) {
       await sock.chatModify(
-        {
-          clear: {
-            messages: []
-          }
-        },
+        { clear: { messages: true } },
         jid
       )
+      total++
+    }
 
-      await sock.readMessages([{ remoteJid: jid }])
+    // Limpiar grupos detectados
+    for (const jid of chats) {
+      await sock.chatModify(
+        { clear: { messages: true } },
+        jid
+      )
+      total++
+    }
 
-      cleared++
-    } catch {}
+    await reply(`🧹 Chats limpiados: *${total}*`)
+
+  } catch (e) {
+    console.error(e)
+    reply('❌ No se pudieron limpiar los chats')
   }
-
-  reply(
-`╭─〔 🧹 LIMPIEZA REAL 〕
-│ ✔️ Chats vaciados: ${cleared}
-│ ℹ️ WhatsApp no permite
-│ eliminar chats completos
-╰─〔 🤖 ChappieBot 〕`
-  )
 }
 
 handler.command = ['limpiarchats']
 handler.tags = ['owner']
 handler.menu = true
-handler.owner = true
 
 export default handler
