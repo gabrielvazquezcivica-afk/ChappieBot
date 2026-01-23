@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 import fetch from 'node-fetch'
 
 export const handler = async (m, {
@@ -15,74 +16,67 @@ export const handler = async (m, {
 
   if (fs.existsSync(modoadminPath)) {
     try {
-      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-      groupSettings = modoadminData[from] || { enabled: false }
-    } catch {
-      groupSettings = { enabled: false }
-    }
+      const data = JSON.parse(fs.readFileSync(modoadminPath))
+      groupSettings = data[from] || { enabled: false }
+    } catch {}
   }
 
   if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender &&
-        (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {
-      isAdmin = false
-    }
-
-    if (!isAdmin) return // 🚫 bloqueo silencioso
+    const metadata = await sock.groupMetadata(from)
+    const isAdmin = metadata.participants.some(
+      p => p.id === sender &&
+      (p.admin === 'admin' || p.admin === 'superadmin')
+    )
+    if (!isAdmin) return
   }
   /* ─────────────────────────────────────────────── */
 
 
-  /* ───── 🎧 DETECTAR AUDIO RESPONDIDO (FIX REAL) ───── */
-  const quoted =
-    m.quoted ||
-    m.message?.extendedTextMessage?.contextInfo?.quotedMessage
-
-  const audioMsg =
-    quoted?.message?.audioMessage ||
-    quoted?.audioMessage ||
-    quoted?.msg?.audioMessage
-
-  if (!audioMsg) {
-    return reply('🎧 Responde a una *nota de voz o audio* para identificar la canción')
+  /* ───── 🎧 VALIDAR AUDIO RESPONDIDO ───── */
+  if (!m.quoted) {
+    return reply('🎧 Responde a una *nota de voz o audio*')
   }
-  /* ─────────────────────────────────────────────── */
 
+  const qMsg = m.quoted.message
+  const audio =
+    qMsg?.audioMessage
+
+  if (!audio) {
+    return reply('❌ El mensaje respondido no es un audio')
+  }
 
   await sock.sendMessage(from, {
     react: { text: '🎶', key: m.key }
   })
 
 
-  /* ───── ⬇️ DESCARGAR AUDIO ───── */
-  let buffer
+  /* ───── ⬇️ DESCARGA REAL DEL AUDIO ───── */
+  let buffer = Buffer.from([])
+
   try {
-    buffer = await sock.downloadMediaMessage(
-      { message: { audioMessage: audioMsg } }
-    )
-  } catch {
+    const stream = await downloadContentFromMessage(audio, 'audio')
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk])
+    }
+  } catch (e) {
+    console.error(e)
     return reply('❌ No pude descargar el audio')
   }
 
-  if (!buffer) return reply('❌ Audio inválido')
+  if (!buffer.length) {
+    return reply('❌ Audio vacío o corrupto')
+  }
 
 
-  /* ───── 🔍 IDENTIFICAR CANCIÓN (ACRCloud / similar) ───── */
+  /* ───── 🔍 IDENTIFICAR CANCIÓN ───── */
   try {
     const res = await fetch('https://api.audd.io/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_token: 'test', // ← puedes poner tu API real
+        api_token: 'test', // pon tu API real si tienes
         audio: buffer.toString('base64'),
-        return: 'apple_music,spotify'
+        return: 'spotify,apple_music'
       })
     })
 
@@ -92,14 +86,13 @@ export const handler = async (m, {
       return reply('❌ No se pudo identificar la canción')
     }
 
-    const song = json.result
+    const s = json.result
 
     const text = `
 ╭─〔 🎵 CANCIÓN IDENTIFICADA 〕
-│ 🎶 Título : ${song.title}
-│ 👤 Artista: ${song.artist}
-│ 💽 Álbum  : ${song.album || 'Desconocido'}
-│ ⏱ Duración: ${song.duration || 'N/A'}s
+│ 🎶 ${s.title}
+│ 👤 ${s.artist}
+│ 💽 ${s.album || 'Desconocido'}
 ╰─〔 🤖 ChappieBot 〕
 `.trim()
 
@@ -111,13 +104,12 @@ export const handler = async (m, {
 
   } catch (e) {
     console.error(e)
-    reply('❌ Error al identificar la canción')
+    reply('❌ Error al identificar el audio')
   }
 }
 
 handler.command = ['whatmusic']
-handler.tags = ['tools']
+handler.tags = ['audio']
 handler.menu = true
-handler.group = false
 
 export default handler
