@@ -3,15 +3,12 @@ import FormData from 'form-data'
 import fs from 'fs'
 import path from 'path'
 
-const API_URL = 'https://api.ananta.qzz.io/api/whatmusic'
-const API_KEY = 'ant2wpyf85ga6' // ponla luego en config.js si quieres
-
 export const handler = async (m, {
   sock,
   from,
-  sender,
   reply,
-  isGroup
+  isGroup,
+  sender
 }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
@@ -22,65 +19,89 @@ export const handler = async (m, {
     try {
       const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
       groupSettings = modoadminData[from] || { enabled: false }
-    } catch {}
+    } catch {
+      groupSettings = { enabled: false }
+    }
   }
 
   if (groupSettings.enabled && isGroup) {
     let isAdmin = false
     try {
       const metadata = await sock.groupMetadata(from)
-      isAdmin = metadata.participants.some(
-        p => p.id === sender &&
-        (p.admin === 'admin' || p.admin === 'superadmin')
+      const participants = metadata.participants || []
+      isAdmin = participants.some(
+        p =>
+          p.id === sender &&
+          (p.admin === 'admin' || p.admin === 'superadmin')
       )
-    } catch {}
+    } catch {
+      isAdmin = false
+    }
 
-    if (!isAdmin) return
+    if (!isAdmin) return // 🚫 bloqueo silencioso
   }
   /* ─────────────────────────────────────────────── */
 
+  // ───── VALIDAR AUDIO RESPONDIDO ─────
   const quoted = m.quoted
-  if (!quoted || !quoted.mimetype?.startsWith('audio')) {
-    return reply('🎧 Responde a un *audio* para identificar la canción')
+  const msg = quoted?.message || {}
+
+  const isAudio =
+    msg.audioMessage ||
+    quoted?.mimetype?.includes('audio')
+
+  if (!quoted || !isAudio) {
+    return reply('🎧 Responde a una *nota de voz o audio* para identificar la canción')
   }
 
   await sock.sendMessage(from, {
-    react: { text: '🎵', key: m.key }
+    react: { text: '🎶', key: m.key }
   })
 
-  // 📥 Descargar audio
-  const buffer = await quoted.download()
-  const tempPath = path.join(process.cwd(), 'tmp_audio.mp3')
-  fs.writeFileSync(tempPath, buffer)
+  // ───── DESCARGAR AUDIO ─────
+  let buffer
+  try {
+    buffer = await quoted.download()
+  } catch {
+    return reply('❌ No pude descargar el audio')
+  }
 
-  // 📦 FormData
-  const form = new FormData()
-  form.append('media', fs.createReadStream(tempPath))
+  if (!buffer) return reply('❌ Audio inválido')
+
+  // ───── GUARDAR TEMPORAL ─────
+  const tmpDir = './tmp'
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+
+  const filePath = path.join(tmpDir, `${Date.now()}.ogg`)
+  fs.writeFileSync(filePath, buffer)
 
   try {
-    const res = await fetch(API_URL, {
+    // ───── ENVIAR A LA API ─────
+    const form = new FormData()
+    form.append('media', fs.createReadStream(filePath))
+
+    const res = await fetch('https://api.ananta.qzz.io/api/whatmusic', {
       method: 'POST',
       headers: {
-        'x-api-key': API_KEY
+        'x-api-key': 'ant2wpyf85ga6'
       },
       body: form
     })
 
     const json = await res.json()
-    fs.unlinkSync(tempPath)
 
-    if (!json?.result) {
-      return reply('❌ No pude identificar la canción')
-    }
+    if (!json?.result) throw new Error('Sin resultado')
 
     const r = json.result
 
     const text = `
-╭─〔 🎶 CANCIÓN IDENTIFICADA 〕
-│ 🎵 Título : ${r.title || 'Desconocido'}
-│ 👤 Artista: ${r.artist || 'Desconocido'}
+╭─〔 🎵 CANCIÓN IDENTIFICADA 〕
+│ 🎶 ${r.title || 'Desconocido'}
+│ 👤 ${r.artist || 'Desconocido'}
+│ 💿 ${r.album || 'N/A'}
+│ ⏱ ${r.duration || 'N/A'}
 │
-│ ▶️ YouTube:
+│ 🔗 YouTube:
 │ ${r.youtube || 'No disponible'}
 ╰─〔 🤖 ChappieBot 〕
 `.trim()
@@ -93,7 +114,9 @@ export const handler = async (m, {
 
   } catch (e) {
     console.error(e)
-    reply('❌ Error al analizar el audio')
+    reply('❌ No pude identificar la canción')
+  } finally {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
   }
 }
 
