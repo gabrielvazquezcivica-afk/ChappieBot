@@ -45,7 +45,7 @@ export const handler = async (m, {
     ff: '🚀',
     registro: '📝',
     rpg: '💎',
-    herramientas: '🔧',
+    herramientaa: '🔧',
     stickers: '🖌️',
     owner: '🤴🏻',
     nsfw: '🔥',
