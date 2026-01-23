@@ -63,7 +63,7 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
 }
 
 handler.command = ['saldo']
-handler.tags = ['registro']
+handler.tags = ['rpg']
 handler.menu = true
 
 export default handler
