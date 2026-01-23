@@ -1,122 +1,150 @@
 import fs from 'fs'
-import { downloadContentFromMessage } from '@whiskeysockets/baileys'
-import fetch from 'node-fetch'
+import axios from 'axios'
+import crypto from 'crypto'
+import FormData from 'form-data'
 
-export const handler = async (m, {
-  sock,
-  from,
-  sender,
-  reply,
-  isGroup
-}) => {
+/* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+async function checkModoAdmin({ sock, from, sender, isGroup }) {
+  if (!isGroup) return true
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
-  let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
+  let settings = { enabled: false }
+  const path = './data/modoadmin.json'
 
-  if (fs.existsSync(modoadminPath)) {
+  if (fs.existsSync(path)) {
     try {
-      const data = JSON.parse(fs.readFileSync(modoadminPath))
-      groupSettings = data[from] || { enabled: false }
+      const data = JSON.parse(fs.readFileSync(path))
+      settings = data[from] || { enabled: false }
     } catch {}
   }
 
-  if (groupSettings.enabled && isGroup) {
-    const metadata = await sock.groupMetadata(from)
-    const isAdmin = metadata.participants.some(
+  if (!settings.enabled) return true
+
+  try {
+    const meta = await sock.groupMetadata(from)
+    return meta.participants.some(
       p => p.id === sender &&
       (p.admin === 'admin' || p.admin === 'superadmin')
     )
-    if (!isAdmin) return
+  } catch {
+    return false
   }
-  /* ───────────────────────────────── */
+}
+/* ─────────────────────────────────────────────── */
 
+/* ───── ACRCloud CONFIG ───── */
+const ACR = {
+  host: 'identify-eu-west-1.acrcloud.com',
+  access_key: 'TU_ACR_KEY',
+  access_secret: 'TU_ACR_SECRET'
+}
 
-  /* ───── 🎧 OBTENER AUDIO REAL ───── */
-  let audioMessage = null
+/* ───── AUDD CONFIG ───── */
+const AUDD_TOKEN = 'TU_AUDD_TOKEN'
 
-  // Caso 1: m.quoted existe
-  if (m.quoted?.message?.audioMessage) {
-    audioMessage = m.quoted.message.audioMessage
-  }
+export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
 
-  // Caso 2: quoted viene en contextInfo
-  if (!audioMessage) {
-    const quoted =
-      m.message?.extendedTextMessage?.contextInfo?.quotedMessage
+  const allowed = await checkModoAdmin({ sock, from, sender, isGroup })
+  if (!allowed) return // 🚫 bloqueo silencioso
 
-    if (quoted?.audioMessage) {
-      audioMessage = quoted.audioMessage
-    }
-  }
+  const quoted = m.quoted || m
+  const msg = quoted.message || {}
 
-  if (!audioMessage) {
-    return reply('🎧 Responde a una *nota de voz o audio*')
+  const audio =
+    msg.audioMessage ||
+    msg.videoMessage ||
+    msg.voiceMessage
+
+  if (!audio) {
+    return reply('🎵 Responde a un audio o video con música para identificarlo')
   }
 
   await sock.sendMessage(from, {
-    react: { text: '🎶', key: m.key }
+    react: { text: '🎧', key: m.key }
   })
 
+  const buffer = await quoted.download()
+  const file = `./tmp/${Date.now()}.mp3`
+  fs.writeFileSync(file, buffer)
 
-  /* ───── ⬇️ DESCARGAR AUDIO ───── */
-  let buffer = Buffer.from([])
-
+  /* ───── INTENTO 1: ACRCloud ───── */
   try {
-    const stream = await downloadContentFromMessage(audioMessage, 'audio')
-    for await (const chunk of stream) {
-      buffer = Buffer.concat([buffer, chunk])
+    const timestamp = Math.floor(Date.now() / 1000)
+    const stringToSign = `POST\n/v1/identify\n${ACR.access_key}\naudio\n1\n${timestamp}`
+    const signature = crypto
+      .createHmac('sha1', ACR.access_secret)
+      .update(stringToSign)
+      .digest('base64')
+
+    const form = new FormData()
+    form.append('sample', fs.createReadStream(file))
+    form.append('access_key', ACR.access_key)
+    form.append('data_type', 'audio')
+    form.append('signature', signature)
+    form.append('signature_version', '1')
+    form.append('timestamp', timestamp)
+
+    const res = await axios.post(
+      `https://${ACR.host}/v1/identify`,
+      form,
+      { headers: form.getHeaders() }
+    )
+
+    const music = res.data?.metadata?.music?.[0]
+
+    if (music) {
+      fs.unlinkSync(file)
+      return reply(
+`🎶 *Canción identificada*
+━━━━━━━━━━━━━━
+🎵 *Título:* ${music.title}
+🎤 *Artista:* ${music.artists?.map(a => a.name).join(', ')}
+💿 *Álbum:* ${music.album?.name || 'Desconocido'}
+📆 *Año:* ${music.release_date || '—'}
+━━━━━━━━━━━━━━
+🤖 ChappieBot`
+      )
     }
   } catch (e) {
-    console.error(e)
-    return reply('❌ No pude descargar el audio')
+    console.log('ACRCloud falló, usando Audd...')
   }
 
-  if (!buffer.length) {
-    return reply('❌ El audio está vacío')
-  }
-
-
-  /* ───── 🔍 IDENTIFICAR CANCIÓN ───── */
+  /* ───── INTENTO 2: AUDD ───── */
   try {
-    const res = await fetch('https://api.audd.io/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_token: '8b7f5fad3caed297e6c850af7bc63a90', // pon tu API real
-        audio: buffer.toString('base64'),
-        return: 'spotify,apple_music'
-      })
-    })
+    const form = new FormData()
+    form.append('file', fs.createReadStream(file))
+    form.append('api_token', AUDD_TOKEN)
+    form.append('return', 'spotify,apple_music')
 
-    const json = await res.json()
+    const res = await axios.post(
+      'https://api.audd.io/',
+      form,
+      { headers: form.getHeaders() }
+    )
 
-    if (!json.result) {
-      return reply('❌ No se pudo identificar la canción')
-    }
+    const r = res.data?.result
+    if (!r) throw 'No detectado'
 
-    const r = json.result
+    fs.unlinkSync(file)
 
-    await reply(`
-╭─〔 🎵 CANCIÓN IDENTIFICADA 〕
-│ 🎶 ${r.title}
-│ 👤 ${r.artist}
-│ 💽 ${r.album || 'Desconocido'}
-╰─〔 🤖 ChappieBot 〕
-`.trim())
-
-    await sock.sendMessage(from, {
-      react: { text: '✅', key: m.key }
-    })
-
-  } catch (e) {
-    console.error(e)
-    reply('❌ Error al identificar el audio')
+    return reply(
+`🎶 *Canción identificada*
+━━━━━━━━━━━━━━
+🎵 *Título:* ${r.title}
+🎤 *Artista:* ${r.artist}
+💿 *Álbum:* ${r.album || '—'}
+📆 *Año:* ${r.release_date || '—'}
+━━━━━━━━━━━━━━
+🤖 ChappieBot`
+    )
+  } catch {
+    fs.unlinkSync(file)
+    return reply('❌ No pude identificar la canción 😔\nPrueba con un audio más claro')
   }
 }
 
 handler.command = ['whatmusic']
-handler.tags = ['audio']
+handler.tags = ['tools']
 handler.menu = true
+handler.group = true
 
 export default handler
