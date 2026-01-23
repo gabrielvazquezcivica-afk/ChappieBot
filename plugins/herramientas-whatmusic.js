@@ -98,7 +98,7 @@ export const handler = async (m, {
 }
 
 handler.command = ['whatmusic']
-handler.tags = ['herramientas']
+handler.tags = ['tools']
 handler.menu = true
 handler.group = false
 
