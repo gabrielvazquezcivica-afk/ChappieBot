@@ -1,11 +1,11 @@
 import config from '../config.js'
 
 // ───── HELPERS ─────
-function onlyNumber (jid = '') {
+function onlyNumber(jid = '') {
   return jid?.toString().replace(/[^0-9]/g, '')
 }
 
-export const handler = async (m, { sock, sender, reply }) => {
+export const handler = async (m, { sock, from, sender, reply }) => {
   const owners = config.owner?.numbers || []
   const senderNum = onlyNumber(sender)
 
@@ -13,8 +13,9 @@ export const handler = async (m, { sock, sender, reply }) => {
     return reply('🔒 Solo el OWNER puede usar este comando')
   }
 
-  await sock.sendMessage(m.chat, {
-    react: { text: '🧹', key: m.key }
+  // ⚡ reacción (USAR from)
+  await sock.sendMessage(from, {
+    react: { text: '⚡', key: m.key }
   })
 
   let total = 0
@@ -23,7 +24,6 @@ export const handler = async (m, { sock, sender, reply }) => {
     const chats = Object.keys(sock.store?.chats || {})
 
     for (const jid of chats) {
-      // 🚫 ignorar estados y jids raros
       if (
         !jid ||
         typeof jid !== 'string' ||
@@ -38,15 +38,15 @@ export const handler = async (m, { sock, sender, reply }) => {
         )
         total++
       } catch {
-        // ignorar errores por chat individual
+        // ignorar errores individuales
       }
     }
 
-    reply(
+    await reply(
 `╭─〔 🧹 LIMPIEZA COMPLETA 〕
 │ ✔️ Chats limpiados: ${total}
-│ 🧠 Historial borrado
-╰─〔 CHAPPIEBOT 〕`
+│ 🗑️ Historial eliminado
+╰─〔 🤖 ChappieBot 〕`
     )
 
   } catch (e) {
