@@ -10,6 +10,7 @@ import { connectBot } from './lib/connection.js'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js'
 import { autoAdminOwnerEvent } from './lib/autoAdminOwner.js'
+import { isBanned } from './middleware/ban.js' // ✅ IMPORTAR BAN GLOBAL
 
 // ───── CONFIG GLOBAL ─────
 util.inspect.defaultOptions.depth = 0
@@ -119,17 +120,20 @@ async function startBot () {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
 
-    // 🔹 BORRAR MENSAJES DE USUARIOS SILENCIADOS
-    await muteWatcher(sock, m)
-
-    const text = getText(m)
-    if (!text || !text.startsWith(global.prefix)) return
-
     const from = m.key.remoteJid
     if (!from) return
     const isGroup = from.endsWith('@g.us')
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
+
+    // 🔹 BLOQUEO GLOBAL POR BAN
+    if (isBanned(sender)) return // 🚫 Usuario baneado, bloqueo silencioso
+
+    // 🔹 BORRAR MENSAJES DE USUARIOS SILENCIADOS
+    await muteWatcher(sock, m)
+
+    const text = getText(m)
+    if (!text || !text.startsWith(global.prefix)) return
 
     // 🔹 CALCULAR SI ES ADMIN
     let isAdmin = false
