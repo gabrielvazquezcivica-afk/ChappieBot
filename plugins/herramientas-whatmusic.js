@@ -1,14 +1,12 @@
-import fetch from 'node-fetch'
-import FormData from 'form-data'
 import fs from 'fs'
-import path from 'path'
+import fetch from 'node-fetch'
 
 export const handler = async (m, {
   sock,
   from,
+  sender,
   reply,
-  isGroup,
-  sender
+  isGroup
 }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
@@ -30,9 +28,8 @@ export const handler = async (m, {
       const metadata = await sock.groupMetadata(from)
       const participants = metadata.participants || []
       isAdmin = participants.some(
-        p =>
-          p.id === sender &&
-          (p.admin === 'admin' || p.admin === 'superadmin')
+        p => p.id === sender &&
+        (p.admin === 'admin' || p.admin === 'superadmin')
       )
     } catch {
       isAdmin = false
@@ -42,67 +39,67 @@ export const handler = async (m, {
   }
   /* ─────────────────────────────────────────────── */
 
-  // ───── VALIDAR AUDIO RESPONDIDO ─────
-  const quoted = m.quoted
-  const msg = quoted?.message || {}
 
-  const isAudio =
-    msg.audioMessage ||
-    quoted?.mimetype?.includes('audio')
+  /* ───── 🎧 DETECTAR AUDIO RESPONDIDO (FIX REAL) ───── */
+  const quoted =
+    m.quoted ||
+    m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-  if (!quoted || !isAudio) {
+  const audioMsg =
+    quoted?.message?.audioMessage ||
+    quoted?.audioMessage ||
+    quoted?.msg?.audioMessage
+
+  if (!audioMsg) {
     return reply('🎧 Responde a una *nota de voz o audio* para identificar la canción')
   }
+  /* ─────────────────────────────────────────────── */
+
 
   await sock.sendMessage(from, {
     react: { text: '🎶', key: m.key }
   })
 
-  // ───── DESCARGAR AUDIO ─────
+
+  /* ───── ⬇️ DESCARGAR AUDIO ───── */
   let buffer
   try {
-    buffer = await quoted.download()
+    buffer = await sock.downloadMediaMessage(
+      { message: { audioMessage: audioMsg } }
+    )
   } catch {
     return reply('❌ No pude descargar el audio')
   }
 
   if (!buffer) return reply('❌ Audio inválido')
 
-  // ───── GUARDAR TEMPORAL ─────
-  const tmpDir = './tmp'
-  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
 
-  const filePath = path.join(tmpDir, `${Date.now()}.ogg`)
-  fs.writeFileSync(filePath, buffer)
-
+  /* ───── 🔍 IDENTIFICAR CANCIÓN (ACRCloud / similar) ───── */
   try {
-    // ───── ENVIAR A LA API ─────
-    const form = new FormData()
-    form.append('media', fs.createReadStream(filePath))
-
-    const res = await fetch('https://api.ananta.qzz.io/api/whatmusic', {
+    const res = await fetch('https://api.audd.io/', {
       method: 'POST',
-      headers: {
-        'x-api-key': 'ant2wpyf85ga6'
-      },
-      body: form
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_token: 'test', // ← puedes poner tu API real
+        audio: buffer.toString('base64'),
+        return: 'apple_music,spotify'
+      })
     })
 
     const json = await res.json()
 
-    if (!json?.result) throw new Error('Sin resultado')
+    if (!json.result) {
+      return reply('❌ No se pudo identificar la canción')
+    }
 
-    const r = json.result
+    const song = json.result
 
     const text = `
 ╭─〔 🎵 CANCIÓN IDENTIFICADA 〕
-│ 🎶 ${r.title || 'Desconocido'}
-│ 👤 ${r.artist || 'Desconocido'}
-│ 💿 ${r.album || 'N/A'}
-│ ⏱ ${r.duration || 'N/A'}
-│
-│ 🔗 YouTube:
-│ ${r.youtube || 'No disponible'}
+│ 🎶 Título : ${song.title}
+│ 👤 Artista: ${song.artist}
+│ 💽 Álbum  : ${song.album || 'Desconocido'}
+│ ⏱ Duración: ${song.duration || 'N/A'}s
 ╰─〔 🤖 ChappieBot 〕
 `.trim()
 
@@ -114,9 +111,7 @@ export const handler = async (m, {
 
   } catch (e) {
     console.error(e)
-    reply('❌ No pude identificar la canción')
-  } finally {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    reply('❌ Error al identificar la canción')
   }
 }
 
