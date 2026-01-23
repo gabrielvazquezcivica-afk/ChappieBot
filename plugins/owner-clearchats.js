@@ -1,13 +1,14 @@
+import config from '../config.js'
+
 export const handler = async (m, {
   sock,
   from,
   sender,
-  owner,
   reply
 }) => {
 
-  // 🔒 SOLO OWNER
-  const owners = owner?.jid || []
+  // 🔒 SOLO OWNER (desde config)
+  const owners = (config.owner || []).map(v => v + '@s.whatsapp.net')
   if (!owners.includes(sender)) {
     return reply('❌ Solo el owner puede usar este comando')
   }
@@ -19,23 +20,9 @@ export const handler = async (m, {
   let total = 0
 
   try {
-    // Obtener chats directamente desde Baileys
-    const chats = await sock.groupFetchAllParticipating()
-      .then(groups => Object.keys(groups))
-      .catch(() => [])
+    // Chats cargados en memoria
+    const chats = Object.keys(sock.chats || {})
 
-    // Limpiar chats privados abiertos
-    const recentChats = sock.chats || {}
-
-    for (const jid of Object.keys(recentChats)) {
-      await sock.chatModify(
-        { clear: { messages: true } },
-        jid
-      )
-      total++
-    }
-
-    // Limpiar grupos detectados
     for (const jid of chats) {
       await sock.chatModify(
         { clear: { messages: true } },
@@ -44,11 +31,11 @@ export const handler = async (m, {
       total++
     }
 
-    await reply(`🧹 Chats limpiados: *${total}*`)
+    await reply(`🧹 Conversaciones vaciadas: *${total}*`)
 
   } catch (e) {
     console.error(e)
-    reply('❌ No se pudieron limpiar los chats')
+    reply('❌ Error al limpiar los chats')
   }
 }
 
