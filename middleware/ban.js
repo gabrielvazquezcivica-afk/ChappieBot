@@ -1,50 +1,45 @@
 import fs from 'fs'
-import path from 'path'
 
-const banFile = path.join('./data/ban.json')
+const banPath = './data/ban.json'
 
-// Cargar baneos
-let bans = {}
-if (fs.existsSync(banFile)) {
+function loadBans() {
+  if (!fs.existsSync(banPath)) return {}
   try {
-    bans = JSON.parse(fs.readFileSync(banFile))
+    return JSON.parse(fs.readFileSync(banPath))
   } catch {
-    bans = {}
+    return {}
   }
 }
 
-// Guardar baneos
-function saveBans() {
-  fs.writeFileSync(banFile, JSON.stringify(bans, null, 2))
+function saveBans(data) {
+  fs.writeFileSync(banPath, JSON.stringify(data, null, 2))
 }
 
-/**
- * Middleware para ChappieBot
- * @param {Object} m - mensaje
- * @returns {Boolean} - true si bloquea al usuario
- */
-export async function checkBan(m, { reply }) {
-  const sender = m.key?.participant || m.sender
-  if (bans[sender]) {
-    await reply(`❌ Lo siento, estás baneado de usar este bot.`)
-    return true // 🚫 Bloquea la ejecución del comando
-  }
-  return false
+function normalize(jid = '') {
+  return jid.toString().replace(/[^0-9]/g, '')
 }
 
-/**
- * Funciones de ban
- */
+// ───── API ─────
+export function isBanned(jid) {
+  const bans = loadBans()
+  return !!bans[normalize(jid)]
+}
+
 export function banUser(jid, reason = 'Sin motivo') {
-  bans[jid] = { reason, time: Date.now() }
-  saveBans()
+  const bans = loadBans()
+  bans[normalize(jid)] = {
+    reason,
+    time: Date.now()
+  }
+  saveBans(bans)
 }
 
 export function unbanUser(jid) {
-  delete bans[jid]
-  saveBans()
+  const bans = loadBans()
+  delete bans[normalize(jid)]
+  saveBans(bans)
 }
 
 export function listBans() {
-  return bans
+  return loadBans()
 }
