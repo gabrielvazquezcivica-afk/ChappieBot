@@ -10,7 +10,7 @@ export const handler = async (m, {
   isGroup
 }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
 
@@ -29,20 +29,29 @@ export const handler = async (m, {
     )
     if (!isAdmin) return
   }
-  /* ─────────────────────────────────────────────── */
+  /* ───────────────────────────────── */
 
 
-  /* ───── 🎧 VALIDAR AUDIO RESPONDIDO ───── */
-  if (!m.quoted) {
-    return reply('🎧 Responde a una *nota de voz o audio*')
+  /* ───── 🎧 OBTENER AUDIO REAL ───── */
+  let audioMessage = null
+
+  // Caso 1: m.quoted existe
+  if (m.quoted?.message?.audioMessage) {
+    audioMessage = m.quoted.message.audioMessage
   }
 
-  const qMsg = m.quoted.message
-  const audio =
-    qMsg?.audioMessage
+  // Caso 2: quoted viene en contextInfo
+  if (!audioMessage) {
+    const quoted =
+      m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-  if (!audio) {
-    return reply('❌ El mensaje respondido no es un audio')
+    if (quoted?.audioMessage) {
+      audioMessage = quoted.audioMessage
+    }
+  }
+
+  if (!audioMessage) {
+    return reply('🎧 Responde a una *nota de voz o audio*')
   }
 
   await sock.sendMessage(from, {
@@ -50,11 +59,11 @@ export const handler = async (m, {
   })
 
 
-  /* ───── ⬇️ DESCARGA REAL DEL AUDIO ───── */
+  /* ───── ⬇️ DESCARGAR AUDIO ───── */
   let buffer = Buffer.from([])
 
   try {
-    const stream = await downloadContentFromMessage(audio, 'audio')
+    const stream = await downloadContentFromMessage(audioMessage, 'audio')
     for await (const chunk of stream) {
       buffer = Buffer.concat([buffer, chunk])
     }
@@ -64,7 +73,7 @@ export const handler = async (m, {
   }
 
   if (!buffer.length) {
-    return reply('❌ Audio vacío o corrupto')
+    return reply('❌ El audio está vacío')
   }
 
 
@@ -74,7 +83,7 @@ export const handler = async (m, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_token: 'test', // pon tu API real si tienes
+        api_token: 'test', // pon tu API real
         audio: buffer.toString('base64'),
         return: 'spotify,apple_music'
       })
@@ -86,17 +95,15 @@ export const handler = async (m, {
       return reply('❌ No se pudo identificar la canción')
     }
 
-    const s = json.result
+    const r = json.result
 
-    const text = `
+    await reply(`
 ╭─〔 🎵 CANCIÓN IDENTIFICADA 〕
-│ 🎶 ${s.title}
-│ 👤 ${s.artist}
-│ 💽 ${s.album || 'Desconocido'}
+│ 🎶 ${r.title}
+│ 👤 ${r.artist}
+│ 💽 ${r.album || 'Desconocido'}
 ╰─〔 🤖 ChappieBot 〕
-`.trim()
-
-    await reply(text)
+`.trim())
 
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
