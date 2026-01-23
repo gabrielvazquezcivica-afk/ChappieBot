@@ -1,19 +1,19 @@
 import fs from 'fs'
 import path from 'path'
-import Canvas from 'canvas'
 
 const registroPath = path.resolve('./data/registro.json')
 const modoadminPath = path.resolve('./data/modoadmin.json')
-const COOLDOWN = 25 * 60 * 1000 // 25 minutos
+const COOLDOWN = 25 * 60 * 1000
 
-// ───── HELPERS ─────
+const trabajos = [
+  'Carpintero','Panadero','Programador','Doctor','Profesor',
+  'Ingeniero','Policía','Bombero','Músico','Granjero',
+  'Chef','Diseñador','Piloto','Cajero','Periodista'
+]
+
 function loadJSON(file, def = {}) {
   if (!fs.existsSync(file)) return def
-  try {
-    return JSON.parse(fs.readFileSync(file))
-  } catch {
-    return def
-  }
+  try { return JSON.parse(fs.readFileSync(file)) } catch { return def }
 }
 
 function saveJSON(file, data) {
@@ -24,55 +24,6 @@ function expToNextLevel(level) {
   return 50 + level * 20
 }
 
-// Trabajos aleatorios
-const trabajos = [
-  'Carpintero','Panadero','Programador','Doctor','Profesor',
-  'Ingeniero','Policía','Bombero','Músico','Granjero',
-  'Chef','Diseñador','Piloto','Cajero','Periodista'
-]
-
-// ───── CREAR IMAGEN RPG ─────
-async function generarImagen(user, trabajo, coinsGanar, expGanar, levelUpText) {
-  const width = 600, height = 300
-  const canvas = Canvas.createCanvas(width, height)
-  const ctx = canvas.getContext('2d')
-
-  ctx.fillStyle = '#1e1e2f'
-  ctx.fillRect(0, 0, width, height)
-
-  ctx.fillStyle = '#fff'
-  ctx.font = '28px Sans'
-  ctx.fillText(`💼 Trabajo: ${trabajo}`, 20, 50)
-
-  ctx.font = '22px Sans'
-  ctx.fillText(`💰 Coins: ${user.money} (+${coinsGanar})`, 20, 90)
-  ctx.fillText(`✨ Exp: ${user.exp} (+${expGanar})`, 20, 130)
-  ctx.fillText(`⭐ Nivel: ${user.level}`, 20, 170)
-
-  const expNext = expToNextLevel(user.level)
-  const barWidth = 400
-  const barHeight = 25
-  const progress = Math.min(user.exp / expNext, 1)
-
-  ctx.fillStyle = '#555'
-  ctx.fillRect(20, 200, barWidth, barHeight)
-  ctx.fillStyle = '#00ff99'
-  ctx.fillRect(20, 200, barWidth * progress, barHeight)
-
-  ctx.fillStyle = '#fff'
-  ctx.font = '18px Sans'
-  ctx.fillText(`${user.exp}/${expNext} EXP`, 220, 218)
-
-  if (levelUpText) {
-    ctx.fillStyle = '#ffcc00'
-    ctx.font = '20px Sans'
-    ctx.fillText(levelUpText, 20, 260)
-  }
-
-  return canvas.toBuffer()
-}
-
-// ───── HANDLER ─────
 export const handler = async (m, { sock, sender, from, isGroup, reply }) => {
   // ───── MODO ADMIN SILENCIOSO ─────
   let groupSettings = { enabled: false }
@@ -80,9 +31,7 @@ export const handler = async (m, { sock, sender, from, isGroup, reply }) => {
     try {
       const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
       groupSettings = modoadminData[from] || { enabled: false }
-    } catch {
-      groupSettings = { enabled: false }
-    }
+    } catch {}
   }
 
   if (groupSettings.enabled && isGroup) {
@@ -91,23 +40,16 @@ export const handler = async (m, { sock, sender, from, isGroup, reply }) => {
       const metadata = await sock.groupMetadata(from)
       const participants = metadata.participants || []
       isAdmin = participants.some(
-        p => p.id === sender &&
-        (p.admin === 'admin' || p.admin === 'superadmin')
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
       )
-    } catch {
-      isAdmin = false
-    }
-
-    if (!isAdmin) return // 🚫 bloqueo silencioso
+    } catch {}
+    if (!isAdmin) return // bloqueo silencioso
   }
-  // ──────────────────────────────
 
   const registros = loadJSON(registroPath)
   const user = registros[sender]
 
-  if (!user?.registered) {
-    return reply('❌ No estás registrado. Usa `.reg nombre edad` primero.')
-  }
+  if (!user?.registered) return reply('❌ No estás registrado. Usa `.reg nombre edad`.')
 
   const now = Date.now()
   if (user.lastWork && now - user.lastWork < COOLDOWN) {
@@ -130,17 +72,15 @@ export const handler = async (m, { sock, sender, from, isGroup, reply }) => {
     user.exp -= expNext
     const bonus = Math.floor(user.level * 10)
     user.money += bonus
-    levelUpText = `¡Subiste a nivel ${user.level}! Bonus: +${bonus} coins`
+    levelUpText = `⭐ ¡Subiste a nivel ${user.level}! Bonus: +${bonus} coins`
   }
 
   saveJSON(registroPath, registros)
 
-  const imgBuffer = await generarImagen(user, trabajo, coinsGanar, expGanar, levelUpText)
+  let msg = `💼 Trabajo: ${trabajo}\n💰 Ganaste: ${coinsGanar} coins\n✨ Exp: ${expGanar}\n⭐ Nivel: ${user.level}`
+  if (levelUpText) msg += `\n${levelUpText}`
 
-  await sock.sendMessage(m.key.remoteJid, {
-    image: imgBuffer,
-    caption: '✨ Trabajo completado'
-  }, { quoted: m })
+  await reply(msg)
 }
 
 handler.command = ['work']
