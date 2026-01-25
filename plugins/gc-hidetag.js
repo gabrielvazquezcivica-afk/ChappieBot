@@ -8,6 +8,11 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
+  // ✅ REACCIÓN
+  await sock.sendMessage(from, {
+    react: { text: '🔊, key: m.key }
+  })
+  
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
   // 🔹 Verificar admin según index.js
@@ -72,7 +77,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
     return
   }
 
-  reply(msgs.error || '❌ Ocurrió un error, intenta nuevamente')
+  reply(msgs.error || '❌ Usa .n <texto> o responde a un mensaje')
 }
 
 handler.command = ['n']
