@@ -6,7 +6,7 @@ const nsfwPath = path.resolve('./data/nsfw.json')
 
 export const handler = async (m, { sock, from, isGroup, reply }) => {
 
-  // 🔞 SISTEMA NSFW
+  // 🔞 NSFW SYSTEM
   let nsfw = false
   if (fs.existsSync(nsfwPath)) {
     try {
@@ -20,67 +20,50 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   if (isGroup && !nsfw) {
     return reply('🔞 El NSFW no está activado en este grupo')
   }
-  // ─────────────────
 
   await sock.sendMessage(from, { react: { text: '🕑', key: m.key } })
 
-  const txt = '🔥 Pack NSFW 🔥\n> Escribe .pack otra vez para ver otro'
-
-  // 📡 API (devuelve JSON)
-  let res
+  let api
   try {
-    res = await axios.get('https://delirius-apiofc.vercel.app/nsfw/girls')
-  } catch (e) {
-    return reply('❌ Error al obtener imagen NSFW')
+    api = await axios.get('https://delirius-apiofc.vercel.app/nsfw/girls')
+  } catch {
+    return reply('❌ Error al contactar la API')
   }
 
-  const img = res.data?.url
-  if (!img) return reply('❌ La API no devolvió imagen')
+  // 🧠 DETECTAR LINK CORRECTO
+  let img =
+    api.data?.url ||
+    api.data?.image ||
+    api.data?.result ||
+    (Array.isArray(api.data) ? api.data[0]?.url : null)
 
-  const textRandom = [
-    "𝙀𝙩𝙞𝙦𝙪𝙚𝙩𝙖 𝙂𝙚𝙣𝙚𝙧𝙖𝙡",
-    "𝙈𝙚𝙣𝙘𝙞𝙤𝙣 𝙂𝙚𝙣𝙚𝙧𝙖𝙡",
-    "𝙀𝙩𝙞𝙦𝙪𝙚𝙩𝙖𝙣𝙙𝙤 𝙖 𝙡𝙤𝙨 𝙉𝙋𝘾"
-  ]
-
-  const imgRandom = [
-    "https://iili.io/FKVDVAN.jpg",
-    "https://iili.io/FKVbUrJ.jpg"
-  ]
-
-  const msjRandom = textRandom[Math.floor(Math.random() * textRandom.length)]
-  const imgSelected = imgRandom[Math.floor(Math.random() * imgRandom.length)]
-
-  const thumb = Buffer.from(
-    (await axios.get(imgSelected, { responseType: 'arraybuffer' })).data
-  )
-
-  const fake = {
-    key: {
-      participant: '0@s.whatsapp.net',
-      fromMe: false,
-      id: 'ChappieBot'
-    },
-    message: {
-      locationMessage: {
-        name: msjRandom,
-        jpegThumbnail: thumb
-      }
-    },
-    participant: '0@s.whatsapp.net'
+  if (!img) {
+    console.log(api.data)
+    return reply('❌ La API no devolvió imagen válida')
   }
+
+  // 📥 DESCARGAR IMAGEN
+  let buffer
+  try {
+    buffer = Buffer.from(
+      (await axios.get(img, { responseType: 'arraybuffer' })).data
+    )
+  } catch {
+    return reply('❌ No se pudo descargar la imagen')
+  }
+
+  const txt = '🔥 Pack NSFW 🔥\n> Usa .pack otra vez para otro'
 
   await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   await sock.sendMessage(
     from,
-    { image: { url: img }, caption: txt },
-    { quoted: fake }
+    { image: buffer, caption: txt },
+    { quoted: m }
   )
 }
 
 handler.command = ['pack']
 handler.tags = ['nsfw']
 handler.menu = true
-
 export default handler
