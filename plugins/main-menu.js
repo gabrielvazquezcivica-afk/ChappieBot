@@ -32,7 +32,8 @@ export const handler = async (m, {
     stickers: '🖼️',    
     owner: '👑',    
     nsfw: '🔞',    
-    'on-off': '📴'    
+    xvideos: '🔥',
+    'on-off': '📴'
   }                  
 
   // 🎯 Emoji por comandos dentro del tag
@@ -49,6 +50,7 @@ export const handler = async (m, {
     stickers: '🖌️',
     owner: '🤴🏻',
     nsfw: '🔥',
+    xvideos: '🥵',
     'on-off': '📳'
   }    
   
@@ -83,7 +85,8 @@ export const handler = async (m, {
     'tools',    
     'stickers',    
     'owner',    
-    'nsfw'    
+    'nsfw',
+    'xvideos'
   ]    
     
   // 🧠 Construir menú    
