@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 const registroPath = path.resolve('./data/registro.json')
+const modoadminPath = path.resolve('./data/modoadmin.json')
 
 function loadDB() {
   if (!fs.existsSync(registroPath)) return {}
@@ -23,7 +24,26 @@ const items = [
   { nombre: '🧢 Gorra', precio: 150 }
 ]
 
-export const handler = async (m, { sender, reply }) => {
+export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
+
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  let groupSettings = { enabled: false }
+  if (fs.existsSync(modoadminPath)) {
+    const data = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = data[from] || { enabled: false }
+  }
+
+  if (groupSettings.enabled && isGroup) {
+    const metadata = await sock.groupMetadata(from)
+    const participants = metadata.participants || []
+    const isAdmin = participants.some(
+      p => p.id === sender &&
+      (p.admin === 'admin' || p.admin === 'superadmin')
+    )
+    if (!isAdmin) return
+  }
+  /* ───────────────────────────────── */
+
   const db = loadDB()
   const user = db[sender]
 
@@ -46,10 +66,7 @@ export const handler = async (m, { sender, reply }) => {
   }
 
   user.money -= item.precio
-  user.inventory.push({
-    nombre: item.nombre,
-    precio: item.precio
-  })
+  user.inventory.push(item)
 
   saveDB(db)
 
@@ -65,5 +82,4 @@ export const handler = async (m, { sender, reply }) => {
 handler.command = ['tienda']
 handler.tags = ['rpg']
 handler.menu = true
-
 export default handler
