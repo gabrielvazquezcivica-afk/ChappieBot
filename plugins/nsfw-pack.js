@@ -4,6 +4,12 @@ import path from 'path'
 
 const nsfwPath = path.resolve('./data/nsfw.json')
 
+const apis = [
+  'https://api.waifu.pics/nsfw/waifu',
+  'https://api.waifu.im/search?included_tags=ecchi',
+  'https://nekos.life/api/v2/img/lewd'
+]
+
 export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   // 🔞 NSFW SYSTEM
@@ -23,36 +29,34 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   await sock.sendMessage(from, { react: { text: '🕑', key: m.key } })
 
-  let api
-  try {
-    api = await axios.get('https://delirius-apiofc.vercel.app/nsfw/girls')
-  } catch {
-    return reply('❌ Error al contactar la API')
+  let img = null
+
+  for (let api of apis) {
+    try {
+      const res = await axios.get(api, { timeout: 10000 })
+
+      img =
+        res.data?.url ||
+        res.data?.image ||
+        res.data?.images?.[0]?.url ||
+        res.data?.data?.[0]?.url
+
+      if (img) break
+    } catch {}
   }
 
-  // 🧠 DETECTAR LINK CORRECTO
-  let img =
-    api.data?.url ||
-    api.data?.image ||
-    api.data?.result ||
-    (Array.isArray(api.data) ? api.data[0]?.url : null)
+  if (!img) return reply('❌ Ninguna API respondió con imagen')
 
-  if (!img) {
-    console.log(api.data)
-    return reply('❌ La API no devolvió imagen válida')
-  }
-
-  // 📥 DESCARGAR IMAGEN
   let buffer
   try {
     buffer = Buffer.from(
       (await axios.get(img, { responseType: 'arraybuffer' })).data
     )
   } catch {
-    return reply('❌ No se pudo descargar la imagen')
+    return reply('❌ Error al descargar la imagen')
   }
 
-  const txt = '🔥 Pack NSFW 🔥\n> Usa .pack otra vez para otro'
+  const txt = '🔥 Pack NSFW 🔥\n> Usa .pack para otro'
 
   await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
