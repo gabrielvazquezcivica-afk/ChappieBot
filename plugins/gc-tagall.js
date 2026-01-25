@@ -1,52 +1,61 @@
-export const handler = async (m, { sock, from, isGroup, reply }) => {
-  const msgs = global.config.messages || {}
-  const botName = sock.user?.name || 'ChappieBot'
-
-  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
-
-  const metadata = await sock.groupMetadata(from)
-  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)
-
-  if (!admins.includes(m.key.participant)) {
-    return reply(msgs.admin || '⚠️ Este comando es solo para administradores')
-  }
-
-  const participants = metadata.participants
-
-  // Reacción al comando
-  await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })
-
-  // ───── DISEÑO TIPO INFOGRUPO ─────
-  let text = `╭━━━〔 📣 MENCIÓN GENERAL 〕━━━╮
-┃ 📛 Grupo : ${metadata.subject}
-┃ 👥 Miembros : ${participants.length}
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-
-╭━━━〔 🚀 USUARIOS 🚀 〕━━━╮
-`
-
-  const mentions = []
-
-  for (const p of participants) {
-    const name = p?.notify || p?.id.split('@')[0]
-    text += `┃ 🛸 @${name}\n`
-    mentions.push(p.id)
-  }
-
-  text += `╰━━━━━━━━━━━━━━━━━━━━━━╯
-> ${botName}`
-
-  await sock.sendMessage(
-    from,
-    { text, mentions },
-    { quoted: m }
-  )
-}
-
-handler.command = ['todos']
-handler.tags = ['group']
-handler.group = true
-handler.admin = true
-handler.menu = true
-
+export const handler = async (m, { sock, from, isGroup, reply }) => {    
+  const msgs = global.config.messages || {}    
+  const botName = sock.user?.name || 'ChappieBot'    
+    
+  if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')    
+    
+  const metadata = await sock.groupMetadata(from)    
+  const admins = metadata.participants.filter(p => p.admin).map(p => p.id)    
+    
+  if (!admins.includes(m.key.participant)) {    
+    return reply(msgs.admin || '⚠️ Este comando es solo para administradores')    
+  }    
+    
+  const participants = metadata.participants    
+    
+  // Reacción al comando    
+  await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })    
+    
+  // ───── EMOJIS RANDOM ─────
+const emojis = [
+  '🛸','👾','🚀','🔥','⚡','💎','🎯','🎮','🐲','😎','🤖','👑','💥','✨',
+  '🌪️','☄️','🌟','🧨','🦁','🐉','🐺','🦅','🦊','🐯','🐻‍❄️','🦂','🐍',
+  '🦖','🦕','🎲','🧠','👻','💀','🎃','🧿','🔮','🪐','🌌','🌠','⭐',
+  '🏆','🥇','🥷','🕶️','🎩','🪖','🗡️','⚔️','🛡️','🔱','🏹','💣',
+  '📣','📢','📡','🧬','🛰️','💫','🌈','🎆','🎇','🎉'
+]
+  // ───── DISEÑO TIPO INFOGRUPO ─────    
+  let text = `╭━━━〔 📣 MENCIÓN GENERAL 〕━━━╮    
+┃ ${metadata.subject}    
+┃ MIEMBROS: 💫 ${participants.length} 💫   
+╰━━━━━━━━━━━━━━━━━━━━━━╯    
+    
+╭━━━〔 🚀 USUARIOS 🚀 〕━━━╮    
+`    
+    
+  const mentions = []    
+    
+  for (const p of participants) {    
+    const name = p?.notify || p?.id.split('@')[0]    
+    const emoji = emojis[Math.floor(Math.random() * emojis.length)]
+    text += `┃ ${emoji} @${name}\n`    
+    mentions.push(p.id)    
+  }    
+    
+  text += `╰━━━━━━━━━━━━━━━━━━━━━━╯    
+> ${botName}`    
+    
+  await sock.sendMessage(    
+    from,    
+    { text, mentions },    
+    { quoted: m }    
+  )    
+}    
+    
+handler.command = ['todos']    
+handler.tags = ['group']    
+handler.group = true    
+handler.admin = true    
+handler.menu = true    
+    
 export default handler
