@@ -69,7 +69,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
   const mascota = mascotasData[from]
 
   if (!mascota) {
-    return reply('🐾 Este grupo no tiene mascota')
+    return reply('🐾 Este grupo no tiene mascota, compra una primero')
   }
 
   // 🧑‍🌾 Solo el dueño puede alimentar
@@ -79,27 +79,22 @@ export const handler = async (m, { sock, from, isGroup, sender, reply }) => {
 
   const now = Date.now()
 
-  // ⛔ Si ya murió
-  if (mascota.dead) {
-    return reply(`💀 La mascota ${mascota.name} ya murió`)
-  }
-
-  // ⏰ Ver si murió por no alimentar
+  // ⛔ Si murió por tiempo
   if (mascota.lastFeed && now - mascota.lastFeed > COOLDOWN) {
-    mascota.dead = true
+    delete mascotasData[from] // 🗑️ BORRAR MASCOTA DEL GRUPO
     saveJSON(mascotasPath, mascotasData)
 
     return reply(
 `💀 La mascota ${mascota.name} murió de hambre...
 
-❌ No fue alimentada en 20 minutos.
-`
+❌ No fue alimentada en 20 minutos
+🐾 La mascota fue eliminada del grupo
+🛒 Deben comprar otra mascota`
     )
   }
 
   // 🍗 Alimentar
   mascota.lastFeed = now
-  mascota.dead = false
 
   saveJSON(mascotasPath, mascotasData)
 
