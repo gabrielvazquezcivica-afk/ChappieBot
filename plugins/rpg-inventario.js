@@ -2,59 +2,46 @@ import fs from 'fs'
 import path from 'path'
 
 const registroPath = path.resolve('./data/registro.json')
+const modoadminPath = path.resolve('./data/modoadmin.json')
 
-function loadJSON(file, def = {}) {
-  if (!fs.existsSync(file)) return def
-  try { return JSON.parse(fs.readFileSync(file)) } catch { return def }
+function loadDB() {
+  if (!fs.existsSync(registroPath)) return {}
+  return JSON.parse(fs.readFileSync(registroPath))
 }
 
-export const handler = async (m, { reply, sender, from, isGroup, sock }) => {
+export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
-
   if (fs.existsSync(modoadminPath)) {
-    try {
-      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-      groupSettings = modoadminData[from] || { enabled: false }
-    } catch {
-      groupSettings = { enabled: false }
-    }
+    const data = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = data[from] || { enabled: false }
   }
 
   if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender &&
-        (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {
-      isAdmin = false
-    }
+    const metadata = await sock.groupMetadata(from)
+    const participants = metadata.participants || []
+    const isAdmin = participants.some(
+      p => p.id === sender &&
+      (p.admin === 'admin' || p.admin === 'superadmin')
+    )
     if (!isAdmin) return
   }
-  /* ─────────────────────────────────────────────── */
+  /* ───────────────────────────────── */
 
-  const registros = loadJSON(registroPath)
-  const user = registros[sender]
+  const db = loadDB()
+  const user = db[sender]
 
-  if (!user?.registered) {
-    return reply('❌ No estás registrado. Usa `.reg nombre edad`')
-  }
+  if (!user?.registered) return reply('❌ No estás registrado')
 
-  const inv = user.inventory || []
-
-  if (!inv.length) {
+  if (!user.inventory || user.inventory.length === 0) {
     return reply('🎒 Tu inventario está vacío')
   }
 
-  let text = '🎒 INVENTARIO\n\n'
-  inv.forEach((item, i) => {
-    text += `${i + 1}. ${item.nombre} (${item.precio}💰)\n`
+  let text = `🎒 INVENTARIO\n\n`
+
+  user.inventory.forEach((item, i) => {
+    text += `${i + 1}. ${item.nombre} — 💰 ${item.precio}\n`
   })
 
   reply(text)
@@ -63,5 +50,4 @@ export const handler = async (m, { reply, sender, from, isGroup, sock }) => {
 handler.command = ['inventario']
 handler.tags = ['rpg']
 handler.menu = true
-
 export default handler
