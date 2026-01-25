@@ -18,18 +18,27 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   }
 
   if (isGroup && !nsfw) {
-    return reply('🔞 Este comando requiere que el NSFW esté activado en este grupo')
+    return reply('🔞 El NSFW no está activado en este grupo')
   }
   // ─────────────────
 
-  // ⏳ Reacción inicial
   await sock.sendMessage(from, { react: { text: '🕑', key: m.key } })
 
-  const txt = 'Pack🔥🔥🔥\n> Pon de nuevo .pack para mirar el siguiente ✨'
-  const img = 'https://delirius-apiofc.vercel.app/nsfw/girls'
+  const txt = '🔥 Pack NSFW 🔥\n> Escribe .pack otra vez para ver otro'
+
+  // 📡 API (devuelve JSON)
+  let res
+  try {
+    res = await axios.get('https://delirius-apiofc.vercel.app/nsfw/girls')
+  } catch (e) {
+    return reply('❌ Error al obtener imagen NSFW')
+  }
+
+  const img = res.data?.url
+  if (!img) return reply('❌ La API no devolvió imagen')
 
   const textRandom = [
-    "𝙀𝙩𝙞𝙦𝙪𝙚𝙩𝙖 𝙂𝙚𝙣𝙚𝙧𝙖𝙡 𝙓 *ChappieBot*",
+    "𝙀𝙩𝙞𝙦𝙪𝙚𝙩𝙖 𝙂𝙚𝙣𝙚𝙧𝙖𝙡",
     "𝙈𝙚𝙣𝙘𝙞𝙤𝙣 𝙂𝙚𝙣𝙚𝙧𝙖𝙡",
     "𝙀𝙩𝙞𝙦𝙪𝙚𝙩𝙖𝙣𝙙𝙤 𝙖 𝙡𝙤𝙨 𝙉𝙋𝘾"
   ]
@@ -55,17 +64,12 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     message: {
       locationMessage: {
         name: msjRandom,
-        jpegThumbnail: thumb,
-        vcard:
-          "BEGIN:VCARD\nVERSION:3.0\nN:;ChappieBot;;;\nFN:ChappieBot\nORG:ChappieBot\nTITLE:\n" +
-          "item1.TEL;waid=19709001746:+1 (970) 900-1746\nitem1.X-ABLabel:Bot\n" +
-          "X-WA-BIZ-DESCRIPTION:ChappieBot\nX-WA-BIZ-NAME:ChappieBot\nEND:VCARD"
+        jpegThumbnail: thumb
       }
     },
     participant: '0@s.whatsapp.net'
   }
 
-  // ✅ Reacción final
   await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   await sock.sendMessage(
