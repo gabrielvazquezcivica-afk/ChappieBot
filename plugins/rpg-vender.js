@@ -2,89 +2,64 @@ import fs from 'fs'
 import path from 'path'
 
 const registroPath = path.resolve('./data/registro.json')
+const modoadminPath = path.resolve('./data/modoadmin.json')
 
-function loadJSON(file, def = {}) {
-  if (!fs.existsSync(file)) return def
-  try { return JSON.parse(fs.readFileSync(file)) } catch { return def }
+function loadDB() {
+  if (!fs.existsSync(registroPath)) return {}
+  return JSON.parse(fs.readFileSync(registroPath))
 }
 
-function saveJSON(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2))
+function saveDB(data) {
+  fs.writeFileSync(registroPath, JSON.stringify(data, null, 2))
 }
 
-export const handler = async (m, { reply, sender, from, args, isGroup, sock }) => {
+export const handler = async (m, { sock, from, sender, args, reply, isGroup }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
-
   if (fs.existsSync(modoadminPath)) {
-    try {
-      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-      groupSettings = modoadminData[from] || { enabled: false }
-    } catch {
-      groupSettings = { enabled: false }
-    }
+    const data = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = data[from] || { enabled: false }
   }
 
   if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender &&
-        (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {
-      isAdmin = false
-    }
+    const metadata = await sock.groupMetadata(from)
+    const participants = metadata.participants || []
+    const isAdmin = participants.some(
+      p => p.id === sender &&
+      (p.admin === 'admin' || p.admin === 'superadmin')
+    )
     if (!isAdmin) return
   }
-  /* ─────────────────────────────────────────────── */
+  /* ───────────────────────────────── */
 
-  const registros = loadJSON(registroPath)
-  const user = registros[sender]
+  const db = loadDB()
+  const user = db[sender]
 
-  if (!user?.registered) {
-    return reply('❌ No estás registrado. Usa `.reg nombre edad`')
-  }
+  if (!user?.registered) return reply('❌ No estás registrado')
 
-  const inv = user.inventory || []
-
-  if (!inv.length) {
+  if (!user.inventory || user.inventory.length === 0) {
     return reply('🎒 No tienes objetos para vender')
   }
 
-  if (!args[0]) {
-    let list = '💰 ¿Qué deseas vender?\n\n'
-    inv.forEach((item, i) => {
-      list += `${i + 1}. ${item.nombre} (${item.precio}💰)\n`
-    })
-    list += `\nUsa: .vender número`
-    return reply(list)
-  }
-
   const index = parseInt(args[0]) - 1
-  if (isNaN(index) || !inv[index]) {
-    return reply('❌ Número inválido')
+  if (isNaN(index) || !user.inventory[index]) {
+    return reply('❌ Usa: .vender número\nEjemplo: .vender 1')
   }
 
-  const item = inv[index]
-  const sellPrice = Math.floor(item.precio * 0.6)
+  const item = user.inventory[index]
+  const ganancia = Math.floor(item.precio * 0.7)
 
-  user.money += sellPrice
-  inv.splice(index, 1)
-  user.inventory = inv
+  user.inventory.splice(index, 1)
+  user.money += ganancia
 
-  saveJSON(registroPath, registros)
+  saveDB(db)
 
   reply(
-`💸 VENTA EXITOSA
+`💰 VENTA EXITOSA
 
 📦 Vendiste: ${item.nombre}
-💰 Recibiste: ${sellPrice} coins
-
+💵 Ganaste: ${ganancia}
 💳 Saldo actual: ${user.money}`
   )
 }
@@ -92,5 +67,4 @@ export const handler = async (m, { reply, sender, from, args, isGroup, sock }) =
 handler.command = ['vender']
 handler.tags = ['rpg']
 handler.menu = true
-
 export default handler
