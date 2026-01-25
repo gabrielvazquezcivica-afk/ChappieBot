@@ -5,7 +5,6 @@ import path from 'path'
 
 const nsfwPath = path.resolve('./data/nsfw.json')
 
-// ───── FUNCION PARA CHECAR NSFW ─────
 function isNSFW(chatId) {
   if (!fs.existsSync(nsfwPath)) return false
   try {
@@ -16,66 +15,51 @@ function isNSFW(chatId) {
   }
 }
 
-// ───── HANDLER ─────
 export const handler = async (m, { sock, from, text, command, isGroup, sender, reply }) => {
 
-  // ❌ Bloquear si NSFW no está activado en este chat
   if (isGroup && !isNSFW(from)) {
-    return reply(
-      `*[❗] Los comandos +18 están desactivados en este grupo*\n` +
-      `Si eres admin y deseas activarlos, usa: .enable nsfw`
-    )
+    return reply(`*[❗] Comandos +18 desactivados en este grupo.*\nSi eres admin y quieres activarlos: .enable nsfw`)
   }
 
-  if (!text) return reply(
-    `*[❗ INFO ❗] Uso correcto del comando:*\n` +
-    `${command} <término de búsqueda>`
-  )
+  if (!text) return reply(`*[❗] Uso correcto: ${command} <término de búsqueda>*`)
 
   try {
-    const vids_ = { from: sender, urls: [] }
     if (!global.videoListXXX) global.videoListXXX = []
     if (global.videoListXXX[0]?.from === sender) global.videoListXXX.splice(0, global.videoListXXX.length)
 
     const res = await xnxxsearch(text)
-    const json = res.result
-
-    if (!json.length) return reply('❌ No se encontraron resultados')
+    if (!res.result.length) return reply('❌ No se encontraron resultados.')
 
     let cap = `*🔍 RESULTADOS DE LA BÚSQUEDA:* ${text.toUpperCase()}\n\n`
     let count = 1
 
-    for (const v of json) {
-      const linkXXX = v.link
-      vids_.urls.push(linkXXX)
-      cap += `*[${count}]*\n• *🎬 Título:* ${v.title}\n• *🔗 Link:* ${v.link}\n• *❗ Info:* ${v.info}`
-      cap += '\n\n••••••••••••••••••••••••••••••••\n\n'
+    for (const v of res.result) {
+      cap += `*[${count}]*\n• 🎬 Título: ${v.title}\n• 🔗 Link: ${v.link}\n• ❗ Info: ${v.info}\n\n••••••••••••••••••••\n\n`
       count++
     }
 
     reply(cap)
-    global.videoListXXX.push(vids_)
+    global.videoListXXX.push({ from: sender, urls: res.result.map(r => r.link) })
 
   } catch (e) {
     console.error(e)
-    reply('❌ Error al contactar la página o procesar resultados')
+    reply('❌ Error al procesar la búsqueda.')
   }
 }
 
-// ───── CONFIGURACIÓN DEL HANDLER ─────
-handler.help = ['xnxxsearch'].map(v => v + ' <query>')
-handler.tags = ['xvideos]
-handler.command = ['xnxxsearch', 'xnxxs']
+handler.help = ['xnxxsearch <query>']
+handler.tags = ['xvideos']
+handler.menu = true
+handler.command = ['xnxxsearch']
 export default handler
 
-// ───── FUNCIONES AUX ─────
 async function xnxxsearch(query) {
   return new Promise((resolve, reject) => {
     const baseurl = 'https://www.xnxx.com'
-    fetch(`${baseurl}/search/${encodeURIComponent(query)}/${Math.floor(Math.random() * 3) + 1}`, { method: 'get' })
+    fetch(`${baseurl}/search/${encodeURIComponent(query)}/${Math.floor(Math.random() * 3) + 1}`)
       .then(res => res.text())
       .then(res => {
-        const $ = cheerio.load(res, { xmlMode: false })
+        const $ = cheerio.load(res)
         const title = [], url = [], desc = [], results = []
 
         $('div.mozaique').each((i, b) => {
@@ -99,6 +83,7 @@ async function xnxxsearch(query) {
         }
 
         resolve({ code: 200, status: true, result: results })
-      }).catch(err => reject({ code: 503, status: false, result: err }))
+      })
+      .catch(err => reject({ code: 503, status: false, result: err }))
   })
-      }
+}
