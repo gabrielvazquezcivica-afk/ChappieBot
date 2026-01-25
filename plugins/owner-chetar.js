@@ -18,7 +18,7 @@ function onlyNumber(jid = '') {
 
 export const handler = async (m, { sock, from, sender, args, reply }) => {
 
-  // 👑 OWNER desde config
+  // 👑 OWNER
   const owners = global.config.owner?.numbers || []
   const senderNum = onlyNumber(sender)
 
@@ -26,9 +26,14 @@ export const handler = async (m, { sock, from, sender, args, reply }) => {
     return reply('🚫 Solo el OWNER puede usar este comando')
   }
 
+  // ⚡ Reacción inicial
+  await sock.sendMessage(from, {
+    react: { text: '💫', key: m.key }
+  })
+
   const db = loadDB()
 
-  // 🎯 Usuario objetivo
+  // 🎯 objetivo
   let target = sender
   if (m.mentionedJid && m.mentionedJid[0]) {
     target = m.mentionedJid[0]
@@ -38,7 +43,6 @@ export const handler = async (m, { sock, from, sender, args, reply }) => {
     return reply('❌ Ese usuario no está registrado')
   }
 
-  // 📊 Cantidades
   const coins = parseInt(args[0]) || 1000
   const exp = parseInt(args[1]) || 500
   const level = parseInt(args[2]) || 1
@@ -51,16 +55,25 @@ export const handler = async (m, { sock, from, sender, args, reply }) => {
 
   saveDB(db)
 
-  reply(
-`😈 CHETADO EXITOSO
+  const text = `
+😈 CHETADO EXITOSO
 
 👤 Usuario: @${onlyNumber(target)}
 💰 Coins: +${coins}
 ✨ EXP: +${exp}
 ⭐ Nivel: +${level}
 ❤️ Vida: +${health}
-`
-  )
+`.trim()
+
+  await sock.sendMessage(from, {
+    text,
+    mentions: [target]
+  }, { quoted: m })
+
+  // ✅ Reacción final
+  await sock.sendMessage(from, {
+    react: { text: '✅', key: m.key }
+  })
 }
 
 handler.command = ['chetar']
