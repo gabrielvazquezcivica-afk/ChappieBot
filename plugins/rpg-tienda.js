@@ -4,6 +4,9 @@ import path from 'path'
 const registroPath = path.resolve('./data/registro.json')
 const modoadminPath = path.resolve('./data/modoadmin.json')
 
+// ⏱️ COOLDOWN (10 minutos)
+const COOLDOWN = 10 * 60 * 1000
+
 function loadDB() {
   if (!fs.existsSync(registroPath)) return {}
   return JSON.parse(fs.readFileSync(registroPath))
@@ -53,6 +56,17 @@ export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
 
   if (!user.inventory) user.inventory = []
   if (!user.money) user.money = 0
+  if (!user.lastShop) user.lastShop = 0
+
+  // ⏱️ COOLDOWN
+  const now = Date.now()
+  const diff = now - user.lastShop
+
+  if (diff < COOLDOWN) {
+    const restante = COOLDOWN - diff
+    const minutos = Math.ceil(restante / 60000)
+    return reply(`⏳ Debes esperar *${minutos} minuto(s)* para volver a comprar en la tienda`)
+  }
 
   const item = items[Math.floor(Math.random() * items.length)]
 
@@ -67,6 +81,7 @@ export const handler = async (m, { sock, from, sender, reply, isGroup }) => {
 
   user.money -= item.precio
   user.inventory.push(item)
+  user.lastShop = now
 
   saveDB(db)
 
