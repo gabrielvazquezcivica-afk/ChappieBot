@@ -17,9 +17,16 @@ function isNSFW(chatId) {
 
 export const handler = async (m, { sock, from, command, isGroup, sender, reply }) => {
 
-  // obtener texto REAL del mensaje
-  const query = m.text.split(' ').slice(1).join(' ').trim()
+  // Obtener texto real del mensaje (evita error split)
+  const body =
+    m.text ||
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
 
+  const query = body.split(' ').slice(1).join(' ').trim()
+
+  // Sistema NSFW
   if (isGroup && !isNSFW(from)) {
     return reply(
 `🔞 *Comandos NSFW desactivados en este grupo*
@@ -32,9 +39,12 @@ Un administrador puede activarlos con:
 
   try {
     if (!global.videoListXXX) global.videoListXXX = []
-    if (global.videoListXXX[0]?.from === sender) global.videoListXXX = []
+    if (global.videoListXXX[0]?.from === sender) {
+      global.videoListXXX.splice(0, global.videoListXXX.length)
+    }
 
     const res = await xnxxsearch(query)
+
     if (!res.result.length) return reply('❌ No se encontraron resultados.')
 
     let cap = `🔍 *RESULTADOS:* ${query.toUpperCase()}\n\n`
@@ -44,24 +54,27 @@ Un administrador puede activarlos con:
       cap += `*[${count}]*\n`
       cap += `🎬 Título: ${v.title}\n`
       cap += `🔗 Link: ${v.link}\n`
-      cap += `❗ Info: ${v.info}\n\n`
-      cap += `━━━━━━━━━━━━━━\n\n`
+      cap += `📄 Info: ${v.info}\n\n`
       count++
     }
 
     reply(cap)
-    global.videoListXXX.push({ from: sender, urls: res.result.map(r => r.link) })
+
+    global.videoListXXX.push({
+      from: sender,
+      urls: res.result.map(v => v.link)
+    })
 
   } catch (e) {
     console.error(e)
-    reply('❌ Error al buscar en la página.')
+    reply('❌ Error al procesar la búsqueda.')
   }
 }
 
-handler.help = ['xnxxsearch <query>']
+handler.command = ['xnxxsearch', 'xnxxs']
 handler.tags = ['xvideos']
 handler.menu = true
-handler.command = ['xnxxsearch']
+
 export default handler
 
 async function xnxxsearch(query) {
@@ -71,7 +84,10 @@ async function xnxxsearch(query) {
       .then(res => res.text())
       .then(res => {
         const $ = cheerio.load(res)
-        const title = [], url = [], desc = [], results = []
+        const title = []
+        const url = []
+        const desc = []
+        const results = []
 
         $('div.mozaique').each((i, b) => {
           $(b).find('div.thumb').each((j, d) => {
@@ -97,8 +113,8 @@ async function xnxxsearch(query) {
           })
         }
 
-        resolve({ status: true, result: results })
+        resolve({ code: 200, status: true, result: results })
       })
-      .catch(err => reject(err))
+      .catch(err => reject({ code: 503, status: false, result: err }))
   })
-}
+          }
