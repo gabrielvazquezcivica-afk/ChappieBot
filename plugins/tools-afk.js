@@ -3,7 +3,6 @@ import fs from 'fs'
 const afkPath = './data/afk.json'
 const modoadminPath = './data/modoadmin.json'
 
-// crear archivo si no existe
 if (!fs.existsSync(afkPath)) fs.writeFileSync(afkPath, JSON.stringify({}, null, 2))
 
 function loadAFK() {
@@ -14,7 +13,7 @@ function saveAFK(data) {
   fs.writeFileSync(afkPath, JSON.stringify(data, null, 2))
 }
 
-export const handler = async (m, { sock, from, text, reply, sender, isGroup, isAdmin, command }) => {
+export const handler = async (m, { sock, from, text, reply, sender, isGroup }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
@@ -22,13 +21,20 @@ export const handler = async (m, { sock, from, text, reply, sender, isGroup, isA
     const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminSettings[from] || { enabled: false }
   }
-  if (isGroup && groupSettings.enabled && !isAdmin) return
+
+  if (isGroup && groupSettings.enabled) {
+    const metadata = await sock.groupMetadata(from)
+    const isAdmin = metadata.participants.some(
+      p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+    )
+    if (!isAdmin) return
+  }
   /* ─────────────────────────────────── */
 
   let afkData = loadAFK()
 
   afkData[sender] = {
-    reason: text || 'Sin motivo',
+    reason: text && text.trim() ? text : 'Sin motivo',
     time: Date.now()
   }
 
@@ -39,27 +45,23 @@ export const handler = async (m, { sock, from, text, reply, sender, isGroup, isA
   reply(
 `😴 *MODO AFK ACTIVADO*
 
-📌 *Uso:* 
-.${command} <motivo>
+📌 Uso: .afk <motivo>
+📝 Motivo: ${afkData[sender].reason}
 
-📝 *Motivo:* ${afkData[sender].reason}
-
-📢 El bot avisará:
-• cuando te mencionen
-• cuando vuelvas a escribir
-• cuánto tiempo estuviste AFK`
+📢 Avisaré:
+• si te mencionan
+• cuando vuelvas a escribir`
   )
 }
 
 handler.command = ['afk']
 handler.tags = ['tools']
 handler.menu = true
-
 export default handler
 
 
 // 🔔 detector automático
-export async function before(m, { sock, isGroup, isAdmin }) {
+export async function before(m, { sock }) {
   if (!m.text) return
 
   const sender = m.sender
@@ -71,12 +73,19 @@ export async function before(m, { sock, isGroup, isAdmin }) {
     const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminSettings[from] || { enabled: false }
   }
-  if (isGroup && groupSettings.enabled && !isAdmin) return
+
+  if (m.isGroup && groupSettings.enabled) {
+    const metadata = await sock.groupMetadata(from)
+    const isAdmin = metadata.participants.some(
+      p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+    )
+    if (!isAdmin) return
+  }
   /* ─────────────────────────────────── */
 
   let afkData = loadAFK()
 
-  // 🟢 cuando vuelve a escribir
+  // 🟢 si vuelve del AFK
   if (afkData[sender]) {
     const { reason, time } = afkData[sender]
     const duracion = msToTime(Date.now() - time)
@@ -94,7 +103,7 @@ export async function before(m, { sock, isGroup, isAdmin }) {
     })
   }
 
-  // 🔴 cuando mencionan a alguien AFK
+  // 🔴 si mencionan a alguien AFK
   if (m.mentionedJid && m.mentionedJid.length) {
     for (let jid of m.mentionedJid) {
       if (afkData[jid]) {
@@ -114,8 +123,6 @@ export async function before(m, { sock, isGroup, isAdmin }) {
   }
 }
 
-
-// ⏱ convertir tiempo bonito
 function msToTime(ms) {
   let s = Math.floor(ms / 1000)
   let m = Math.floor(s / 60)
@@ -125,4 +132,4 @@ function msToTime(ms) {
   m %= 60
 
   return `${h}h ${m}m ${s}s`
-                  }
+}
