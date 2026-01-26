@@ -14,16 +14,25 @@ function saveAFK(data) {
 }
 
 function msToTime(ms) {
-  let sec = Math.floor(ms / 1000)
-  let min = Math.floor(sec / 60)
-  let hr = Math.floor(min / 60)
-  sec %= 60
-  min %= 60
-  return `${hr}h ${min}m ${sec}s`
+  let s = Math.floor(ms / 1000)
+  let m = Math.floor(s / 60)
+  let h = Math.floor(m / 60)
+  s %= 60
+  m %= 60
+  return `${h}h ${m}m ${s}s`
+}
+
+function getText(m) {
+  return (
+    m.text ||
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+  ).trim()
 }
 
 /* ───── COMANDO AFK ───── */
-export const handler = async (m, { sock, from, sender, isGroup, reply, text, isAdmin }) => {
+export const handler = async (m, { sock, from, sender, isGroup, reply, isAdmin }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
@@ -35,7 +44,8 @@ export const handler = async (m, { sock, from, sender, isGroup, reply, text, isA
   /* ─────────────────────────────────── */
 
   const afkData = loadAFK()
-  const reason = text || 'Sin motivo'
+  const fullText = getText(m)
+  const reason = fullText.replace(/^\.?afk/i, '').trim() || 'Sin motivo'
 
   afkData[sender] = {
     reason,
@@ -55,7 +65,7 @@ handler.tags = ['tools']
 handler.menu = true
 export default handler
 
-/* ───── BEFORE (DETECTA MENCIÓN Y REGRESO) ───── */
+/* ───── BEFORE ───── */
 export async function before(m, { sock, from, sender, isGroup, isAdmin }) {
   if (!m.message) return
 
@@ -70,38 +80,37 @@ export async function before(m, { sock, from, sender, isGroup, isAdmin }) {
   if (groupSettings.enabled && isGroup && !isAdmin) return
   /* ─────────────────────────────────── */
 
-  // 🔹 TEXTO REAL
-  const body =
-    m.body ||
-    m.message?.conversation ||
-    m.message?.extendedTextMessage?.text ||
-    ''
+  const body = getText(m)
 
-  // 🔔 SI EL USUARIO AFK ESCRIBE → QUITAR AFK
-  if (afkData[sender] && !body.startsWith('.afk')) {
-    let reason = afkData[sender].reason
-    let time = Date.now() - afkData[sender].time
+  // 🟢 SI EL AFK ESCRIBE → QUITAR AFK
+  if (afkData[sender] && !body.toLowerCase().startsWith('.afk')) {
+    const reason = afkData[sender].reason
+    const time = Date.now() - afkData[sender].time
 
     delete afkData[sender]
     saveAFK(afkData)
 
     await sock.sendMessage(from, {
-      text: `✅ *AFK DESACTIVADO*\n\n👤 @${sender.split('@')[0]}\n📄 Motivo: ${reason}\n⏱ Tiempo AFK: ${msToTime(time)}`,
+      text: `✅ *AFK DESACTIVADO*\n\n👤 @${sender.split('@')[0]}\n📄 Motivo: ${reason}\n⏱ Tiempo: ${msToTime(time)}`,
       mentions: [sender]
     })
   }
 
-  // 🔔 DETECTAR MENCIONES
-  let mentioned =
-    m.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
+  // 🟡 DETECTAR MENCIONES Y REPLY
+  const mentioned = [
+    ...(m.message?.extendedTextMessage?.contextInfo?.mentionedJid || []),
+    ...(m.message?.extendedTextMessage?.contextInfo?.participant
+      ? [m.message.extendedTextMessage.contextInfo.participant]
+      : [])
+  ]
 
-  for (let jid of mentioned) {
+  for (const jid of mentioned) {
     if (afkData[jid]) {
-      let reason = afkData[jid].reason
-      let time = Date.now() - afkData[jid].time
+      const reason = afkData[jid].reason
+      const time = Date.now() - afkData[jid].time
 
       await sock.sendMessage(from, {
-        text: `💤 *USUARIO AFK*\n\n👤 @${jid.split('@')[0]}\n📄 Motivo: ${reason}\n⏱ Tiempo AFK: ${msToTime(time)}`,
+        text: `💤 *USUARIO AFK*\n\n👤 @${jid.split('@')[0]}\n📄 Motivo: ${reason}\n⏱ Tiempo: ${msToTime(time)}`,
         mentions: [jid]
       })
     }
