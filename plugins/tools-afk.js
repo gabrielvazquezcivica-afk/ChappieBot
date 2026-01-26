@@ -31,8 +31,8 @@ export const handler = async (m, { text, sock }) => {
   }, { quoted: m }).catch(() => {})
 }
 
-handler.command = /^afk$/i
-handler.tags = ['main']
+handler.command = ['afk']
+handler.tags = ['tools']
 handler.help = ['afk [motivo]']
 
 // ───── Before: Detectar menciones y regreso ─────
