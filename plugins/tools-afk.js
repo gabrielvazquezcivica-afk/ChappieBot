@@ -5,7 +5,7 @@ const modoadminPath = './data/modoadmin.json'
 
 if (!fs.existsSync(afkPath)) fs.writeFileSync(afkPath, JSON.stringify({}, null, 2))
 
-function loadAFK() {
+function getAFK() {
   return JSON.parse(fs.readFileSync(afkPath))
 }
 
@@ -16,13 +16,13 @@ function saveAFK(data) {
 function loadModoAdmin(from) {
   let groupSettings = { enabled: false }
   if (fs.existsSync(modoadminPath)) {
-    const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = modoadminSettings[from] || { enabled: false }
+    const data = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = data[from] || { enabled: false }
   }
   return groupSettings
 }
 
-const handler = async (m, { sock, from, sender, text, reply, isAdmin, isGroup }) => {
+const handler = async (m, { sock, from, sender, text, isGroup, isAdmin }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   if (isGroup) {
@@ -31,7 +31,7 @@ const handler = async (m, { sock, from, sender, text, reply, isAdmin, isGroup })
   }
   /* ─────────────────────────────────── */
 
-  let afkData = loadAFK()
+  let afkData = getAFK()
 
   afkData[sender] = {
     reason: text || 'Sin motivo',
@@ -40,17 +40,13 @@ const handler = async (m, { sock, from, sender, text, reply, isAdmin, isGroup })
 
   saveAFK(afkData)
 
-  await sock.sendMessage(from, { react: { text: '💤', key: m.key } })
-
-  reply(
-`『 ＡＦＫ 』
+  await sock.sendMessage(from, {
+    text: `『 ＡＦＫ 』
 
 😴 @${sender.split('@')[0]} ahora está AFK
-
-📝 Motivo: ${text || 'Sin motivo'}
-`,
-{ mentions: [sender] }
-  )
+📝 Motivo: ${text || 'Sin motivo'}`,
+    mentions: [sender]
+  })
 }
 
 handler.command = ['afk']
@@ -58,7 +54,7 @@ handler.tags = ['tools']
 handler.menu = true
 
 // ───── BEFORE ─────
-handler.before = async function (m, { sock, isAdmin, isGroup }) {
+handler.before = async function (m, { sock, isGroup, isAdmin }) {
   if (!m || !m.sender || !m.chat) return
 
   const from = m.chat
@@ -71,9 +67,9 @@ handler.before = async function (m, { sock, isAdmin, isGroup }) {
   }
   /* ─────────────────────────────────── */
 
-  let afkData = loadAFK()
+  let afkData = getAFK()
 
-  // ✅ SI EL USUARIO AFK HABLA
+  // 🟢 CUANDO EL AFK ESCRIBE
   if (afkData[sender]) {
     const { reason, time } = afkData[sender]
     const duration = msToTime(Date.now() - time)
@@ -82,8 +78,7 @@ handler.before = async function (m, { sock, isAdmin, isGroup }) {
     saveAFK(afkData)
 
     await sock.sendMessage(from, {
-      text:
-`👋 @${sender.split('@')[0]} volvió del AFK
+      text: `👋 @${sender.split('@')[0]} ya no está AFK
 
 ⏱ Tiempo: ${duration}
 📝 Motivo: ${reason}`,
@@ -91,23 +86,22 @@ handler.before = async function (m, { sock, isAdmin, isGroup }) {
     })
   }
 
-  // ✅ SI MENCIONAN A UN AFK
-  if (m.mentionedJid && m.mentionedJid.length > 0) {
-    for (let jid of m.mentionedJid) {
-      if (afkData[jid]) {
-        const { reason, time } = afkData[jid]
-        const duration = msToTime(Date.now() - time)
+  // 🔵 CUANDO MENCIONAN A UN AFK
+  const mentioned = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
 
-        await sock.sendMessage(from, {
-          text:
-`😴 Usuario AFK
+  for (let jid of mentioned) {
+    if (afkData[jid]) {
+      const { reason, time } = afkData[jid]
+      const duration = msToTime(Date.now() - time)
+
+      await sock.sendMessage(from, {
+        text: `😴 Usuario AFK
 
 👤 @${jid.split('@')[0]}
 ⏱ Tiempo: ${duration}
 📝 Motivo: ${reason}`,
-          mentions: [jid]
-        })
-      }
+        mentions: [jid]
+      })
     }
   }
 }
@@ -121,4 +115,4 @@ function msToTime(ms) {
   s %= 60
   m %= 60
   return `${h}h ${m}m ${s}s`
-}
+    }
