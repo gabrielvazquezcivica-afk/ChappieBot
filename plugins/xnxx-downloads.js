@@ -14,50 +14,48 @@ function isNSFW(chatId) {
   }
 }
 
-export const handler = async (m, { sock, from, isGroup, reply }) => {
+export const handler = async (m, { sock, from, isGroup, command, reply }) => {
 
   // 🔞 NSFW
   if (isGroup && !isNSFW(from)) {
     return reply(
-`🔞 *Comandos NSFW desactivados*
-Activa con:
+`🔞 *NSFW desactivado*
+Actívalo con:
 .nsfw on`
     )
   }
 
-  // ✅ EXTRAER TEXTO REAL DEL MENSAJE
+  // 🔹 EXTRAER TEXTO REAL
   const body =
     m.text ||
     m.message?.conversation ||
     m.message?.extendedTextMessage?.text ||
     ''
 
-  const args = body.trim().split(/\s+/)
-  args.shift() // quita el comando
-  const url = args.join(' ').trim()
+  // 🔹 QUITAR COMANDO DEL TEXTO
+  const text = body.replace(command, '').trim()
 
-  if (!url) return reply('❌ Usa: .xnxxdl <link>')
+  if (!text) return reply('❌ Usa: .xnxxdl <link>')
 
-  if (!url.includes('xnxx.com')) {
-    return reply('❌ El link no es de xnxx')
+  if (!text.includes('xnxx.com')) {
+    return reply('❌ El link no es de XNXX')
   }
 
   await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
 
   const file = `./tmp/xnxx_${Date.now()}.mp4`
 
-  const cmd = `yt-dlp -f "best[ext=mp4]/best" -S res:360,codec:h264 --no-playlist -o "${file}" "${url}"`
+  const cmd = `yt-dlp -f "best[ext=mp4]/best" -S res:360,codec:h264 --no-playlist -o "${file}" "${text}"`
 
   exec(cmd, async (err) => {
     if (err) {
       console.log(err)
       await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
-      return reply('❌ Error al descargar')
+      return reply('❌ Error al descargar el video')
     }
 
     if (!fs.existsSync(file)) {
-      await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
-      return reply('❌ No se descargó el archivo')
+      return reply('❌ No se pudo descargar el archivo')
     }
 
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
