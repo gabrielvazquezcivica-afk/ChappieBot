@@ -14,7 +14,7 @@ function saveAFK(data) {
   fs.writeFileSync(afkPath, JSON.stringify(data, null, 2))
 }
 
-export const handler = async (m, { sock, from, text, reply, sender, isGroup, isAdmin }) => {
+export const handler = async (m, { sock, from, text, reply, sender, isGroup, isAdmin, command }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
@@ -35,7 +35,20 @@ export const handler = async (m, { sock, from, text, reply, sender, isGroup, isA
   saveAFK(afkData)
 
   await sock.sendMessage(from, { react: { text: '💤', key: m.key } })
-  reply(`😴 *Ahora estás AFK*\n📝 Motivo: ${afkData[sender].reason}`)
+
+  reply(
+`😴 *MODO AFK ACTIVADO*
+
+📌 *Uso:* 
+.${command} <motivo>
+
+📝 *Motivo:* ${afkData[sender].reason}
+
+📢 El bot avisará:
+• cuando te mencionen
+• cuando vuelvas a escribir
+• cuánto tiempo estuviste AFK`
+  )
 }
 
 handler.command = ['afk']
@@ -45,7 +58,7 @@ handler.menu = true
 export default handler
 
 
-// 🔔 detector
+// 🔔 detector automático
 export async function before(m, { sock, isGroup, isAdmin }) {
   if (!m.text) return
 
@@ -63,7 +76,7 @@ export async function before(m, { sock, isGroup, isAdmin }) {
 
   let afkData = loadAFK()
 
-  // 🟢 vuelve del AFK
+  // 🟢 cuando vuelve a escribir
   if (afkData[sender]) {
     const { reason, time } = afkData[sender]
     const duracion = msToTime(Date.now() - time)
@@ -73,12 +86,15 @@ export async function before(m, { sock, isGroup, isAdmin }) {
 
     await sock.sendMessage(from, { react: { text: '👋', key: m.key } })
     await sock.sendMessage(from, {
-      text: `👋 *${sender.split('@')[0]} volvió*\n⏱ Tiempo AFK: ${duracion}\n📝 Motivo: ${reason}`,
+      text: `👋 *${sender.split('@')[0]} volvió del AFK*
+
+⏱ Tiempo AFK: ${duracion}
+📝 Motivo: ${reason}`,
       mentions: [sender]
     })
   }
 
-  // 🔴 mencionan a AFK
+  // 🔴 cuando mencionan a alguien AFK
   if (m.mentionedJid && m.mentionedJid.length) {
     for (let jid of m.mentionedJid) {
       if (afkData[jid]) {
@@ -86,7 +102,11 @@ export async function before(m, { sock, isGroup, isAdmin }) {
         const duracion = msToTime(Date.now() - time)
 
         await sock.sendMessage(from, {
-          text: `😴 *Usuario AFK*\n👤 ${jid.split('@')[0]}\n⏱ Tiempo: ${duracion}\n📝 Motivo: ${reason}`,
+          text: `😴 *Usuario AFK*
+
+👤 ${jid.split('@')[0]}
+⏱ Tiempo: ${duracion}
+📝 Motivo: ${reason}`,
           mentions: [jid]
         })
       }
@@ -95,7 +115,7 @@ export async function before(m, { sock, isGroup, isAdmin }) {
 }
 
 
-// ⏱ tiempo bonito
+// ⏱ convertir tiempo bonito
 function msToTime(ms) {
   let s = Math.floor(ms / 1000)
   let m = Math.floor(s / 60)
@@ -105,4 +125,4 @@ function msToTime(ms) {
   m %= 60
 
   return `${h}h ${m}m ${s}s`
-      }
+                  }
