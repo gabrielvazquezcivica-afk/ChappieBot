@@ -18,7 +18,8 @@ function isNSFW(chatId) {
 export const handler = async (m, { sock, from, text, command, isGroup, sender, reply }) => {
 
   if (isGroup && !isNSFW(from)) {
-    return reply(`*[❗] Comandos +18 desactivados en este grupo.*\nSi eres admin y quieres activarlos: .enable nsfw`)
+    return reply(`🔞 *Comandos NSFW desactivados en este grupo*\n' +
+      'Un administrador puede activarlos con:\n.nsfw on`)
   }
 
   if (!text) return reply(`*[❗] Uso correcto: ${command} <término de búsqueda>*`)
