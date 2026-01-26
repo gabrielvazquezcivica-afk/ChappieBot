@@ -14,7 +14,7 @@ function isNSFW(chatId) {
   }
 }
 
-export const handler = async (m, { sock, from, text, isGroup, reply }) => {
+export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   // 🔞 Sistema NSFW
   if (isGroup && !isNSFW(from)) {
@@ -25,15 +25,18 @@ Un admin puede activarlos con:
     )
   }
 
-  if (!text) return reply('❌ Usa: .xnxxdl <link xnxx>')
+  // ✅ SACAR LINK DIRECTO DEL MENSAJE
+  const args = m.text?.split(' ') || []
+  args.shift() // quita el comando
+  const url = args.join(' ').trim()
+
+  if (!url) return reply('❌ Usa: .xnxxdl <link de xnxx>')
 
   await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
 
-  const url = text.trim()
   const file = `./tmp/xnxx_${Date.now()}.mp4`
 
-  // ⚡ Descarga rápida
-  const cmd = `yt-dlp -f "best[ext=mp4]/best" -S res:360,codec:h264 --concurrent-fragments 4 --no-playlist -o "${file}" "${url}"`
+  const cmd = `yt-dlp -f "best[ext=mp4]/best" -S res:360,codec:h264 --no-playlist -o "${file}" "${url}"`
 
   exec(cmd, async (err) => {
     if (err) {
@@ -44,7 +47,7 @@ Un admin puede activarlos con:
 
     if (!fs.existsSync(file)) {
       await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
-      return reply('❌ No se pudo obtener el archivo.')
+      return reply('❌ No se pudo descargar el archivo.')
     }
 
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
