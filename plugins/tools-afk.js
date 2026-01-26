@@ -13,15 +13,6 @@ function saveAFK(data) {
   fs.writeFileSync(afkPath, JSON.stringify(data, null, 2))
 }
 
-function msToTime(ms) {
-  let s = Math.floor(ms / 1000)
-  let m = Math.floor(s / 60)
-  let h = Math.floor(m / 60)
-  s %= 60
-  m %= 60
-  return `${h}h ${m}m ${s}s`
-}
-
 function getText(m) {
   return (
     m.text ||
@@ -31,21 +22,29 @@ function getText(m) {
   ).trim()
 }
 
+function msToTime(ms) {
+  let s = Math.floor(ms / 1000)
+  let m = Math.floor(s / 60)
+  let h = Math.floor(m / 60)
+  s %= 60
+  m %= 60
+  return `${h}h ${m}m ${s}s`
+}
+
 /* ───── COMANDO AFK ───── */
 export const handler = async (m, { sock, from, sender, isGroup, reply, isAdmin }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  /* 🔒 MODO ADMIN */
   let groupSettings = { enabled: false }
   if (fs.existsSync(modoadminPath)) {
     const data = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = data[from] || { enabled: false }
   }
   if (groupSettings.enabled && isGroup && !isAdmin) return
-  /* ─────────────────────────────────── */
 
   const afkData = loadAFK()
-  const fullText = getText(m)
-  const reason = fullText.replace(/^\.?afk/i, '').trim() || 'Sin motivo'
+  const text = getText(m)
+  const reason = text.replace(/^\.?afk/i, '').trim() || 'Sin motivo'
 
   afkData[sender] = {
     reason,
@@ -63,27 +62,24 @@ export const handler = async (m, { sock, from, sender, isGroup, reply, isAdmin }
 handler.command = ['afk']
 handler.tags = ['tools']
 handler.menu = true
-export default handler
 
-/* ───── BEFORE ───── */
-export async function before(m, { sock, from, sender, isGroup, isAdmin }) {
+/* ───── BEFORE (AVISOS) ───── */
+handler.before = async function (m, { sock, from, sender, isGroup, isAdmin }) {
   if (!m.message) return
 
   const afkData = loadAFK()
+  const text = getText(m)
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  /* 🔒 MODO ADMIN */
   let groupSettings = { enabled: false }
   if (fs.existsSync(modoadminPath)) {
     const data = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = data[from] || { enabled: false }
   }
   if (groupSettings.enabled && isGroup && !isAdmin) return
-  /* ─────────────────────────────────── */
 
-  const body = getText(m)
-
-  // 🟢 SI EL AFK ESCRIBE → QUITAR AFK
-  if (afkData[sender] && !body.toLowerCase().startsWith('.afk')) {
+  /* 🟢 SI EL AFK HABLA → QUITAR AFK */
+  if (afkData[sender] && !text.toLowerCase().startsWith('.afk')) {
     const reason = afkData[sender].reason
     const time = Date.now() - afkData[sender].time
 
@@ -96,12 +92,10 @@ export async function before(m, { sock, from, sender, isGroup, isAdmin }) {
     })
   }
 
-  // 🟡 DETECTAR MENCIONES Y REPLY
+  /* 🟡 CUANDO LO MENCIONAN */
   const mentioned = [
-    ...(m.message?.extendedTextMessage?.contextInfo?.mentionedJid || []),
-    ...(m.message?.extendedTextMessage?.contextInfo?.participant
-      ? [m.message.extendedTextMessage.contextInfo.participant]
-      : [])
+    ...(m.mentionedJid || []),
+    ...(m.quoted ? [m.quoted.sender] : [])
   ]
 
   for (const jid of mentioned) {
@@ -116,3 +110,5 @@ export async function before(m, { sock, from, sender, isGroup, isAdmin }) {
     }
   }
 }
+
+export default handler
