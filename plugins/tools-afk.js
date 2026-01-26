@@ -1,7 +1,6 @@
 import fs from 'fs'
 import path from 'path'
 
-// ───── Rutas JSON ─────
 const afkPath = path.resolve('./data/afk.json')
 
 // ───── Funciones para manejar JSON ─────
@@ -29,10 +28,10 @@ export const handler = async (m, { text, sock }) => {
 
   await sock.sendMessage(m.chat, {
     text: `💤 Te pusiste AFK\nMotivo: ${text || 'Sin motivo'}\n📌 Tus menciones mostrarán este aviso`
-  }, { quoted: m })
+  }, { quoted: m }).catch(() => {})
 }
 
-handler.command = ['afk']
+handler.command = /^afk$/i
 handler.tags = ['main']
 handler.help = ['afk [motivo]']
 
@@ -42,10 +41,11 @@ export async function before(m, { sock }) {
 
   const afkData = loadAFK()
 
-  // 🔹 Detectar si alguien que fue mencionado está AFK
-  const mentions = [...(m.mentionedJid || []), ...(m.quoted ? [m.quoted.sender] : [])]
+  // 🔹 Detectar si alguien mencionado está AFK
+  const mentions = [...(m.mentionedJid || []), ...(m.quoted && m.quoted.sender ? [m.quoted.sender] : [])]
 
   for (const jid of mentions) {
+    if (!jid) continue
     const afkUser = afkData[jid]
     if (!afkUser) continue
 
@@ -53,8 +53,8 @@ export async function before(m, { sock }) {
     const motivo = afkUser.reason || 'Sin motivo'
 
     await sock.sendMessage(m.chat, {
-      text: `🚩 El usuario está AFK\nMotivo: ${motivo}\nTiempo AFK: ${tiempo} min`
-    }, { quoted: m })
+      text: `🚩 ${await sock.getName(jid)} está AFK\nMotivo: ${motivo}\nTiempo AFK: ${tiempo} min`
+    }, { quoted: m }).catch(() => {})
   }
 
   // 🔹 Detectar si el propio usuario estaba AFK y volvió
@@ -62,8 +62,8 @@ export async function before(m, { sock }) {
   if (userAFK) {
     const tiempo = Math.floor((Date.now() - userAFK.time) / 60000)
     await sock.sendMessage(m.chat, {
-      text: `✅ ${await sock.getName(m.sender)} ya no está AFK\nMotivo previo: ${userAFK.reason || 'Sin motivo'}\nTiempo AFK: ${tiempo} min`
-    }, { quoted: m })
+      text: `✅ ${await sock.getName(m.sender)} ya no está AFK\nMotivo previo: ${userAFK.reason}\nTiempo AFK: ${tiempo} min`
+    }, { quoted: m }).catch(() => {})
 
     // Eliminar del JSON
     delete afkData[m.sender]
