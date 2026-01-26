@@ -16,21 +16,31 @@ function isNSFW(chatId) {
 
 export const handler = async (m, { sock, from, isGroup, reply }) => {
 
-  // 🔞 Sistema NSFW
+  // 🔞 NSFW
   if (isGroup && !isNSFW(from)) {
     return reply(
-`🔞 *Comandos NSFW desactivados en este grupo*
-Un admin puede activarlos con:
+`🔞 *Comandos NSFW desactivados*
+Activa con:
 .nsfw on`
     )
   }
 
-  // ✅ SACAR LINK DIRECTO DEL MENSAJE
-  const args = m.text?.split(' ') || []
+  // ✅ EXTRAER TEXTO REAL DEL MENSAJE
+  const body =
+    m.text ||
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+
+  const args = body.trim().split(/\s+/)
   args.shift() // quita el comando
   const url = args.join(' ').trim()
 
-  if (!url) return reply('❌ Usa: .xnxxdl <link de xnxx>')
+  if (!url) return reply('❌ Usa: .xnxxdl <link>')
+
+  if (!url.includes('xnxx.com')) {
+    return reply('❌ El link no es de xnxx')
+  }
 
   await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
 
@@ -40,21 +50,21 @@ Un admin puede activarlos con:
 
   exec(cmd, async (err) => {
     if (err) {
-      console.error(err)
+      console.log(err)
       await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
-      return reply('❌ Error al descargar el video.')
+      return reply('❌ Error al descargar')
     }
 
     if (!fs.existsSync(file)) {
       await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
-      return reply('❌ No se pudo descargar el archivo.')
+      return reply('❌ No se descargó el archivo')
     }
 
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
     await sock.sendMessage(from, {
       video: fs.readFileSync(file),
-      caption: '🔥 Video descargado correctamente',
+      caption: '🔥 Video descargado',
       mimetype: 'video/mp4'
     }, { quoted: m })
 
