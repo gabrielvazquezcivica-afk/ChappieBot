@@ -15,6 +15,8 @@ function saveAFK(data) {
 
 const handler = async (m, { sock, from, text, sender, isGroup, reply }) => {
 
+  if (!m) return
+
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   if (fs.existsSync(modoadminPath)) {
@@ -58,14 +60,16 @@ handler.command = ['afk']
 handler.tags = ['tools']
 handler.menu = true
 
-// 👇 AQUÍ ESTÁ LA CLAVE (before correcto)
+// 👇 BEFORE SEGURO (NO CRASHEA)
 handler.before = async function (m, { sock }) {
-  if (!m.text) return
 
-  const sender = m.sender
-  const from = m.chat
+  if (!m) return
+  if (!m.sender) return
+  if (!m.chat) return
 
   let afkData = loadAFK()
+  const sender = m.sender
+  const from = m.chat
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
@@ -84,7 +88,7 @@ handler.before = async function (m, { sock }) {
   /* ─────────────────────────────────── */
 
   // 🟢 quitar AFK al escribir
-  if (afkData[sender]) {
+  if (afkData[sender] && m.text) {
     const { reason, time } = afkData[sender]
     const duracion = msToTime(Date.now() - time)
 
@@ -100,7 +104,7 @@ handler.before = async function (m, { sock }) {
     })
   }
 
-  // 🔴 si mencionan AFK
+  // 🔴 aviso si mencionan AFK
   if (m.mentionedJid && m.mentionedJid.length) {
     for (let jid of m.mentionedJid) {
       if (afkData[jid]) {
@@ -129,4 +133,4 @@ function msToTime(ms) {
   s %= 60
   m %= 60
   return `${h}h ${m}m ${s}s`
-      }
+  }
