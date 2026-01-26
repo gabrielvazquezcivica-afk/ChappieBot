@@ -32,7 +32,7 @@ export const handler = async (m, {
     stickers: '🖼️',    
     owner: '👑',    
     nsfw: '🔞',    
-    xvideos: '🔥',
+    xvideos: '🤤',
     'on-off': '📴'
   }                  
 
