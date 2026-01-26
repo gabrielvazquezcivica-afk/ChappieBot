@@ -4,7 +4,6 @@ const afkPath = './data/afk.json'
 const modoadminPath = './data/modoadmin.json'
 
 if (!fs.existsSync(afkPath)) fs.writeFileSync(afkPath, JSON.stringify({}, null, 2))
-if (!fs.existsSync(modoadminPath)) fs.writeFileSync(modoadminPath, JSON.stringify({}, null, 2))
 
 function loadAFK() {
   return JSON.parse(fs.readFileSync(afkPath))
@@ -23,7 +22,7 @@ function loadModoAdmin(from) {
   return groupSettings
 }
 
-const handler = async (m, { sock, from, text, sender, reply, isAdmin, isGroup }) => {
+const handler = async (m, { sock, from, sender, text, reply, isAdmin, isGroup }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   if (isGroup) {
@@ -35,7 +34,7 @@ const handler = async (m, { sock, from, text, sender, reply, isAdmin, isGroup })
   let afkData = loadAFK()
 
   afkData[sender] = {
-    reason: text || 'paja',
+    reason: text || 'Sin motivo',
     time: Date.now()
   }
 
@@ -46,12 +45,11 @@ const handler = async (m, { sock, from, text, sender, reply, isAdmin, isGroup })
   reply(
 `『 ＡＦＫ 』
 
-> ᴇʟ ᴜsᴜᴀʀɪᴏ @${sender.split('@')[0]} ᴇsᴛᴀ ɪɴᴀᴄᴛɪᴠᴏ.
+😴 @${sender.split('@')[0]} ahora está AFK
 
-\`💤 ＮＯ ＬＯＳ ＥＴＩＱＵＥＴＥ 💤\`
-
-*☣️ ᴍᴏᴛɪᴠᴏ:* ${text || 'paja'}`,
-  { mentions: [sender] }
+📝 Motivo: ${text || 'Sin motivo'}
+`,
+{ mentions: [sender] }
   )
 }
 
@@ -75,37 +73,37 @@ handler.before = async function (m, { sock, isAdmin, isGroup }) {
 
   let afkData = loadAFK()
 
-  // ✅ QUITAR AFK AL ESCRIBIR
-  if (afkData[sender] && m.text) {
+  // ✅ SI EL USUARIO AFK HABLA
+  if (afkData[sender]) {
     const { reason, time } = afkData[sender]
-    const duracion = msToTime(Date.now() - time)
+    const duration = msToTime(Date.now() - time)
 
     delete afkData[sender]
     saveAFK(afkData)
 
     await sock.sendMessage(from, {
       text:
-`👋 *${sender.split('@')[0]} volvió del AFK*
+`👋 @${sender.split('@')[0]} volvió del AFK
 
-⏱ Tiempo: ${duracion}
+⏱ Tiempo: ${duration}
 📝 Motivo: ${reason}`,
       mentions: [sender]
     })
   }
 
   // ✅ SI MENCIONAN A UN AFK
-  if (m.mentionedJid && m.mentionedJid.length) {
+  if (m.mentionedJid && m.mentionedJid.length > 0) {
     for (let jid of m.mentionedJid) {
       if (afkData[jid]) {
         const { reason, time } = afkData[jid]
-        const duracion = msToTime(Date.now() - time)
+        const duration = msToTime(Date.now() - time)
 
         await sock.sendMessage(from, {
           text:
-`😴 *Usuario AFK*
+`😴 Usuario AFK
 
 👤 @${jid.split('@')[0]}
-⏱ Tiempo: ${duracion}
+⏱ Tiempo: ${duration}
 📝 Motivo: ${reason}`,
           mentions: [jid]
         })
