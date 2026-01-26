@@ -14,23 +14,25 @@ function isNSFW(chatId) {
   }
 }
 
-export const handler = async (m, { sock, from, isGroup, command, usedPrefix, reply }) => {
+export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   if (isGroup && !isNSFW(from)) {
     return reply(`🔞 NSFW desactivado\nActívalo con:\n.nsfw on`)
   }
 
-  // TEXTO COMPLETO
   const body =
     m.text ||
     m.message?.conversation ||
     m.message?.extendedTextMessage?.text ||
     ''
 
-  // 🔥 LIMPIAR PREFIJO Y COMANDO
-  const text = body
-    .replace(new RegExp(`^\\${usedPrefix}${command}\\s*`, 'i'), '')
-    .trim()
+  // 🔥 separar palabras
+  const args = body.trim().split(/\s+/)
+
+  // quitar comando (.xnxxdl)
+  args.shift()
+
+  const text = args.join(' ').trim()
 
   if (!text) return reply('❌ Usa: .xnxxdl <link>')
 
