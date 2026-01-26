@@ -1,75 +1,67 @@
-import { exec } from 'child_process'
 import fs from 'fs'
 import path from 'path'
+import { exec } from 'child_process'
 
 const nsfwPath = path.resolve('./data/nsfw.json')
 
 function isNSFW(chatId) {
   if (!fs.existsSync(nsfwPath)) return false
-  const data = JSON.parse(fs.readFileSync(nsfwPath))
-  return data[chatId] || false
+  try {
+    const data = JSON.parse(fs.readFileSync(nsfwPath))
+    return data[chatId] || false
+  } catch {
+    return false
+  }
 }
 
-export const handler = async (m, { sock, from, sender, reply, isGroup, command }) => {
+export const handler = async (m, { sock, from, text, isGroup, reply }) => {
 
-  // 🔞 SISTEMA NSFW
+  // 🔞 Sistema NSFW
   if (isGroup && !isNSFW(from)) {
-    return reply(`🔞 *Comandos NSFW desactivados en este grupo*\n\nUn admin puede activarlos con:\n.nsfw on`)
+    return reply(
+`🔞 *Comandos NSFW desactivados en este grupo*
+Un admin puede activarlos con:
+.nsfw on`
+    )
   }
 
-  // 💬 Obtener texto real
-  const body =
-    m.text ||
-    m.message?.conversation ||
-    m.message?.extendedTextMessage?.text ||
-    ''
+  if (!text) return reply('❌ Usa: .xnxxdl <link xnxx>')
 
-  const args = body.split(' ').slice(1)
-  const url = args[0]
+  await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
 
-  if (!url) return reply(`❗ Uso correcto:\n.${command} <link xnxx>`)
+  const url = text.trim()
+  const file = `./tmp/xnxx_${Date.now()}.mp4`
 
-  if (!url.includes('xnxx.com')) {
-    return reply('❌ El link no parece ser de XNXX')
-  }
+  // ⚡ Descarga rápida
+  const cmd = `yt-dlp -f "best[ext=mp4]/best" -S res:360,codec:h264 --concurrent-fragments 4 --no-playlist -o "${file}" "${url}"`
 
-  // 🔥 Reacción al recibir comando
-  await sock.sendMessage(from, { react: { text: '🔞', key: m.key } })
-
-  const file = path.resolve(`./tmp/xnxx_${Date.now()}.mp4`)
-
-  reply('⏳ Descargando video...')
-
-  exec(`yt-dlp -f mp4 -o "${file}" "${url}"`, async (err) => {
+  exec(cmd, async (err) => {
     if (err) {
       console.error(err)
+      await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
       return reply('❌ Error al descargar el video.')
     }
 
     if (!fs.existsSync(file)) {
+      await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
       return reply('❌ No se pudo obtener el archivo.')
     }
 
-    // ✅ Enviar video
-    await sock.sendMessage(
-      from,
-      {
-        video: fs.readFileSync(file),
-        caption: '✅ Video descargado'
-      },
-      { quoted: m }
-    )
-
-    // 🧹 borrar archivo
-    fs.unlinkSync(file)
-
-    // ✅ Reacción final
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+
+    await sock.sendMessage(from, {
+      video: fs.readFileSync(file),
+      caption: '🔥 Video descargado correctamente',
+      mimetype: 'video/mp4'
+    }, { quoted: m })
+
+    fs.unlinkSync(file)
   })
 }
 
 handler.command = ['xnxxdl']
 handler.tags = ['xvideos']
 handler.menu = true
+handler.group = true
 
 export default handler
