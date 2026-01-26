@@ -12,6 +12,16 @@ function saveAFK(data) {
   fs.writeFileSync(afkPath, JSON.stringify(data, null, 2))
 }
 
+// 🔹 FUNCIÓN PARA LEER TEXTO REAL
+function getText(m) {
+  return (
+    m.body ||
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+  )
+}
+
 /* ───── COMANDO AFK ───── */
 export const handler = async (m, { sock, from, sender, isAdmin }) => {
 
@@ -26,8 +36,9 @@ export const handler = async (m, { sock, from, sender, isAdmin }) => {
 
   let afkData = loadAFK()
 
-  // 🔥 TOMAR MOTIVO DESDE m.text
-  let reason = m.text.replace(/^\.afk\s*/i, '').trim()
+  // ✅ TEXTO SEGURO
+  let fullText = getText(m)
+  let reason = fullText.replace(/^\.afk\s*/i, '').trim()
   if (!reason) reason = 'Sin motivo'
 
   afkData[sender] = {
@@ -63,7 +74,7 @@ export async function before(m, { sock, from, sender, isAdmin }) {
   if (groupSettings.enabled && !isAdmin) return
   /* ─────────────────────────────────── */
 
-  /* ───── CUANDO EL AFK REGRESA ───── */
+  // 🔔 CUANDO REGRESA
   if (afkData[sender]) {
     let reason = afkData[sender].reason
     let time = Date.now() - afkData[sender].time
@@ -77,7 +88,7 @@ export async function before(m, { sock, from, sender, isAdmin }) {
     })
   }
 
-  /* ───── CUANDO MENCIONAN A AFK ───── */
+  // 🔔 CUANDO LO MENCIONAN
   let mentioned = m.mentionedJid || []
 
   for (let jid of mentioned) {
@@ -100,4 +111,4 @@ function msToTime(ms) {
   s %= 60
   m %= 60
   return `${h}h ${m}m ${s}s`
-    }
+}
