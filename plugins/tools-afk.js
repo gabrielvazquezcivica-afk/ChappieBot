@@ -13,7 +13,7 @@ function saveAFK(data) {
   fs.writeFileSync(afkPath, JSON.stringify(data, null, 2))
 }
 
-export const handler = async (m, { sock, from, text, reply, sender, isGroup }) => {
+const handler = async (m, { sock, from, text, sender, isGroup, reply }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
@@ -34,7 +34,7 @@ export const handler = async (m, { sock, from, text, reply, sender, isGroup }) =
   let afkData = loadAFK()
 
   afkData[sender] = {
-    reason: text && text.trim() ? text : 'Sin motivo',
+    reason: text?.trim() || 'Sin motivo',
     time: Date.now()
   }
 
@@ -57,15 +57,15 @@ export const handler = async (m, { sock, from, text, reply, sender, isGroup }) =
 handler.command = ['afk']
 handler.tags = ['tools']
 handler.menu = true
-export default handler
 
-
-// 🔔 detector automático
-export async function before(m, { sock }) {
+// 👇 AQUÍ ESTÁ LA CLAVE (before correcto)
+handler.before = async function (m, { sock }) {
   if (!m.text) return
 
   const sender = m.sender
   const from = m.chat
+
+  let afkData = loadAFK()
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
@@ -83,9 +83,7 @@ export async function before(m, { sock }) {
   }
   /* ─────────────────────────────────── */
 
-  let afkData = loadAFK()
-
-  // 🟢 si vuelve del AFK
+  // 🟢 quitar AFK al escribir
   if (afkData[sender]) {
     const { reason, time } = afkData[sender]
     const duracion = msToTime(Date.now() - time)
@@ -93,17 +91,16 @@ export async function before(m, { sock }) {
     delete afkData[sender]
     saveAFK(afkData)
 
-    await sock.sendMessage(from, { react: { text: '👋', key: m.key } })
     await sock.sendMessage(from, {
       text: `👋 *${sender.split('@')[0]} volvió del AFK*
 
-⏱ Tiempo AFK: ${duracion}
+⏱ Tiempo: ${duracion}
 📝 Motivo: ${reason}`,
       mentions: [sender]
     })
   }
 
-  // 🔴 si mencionan a alguien AFK
+  // 🔴 si mencionan AFK
   if (m.mentionedJid && m.mentionedJid.length) {
     for (let jid of m.mentionedJid) {
       if (afkData[jid]) {
@@ -123,13 +120,13 @@ export async function before(m, { sock }) {
   }
 }
 
+export default handler
+
 function msToTime(ms) {
   let s = Math.floor(ms / 1000)
   let m = Math.floor(s / 60)
   let h = Math.floor(m / 60)
-
   s %= 60
   m %= 60
-
   return `${h}h ${m}m ${s}s`
-}
+      }
