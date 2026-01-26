@@ -71,7 +71,7 @@ Un administrador puede activarlos con:
   }
 }
 
-handler.command = ['xnxxsearch', 'xnxxs']
+handler.command = ['xnxxsearch']
 handler.tags = ['xvideos']
 handler.menu = true
 
