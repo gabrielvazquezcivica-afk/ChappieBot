@@ -15,27 +15,37 @@ function isNSFW(chatId) {
   }
 }
 
-export const handler = async (m, { sock, from, text, command, isGroup, sender, reply }) => {
+export const handler = async (m, { sock, from, command, isGroup, sender, reply }) => {
+
+  // obtener texto REAL del mensaje
+  const query = m.text.split(' ').slice(1).join(' ').trim()
 
   if (isGroup && !isNSFW(from)) {
-    return reply(`🔞 *Comandos NSFW desactivados en este grupo*\n' +
-      'Un administrador puede activarlos con:\n.nsfw on`)
+    return reply(
+`🔞 *Comandos NSFW desactivados en este grupo*
+Un administrador puede activarlos con:
+.nsfw on`
+    )
   }
 
-  if (!text) return reply(`*[❗] Uso correcto: ${command} <término de búsqueda>*`)
+  if (!query) return reply(`❗ Uso correcto: .${command} <término de búsqueda>`)
 
   try {
     if (!global.videoListXXX) global.videoListXXX = []
-    if (global.videoListXXX[0]?.from === sender) global.videoListXXX.splice(0, global.videoListXXX.length)
+    if (global.videoListXXX[0]?.from === sender) global.videoListXXX = []
 
-    const res = await xnxxsearch(text)
+    const res = await xnxxsearch(query)
     if (!res.result.length) return reply('❌ No se encontraron resultados.')
 
-    let cap = `*🔍 RESULTADOS DE LA BÚSQUEDA:* ${text.toUpperCase()}\n\n`
+    let cap = `🔍 *RESULTADOS:* ${query.toUpperCase()}\n\n`
     let count = 1
 
     for (const v of res.result) {
-      cap += `*[${count}]*\n• 🎬 Título: ${v.title}\n• 🔗 Link: ${v.link}\n• ❗ Info: ${v.info}\n\n••••••••••••••••••••\n\n`
+      cap += `*[${count}]*\n`
+      cap += `🎬 Título: ${v.title}\n`
+      cap += `🔗 Link: ${v.link}\n`
+      cap += `❗ Info: ${v.info}\n\n`
+      cap += `━━━━━━━━━━━━━━\n\n`
       count++
     }
 
@@ -44,7 +54,7 @@ export const handler = async (m, { sock, from, text, command, isGroup, sender, r
 
   } catch (e) {
     console.error(e)
-    reply('❌ Error al procesar la búsqueda.')
+    reply('❌ Error al buscar en la página.')
   }
 }
 
@@ -80,11 +90,15 @@ async function xnxxsearch(query) {
         })
 
         for (let i = 0; i < title.length; i++) {
-          results.push({ title: title[i], info: desc[i], link: url[i] })
+          results.push({
+            title: title[i],
+            info: desc[i],
+            link: url[i]
+          })
         }
 
-        resolve({ code: 200, status: true, result: results })
+        resolve({ status: true, result: results })
       })
-      .catch(err => reject({ code: 503, status: false, result: err }))
+      .catch(err => reject(err))
   })
 }
