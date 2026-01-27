@@ -2,6 +2,25 @@ import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
 
+/* ───── QUOTED SISTEMA (CHAPPIEBOT) ───── */
+const sistema = (titulo = 'CHAPPIE BOT') => ({
+  key: {
+    fromMe: false,
+    participant: '0@s.whatsapp.net',
+    remoteJid: 'status@broadcast'
+  },
+  message: {
+    orderMessage: {
+      itemCount: 1,
+      message: titulo,
+      footerText: 'ChappieBot',
+      surface: 2,
+      sellerJid: '0@s.whatsapp.net'
+    }
+  }
+})
+/* ───────────────────────────────────── */
+
 export const handler = async (m, {
   sock,
   from,
@@ -30,48 +49,55 @@ export const handler = async (m, {
         (p.admin === 'admin' || p.admin === 'superadmin')
       )
     } catch {}
-
-    if (!isAdmin) return // 🔇 silencioso
+    if (!isAdmin) return
   }
-  /* ───────────────────────────────── */
+  /* ───────────────────────────── */
 
-  const url = args[0]
-  if (!url) return reply('❌ Pon un link de Spotify\n\nEjemplo:\n.spotify https://open.spotify.com/track/xxxxx')
-
-  if (!/open\.spotify\.com/.test(url)) {
-    return reply('❌ Ese no parece un link de Spotify')
+  const query = args.join(' ').trim()
+  if (!query) {
+    return sock.sendMessage(from, {
+      text: '❌ Escribe el nombre de la canción\n\nEjemplo:\n.playspotify Bad Bunny Monaco'
+    }, { quoted: sistema('SPOTIFY PLAY') })
   }
 
   const outDir = './tmp'
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir)
 
   try {
-    await sock.sendMessage(from, { react: { text: '🎧', key: m.key } })
+    await sock.sendMessage(from, { react: { text: '🔎', key: m.key } })
 
-    const cmd = `spotdl "${url}" --output "${outDir}" --format mp3`
+    const cmd = `spotdl "${query}" --output "${outDir}" --format mp3`
 
     exec(cmd, async (err) => {
       if (err) {
         console.error(err)
-        return reply('❌ Error al descargar desde Spotify')
+        return sock.sendMessage(from, {
+          text: '❌ No se pudo descargar desde Spotify'
+        }, { quoted: sistema('SPOTIFY ERROR') })
       }
 
       const files = fs.readdirSync(outDir).filter(f => f.endsWith('.mp3'))
-      if (!files.length) return reply('❌ No se pudo descargar la canción')
+      if (!files.length) {
+        return sock.sendMessage(from, {
+          text: '❌ No se encontró ningún audio'
+        }, { quoted: sistema('SPOTIFY ERROR') })
+      }
 
       const filePath = path.join(outDir, files[0])
       const stats = fs.statSync(filePath)
 
       if (stats.size > 50 * 1024 * 1024) {
         fs.unlinkSync(filePath)
-        return reply('❌ El audio pesa más de 50MB')
+        return sock.sendMessage(from, {
+          text: '❌ El audio pesa más de 50MB'
+        }, { quoted: sistema('SPOTIFY ERROR') })
       }
 
       await sock.sendMessage(from, {
         audio: fs.readFileSync(filePath),
         mimetype: 'audio/mpeg',
-        caption: '✅ Canción descargada desde Spotify'
-      }, { quoted: m })
+        caption: `🎵 *Spotify Play*\n\n🔎 ${query}`
+      }, { quoted: sistema('SPOTIFY PLAY') })
 
       await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
@@ -80,13 +106,15 @@ export const handler = async (m, {
 
   } catch (e) {
     console.error(e)
-    reply('❌ Error inesperado')
+    sock.sendMessage(from, {
+      text: '❌ Error inesperado'
+    }, { quoted: sistema('SPOTIFY ERROR') })
   }
 }
 
-handler.command = ['spotify']
+handler.command = ['playspotify']
 handler.tags = ['descargas']
-handler.help = ['spotify <link>']
+handler.help = ['playspotify <nombre canción>']
 handler.menu = true
 
 export default handler
