@@ -1,54 +1,60 @@
 import fs from 'fs'
-import axios from 'axios'
+import path from 'path'
+import os from 'os'
+import { spawn } from 'child_process'
 
-export const handler = async (m, { sock, from, isGroup, sender, reply, args }) => {
+export const handler = async (m, { sock, from, args, reply }) => {
+  const text = args.join(' ').trim()
+  if (!text) return reply('❌ Ejemplo: .brat Hola mundo')
 
-  /* 🔒 MODO ADMIN SILENCIOSO */
-  let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
-  if (fs.existsSync(modoadminPath)) {
-    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = modoadminData[from] || { enabled: false }
-  }
+  const tmpImg = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
+  const tmpWebp = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
 
-  if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {}
-    if (!isAdmin) return
-  }
-
-  const rawText = args.join(' ').trim()
-  if (!rawText) return reply('❌ Ejemplo: .brat hola mundo')
-
-  const text = rawText.replace(/\s+/g, '+')
+  // limpiar texto
+  const safeText = text.replace(/:/g, '').replace(/"/g, '')
 
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
   try {
-    const res = await axios.get(
-      `https://kepolu-brat.hf.space/brat?q=${encodeURIComponent(text)}`,
-      { responseType: 'arraybuffer' }
-    )
+    // crear imagen
+    await new Promise((resolve, reject) => {
+      const ff = spawn('ffmpeg', [
+        '-f', 'lavfi',
+        '-i', 'color=c=black:s=512x512',
+        '-vf',
+        `drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='${safeText}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10:wrap=1`,
+        '-frames:v', '1',
+        tmpImg
+      ])
+      ff.on('close', code => code === 0 ? resolve() : reject())
+    })
 
-    const stickerBuffer = Buffer.from(res.data)
+    // convertir a sticker
+    await new Promise((resolve, reject) => {
+      const ff = spawn('ffmpeg', [
+        '-i', tmpImg,
+        '-vcodec', 'libwebp',
+        '-vf', 'scale=512:512',
+        '-lossless', '1',
+        '-preset', 'default',
+        '-an',
+        '-vsync', '0',
+        tmpWebp
+      ])
+      ff.on('close', code => code === 0 ? resolve() : reject())
+    })
 
-    await sock.sendMessage(
-      from,
-      { sticker: stickerBuffer },
-      { quoted: m }
-    )
+    const sticker = fs.readFileSync(tmpWebp)
 
+    await sock.sendMessage(from, { sticker }, { quoted: m })
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
+    fs.unlinkSync(tmpImg)
+    fs.unlinkSync(tmpWebp)
+
   } catch (e) {
-    console.error('BRAT ERROR:', e)
-    reply('❌ Error al generar sticker')
+    console.error(e)
+    reply('❌ Error generando sticker brat')
   }
 }
 
