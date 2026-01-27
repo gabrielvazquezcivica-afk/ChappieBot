@@ -6,8 +6,34 @@ export const handler = async (m, {
   sock,
   from,
   args,
-  reply
+  reply,
+  isGroup,
+  sender
 }) => {
+
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  let groupSettings = { enabled: false }
+  const modoadminPath = './data/modoadmin.json'
+
+  if (fs.existsSync(modoadminPath)) {
+    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = modoadminData[from] || { enabled: false }
+  }
+
+  if (groupSettings.enabled && isGroup) {
+    let isAdmin = false
+    try {
+      const metadata = await sock.groupMetadata(from)
+      const participants = metadata.participants || []
+      isAdmin = participants.some(
+        p => p.id === sender &&
+        (p.admin === 'admin' || p.admin === 'superadmin')
+      )
+    } catch {}
+
+    if (!isAdmin) return // 🔇 silencioso
+  }
+  /* ───────────────────────────────── */
 
   const url = args[0]
   if (!url) return reply('❌ Pon un link de YouTube\n\nEjemplo:\n.ytmp4 https://youtu.be/xxxx')
