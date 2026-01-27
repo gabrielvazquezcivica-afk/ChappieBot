@@ -5,33 +5,39 @@ import { spawn } from 'child_process'
 
 const FONT = '/data/data/com.termux/files/usr/share/fonts/TTF/DejaVuSans-Bold.ttf'
 
-function wrapText(text, max = 20) {
+function wrapText(text, max = 22) {
   const words = text.split(' ')
   let lines = []
   let line = ''
 
-  for (let w of words) {
-    if ((line + w).length > max) {
+  for (let word of words) {
+    if ((line + word).length > max) {
       lines.push(line.trim())
       line = ''
     }
-    line += w + ' '
+    line += word + ' '
   }
   if (line) lines.push(line.trim())
   return lines.join('\n')
 }
 
+/* ───── PNG → WEBP (STICKER) ───── */
 async function createSticker(text) {
-  const safeText = wrapText(text).replace(/:/g, '\\:').replace(/'/g, "\\'")
+  const cleanText = wrapText(text)
+    .replace(/:/g, '\\:')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+
   const tmpImg = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
   const tmpWebp = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
 
+  // Imagen (estilo meme blanco)
   await new Promise((resolve, reject) => {
     const ff = spawn('ffmpeg', [
       '-f', 'lavfi',
-      '-i', 'color=c=black:s=512x512',
+      '-i', 'color=c=white:s=512x512',
       '-vf',
-      `drawtext=fontfile=${FONT}:text='${safeText}':fontcolor=white:borderw=4:bordercolor=white:fontsize=42:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=12`,
+      `drawtext=fontfile=${FONT}:text='${cleanText}':fontcolor=black:fontsize=42:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10`,
       '-frames:v', '1',
       tmpImg
     ], { stdio: 'ignore' })
@@ -39,6 +45,7 @@ async function createSticker(text) {
     ff.on('close', code => code === 0 ? resolve() : reject())
   })
 
+  // PNG → WEBP (sticker)
   await new Promise((resolve, reject) => {
     const ff = spawn('ffmpeg', [
       '-i', tmpImg,
@@ -60,9 +67,10 @@ async function createSticker(text) {
   return buffer
 }
 
+/* ───── COMANDO BRAT ───── */
 export const handler = async (m, { sock, from, args, reply }) => {
   const text = args.join(' ').trim()
-  if (!text) return reply('❌ Usa: .brat texto')
+  if (!text) return reply('❌ Escribe un texto\nEjemplo: .brat hola mundo')
 
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
@@ -70,8 +78,8 @@ export const handler = async (m, { sock, from, args, reply }) => {
     const sticker = await createSticker(text)
 
     await sock.sendMessage(from, { sticker }, { quoted: m })
-
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+
   } catch (e) {
     console.error('BRAT ERROR:', e)
     reply('❌ Error al crear el sticker')
@@ -79,7 +87,7 @@ export const handler = async (m, { sock, from, args, reply }) => {
 }
 
 handler.command = ['brat']
-handler.tags = ['sticker']
+handler.tags = ['stickers']
 handler.help = ['brat <texto>']
 handler.menu = true
 
