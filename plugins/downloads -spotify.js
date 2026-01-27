@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import axios from 'axios'
 import { exec } from 'child_process'
 
 /* ───── QUOTED SISTEMA (CHAPPIEBOT) ───── */
@@ -25,10 +24,10 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
 export const handler = async (m, {
   sock,
   from,
-  args,
   isGroup,
   sender,
-  reply
+  reply,
+  args
 }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
@@ -50,37 +49,34 @@ export const handler = async (m, {
     } catch {}
     if (!isAdmin) return
   }
-  /* ───────────────────────────── */
+  /* ───────────────────────────────── */
 
-  let text = args.join(' ')
-  if (!text) return reply('🎵 Usa:\n.spotify nombre canción\n.spotify link de spotify')
+  const text = args.join(' ')
+  if (!text) return reply('❌ Escribe el nombre de la canción')
+
+  const tmpDir = './tmp'
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+
+  const file = path.join(tmpDir, `spotify_${Date.now()}.mp3`)
 
   await sock.sendMessage(from, { react: { text: '🎧', key: m.key } })
 
-  // 🎯 Si es link de Spotify → obtener nombre
-  if (text.includes('spotify.com')) {
-    try {
-      const oembed = await axios.get(`https://open.spotify.com/oembed?url=${text}`)
-      text = oembed.data.title.replace(/-.*$/, '')
-    } catch {
-      return reply('❌ No pude leer el link de Spotify')
-    }
-  }
-
-  const file = `./tmp/spotify_${Date.now()}.mp3`
-  const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
+  const cmd = `yt-dlp --js-runtimes node -x --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
 
   exec(cmd, async (err) => {
     if (err) {
-      console.error(err)
+      console.error('SPOTIFY ERROR:', err)
       return reply('❌ Error al descargar la canción')
     }
 
-    await sock.sendMessage(from, {
-      audio: fs.readFileSync(file),
-      mimetype: 'audio/mpeg',
-      ptt: false
-    }, { quoted: sistema('SPOTIFY DOWNLOADER') })
+    await sock.sendMessage(
+      from,
+      {
+        audio: fs.readFileSync(file),
+        mimetype: 'audio/mpeg'
+      },
+      { quoted: sistema('🎧 SPOTIFY DOWNLOAD') }
+    )
 
     fs.unlinkSync(file)
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
@@ -89,7 +85,8 @@ export const handler = async (m, {
 
 handler.command = ['spotify']
 handler.tags = ['descargas']
-handler.help = ['spotify <nombre | link>']
+handler.help = ['spotify <nombre de la canción>']
 handler.menu = true
+handler.group = false
 
 export default handler
