@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import axios from 'axios'
 import { exec } from 'child_process'
 
 /* ───── QUOTED SISTEMA (CHAPPIEBOT) ───── */
@@ -19,21 +20,20 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
     }
   }
 })
-/* ───────────────────────────────────── */
+// ─────────────────────────────────────
 
 export const handler = async (m, {
   sock,
   from,
   args,
-  reply,
   isGroup,
-  sender
+  sender,
+  reply
 }) => {
 
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
-
   if (fs.existsSync(modoadminPath)) {
     const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminData[from] || { enabled: false }
@@ -45,76 +45,51 @@ export const handler = async (m, {
       const metadata = await sock.groupMetadata(from)
       const participants = metadata.participants || []
       isAdmin = participants.some(
-        p => p.id === sender &&
-        (p.admin === 'admin' || p.admin === 'superadmin')
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
       )
     } catch {}
     if (!isAdmin) return
   }
   /* ───────────────────────────── */
 
-  const query = args.join(' ').trim()
-  if (!query) {
-    return sock.sendMessage(from, {
-      text: '❌ Escribe el nombre de la canción\n\nEjemplo:\n.playspotify Bad Bunny Monaco'
-    }, { quoted: sistema('SPOTIFY PLAY') })
+  let text = args.join(' ')
+  if (!text) return reply('🎵 Usa:\n.spotify nombre canción\n.spotify link de spotify')
+
+  await sock.sendMessage(from, { react: { text: '🎧', key: m.key } })
+
+  // 🎯 Si es link de Spotify → obtener nombre
+  if (text.includes('spotify.com')) {
+    try {
+      const oembed = await axios.get(`https://open.spotify.com/oembed?url=${text}`)
+      text = oembed.data.title.replace(/-.*$/, '')
+    } catch {
+      return reply('❌ No pude leer el link de Spotify')
+    }
   }
 
-  const outDir = './tmp'
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir)
+  const file = `./tmp/spotify_${Date.now()}.mp3`
+  const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
 
-  try {
-    await sock.sendMessage(from, { react: { text: '🔎', key: m.key } })
+  exec(cmd, async (err) => {
+    if (err) {
+      console.error(err)
+      return reply('❌ Error al descargar la canción')
+    }
 
-    const cmd = `spotdl "${query}" --output "${outDir}" --format mp3`
+    await sock.sendMessage(from, {
+      audio: fs.readFileSync(file),
+      mimetype: 'audio/mpeg',
+      ptt: false
+    }, { quoted: sistema('SPOTIFY DOWNLOADER') })
 
-    exec(cmd, async (err) => {
-      if (err) {
-        console.error(err)
-        return sock.sendMessage(from, {
-          text: '❌ No se pudo descargar desde Spotify'
-        }, { quoted: sistema('SPOTIFY ERROR') })
-      }
-
-      const files = fs.readdirSync(outDir).filter(f => f.endsWith('.mp3'))
-      if (!files.length) {
-        return sock.sendMessage(from, {
-          text: '❌ No se encontró ningún audio'
-        }, { quoted: sistema('SPOTIFY ERROR') })
-      }
-
-      const filePath = path.join(outDir, files[0])
-      const stats = fs.statSync(filePath)
-
-      if (stats.size > 50 * 1024 * 1024) {
-        fs.unlinkSync(filePath)
-        return sock.sendMessage(from, {
-          text: '❌ El audio pesa más de 50MB'
-        }, { quoted: sistema('SPOTIFY ERROR') })
-      }
-
-      await sock.sendMessage(from, {
-        audio: fs.readFileSync(filePath),
-        mimetype: 'audio/mpeg',
-        caption: `🎵 *Spotify Play*\n\n🔎 ${query}`
-      }, { quoted: sistema('SPOTIFY PLAY') })
-
-      await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
-
-      fs.unlinkSync(filePath)
-    })
-
-  } catch (e) {
-    console.error(e)
-    sock.sendMessage(from, {
-      text: '❌ Error inesperado'
-    }, { quoted: sistema('SPOTIFY ERROR') })
-  }
+    fs.unlinkSync(file)
+    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+  })
 }
 
 handler.command = ['spotify']
 handler.tags = ['descargas']
-handler.help = ['playspotify <nombre canción>']
+handler.help = ['spotify <nombre | link>']
 handler.menu = true
 
 export default handler
