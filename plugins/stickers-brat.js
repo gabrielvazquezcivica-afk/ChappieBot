@@ -3,6 +3,8 @@ import path from 'path'
 import os from 'os'
 import { spawn } from 'child_process'
 
+const FONT = '/data/data/com.termux/files/usr/share/fonts/TTF/DejaVuSans.ttf'
+
 export const handler = async (m, { sock, from, args, reply }) => {
   const text = args.join(' ').trim()
   if (!text) return reply('❌ Ejemplo: .brat Hola mundo')
@@ -10,8 +12,11 @@ export const handler = async (m, { sock, from, args, reply }) => {
   const tmpImg = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
   const tmpWebp = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
 
-  // limpiar texto
-  const safeText = text.replace(/:/g, '').replace(/"/g, '')
+  // limpiar texto para ffmpeg
+  const safeText = text
+    .replace(/:/g, '')
+    .replace(/"/g, '')
+    .replace(/'/g, '')
 
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
@@ -22,11 +27,13 @@ export const handler = async (m, { sock, from, args, reply }) => {
         '-f', 'lavfi',
         '-i', 'color=c=black:s=512x512',
         '-vf',
-        `drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='${safeText}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10:wrap=1`,
+        `drawtext=fontfile=${FONT}:text='${safeText}':fontcolor=white:fontsize=40:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10:wrap=1`,
         '-frames:v', '1',
         tmpImg
       ])
-      ff.on('close', code => code === 0 ? resolve() : reject())
+
+      ff.stderr.on('data', d => console.log('ffmpeg:', d.toString()))
+      ff.on('close', code => code === 0 ? resolve() : reject('ffmpeg error'))
     })
 
     // convertir a sticker
@@ -41,7 +48,9 @@ export const handler = async (m, { sock, from, args, reply }) => {
         '-vsync', '0',
         tmpWebp
       ])
-      ff.on('close', code => code === 0 ? resolve() : reject())
+
+      ff.stderr.on('data', d => console.log('webp:', d.toString()))
+      ff.on('close', code => code === 0 ? resolve() : reject('webp error'))
     })
 
     const sticker = fs.readFileSync(tmpWebp)
@@ -53,7 +62,7 @@ export const handler = async (m, { sock, from, args, reply }) => {
     fs.unlinkSync(tmpWebp)
 
   } catch (e) {
-    console.error(e)
+    console.error('BRAT ERROR:', e)
     reply('❌ Error generando sticker brat')
   }
 }
