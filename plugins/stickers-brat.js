@@ -17,6 +17,7 @@ export const handler = async (m, { sock, from, args, reply }) => {
     .replace(/:/g, '')
     .replace(/"/g, '')
     .replace(/'/g, '')
+    .replace(/\n/g, ' ')
 
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
@@ -27,12 +28,12 @@ export const handler = async (m, { sock, from, args, reply }) => {
         '-f', 'lavfi',
         '-i', 'color=c=black:s=512x512',
         '-vf',
-        `drawtext=fontfile=${FONT}:text='${safeText}':fontcolor=white:fontsize=40:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10:wrap=1`,
+        `drawtext=fontfile=${FONT}:text='${safeText}':fontcolor=white:fontsize=40:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10`,
         '-frames:v', '1',
         tmpImg
       ])
 
-      ff.stderr.on('data', d => console.log('ffmpeg:', d.toString()))
+      ff.stderr.on('data', d => console.log(d.toString()))
       ff.on('close', code => code === 0 ? resolve() : reject('ffmpeg error'))
     })
 
@@ -49,7 +50,7 @@ export const handler = async (m, { sock, from, args, reply }) => {
         tmpWebp
       ])
 
-      ff.stderr.on('data', d => console.log('webp:', d.toString()))
+      ff.stderr.on('data', d => console.log(d.toString()))
       ff.on('close', code => code === 0 ? resolve() : reject('webp error'))
     })
 
