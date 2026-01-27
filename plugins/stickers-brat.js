@@ -12,7 +12,6 @@ export const handler = async (m, { sock, from, args, reply }) => {
   const tmpImg = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
   const tmpWebp = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
 
-  // limpiar texto para ffmpeg
   const safeText = text
     .replace(/:/g, '')
     .replace(/"/g, '')
@@ -22,22 +21,21 @@ export const handler = async (m, { sock, from, args, reply }) => {
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
   try {
-    // crear imagen
+    // IMAGEN BLANCA CON TEXTO NEGRO
     await new Promise((resolve, reject) => {
       const ff = spawn('ffmpeg', [
         '-f', 'lavfi',
-        '-i', 'color=c=black:s=512x512',
+        '-i', 'color=c=white:s=512x512',
         '-vf',
-        `drawtext=fontfile=${FONT}:text='${safeText}':fontcolor=white:fontsize=40:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=10`,
+        `drawtext=fontfile=${FONT}:text='${safeText}':fontcolor=black:fontsize=42:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=12`,
         '-frames:v', '1',
         tmpImg
-      ])
+      ], { stdio: 'ignore' }) // 👈 SILENCIA FFMPEG
 
-      ff.stderr.on('data', d => console.log(d.toString()))
-      ff.on('close', code => code === 0 ? resolve() : reject('ffmpeg error'))
+      ff.on('close', code => code === 0 ? resolve() : reject())
     })
 
-    // convertir a sticker
+    // CONVERTIR A STICKER
     await new Promise((resolve, reject) => {
       const ff = spawn('ffmpeg', [
         '-i', tmpImg,
@@ -48,10 +46,9 @@ export const handler = async (m, { sock, from, args, reply }) => {
         '-an',
         '-vsync', '0',
         tmpWebp
-      ])
+      ], { stdio: 'ignore' }) // 👈 SILENCIA FFMPEG
 
-      ff.stderr.on('data', d => console.log(d.toString()))
-      ff.on('close', code => code === 0 ? resolve() : reject('webp error'))
+      ff.on('close', code => code === 0 ? resolve() : reject())
     })
 
     const sticker = fs.readFileSync(tmpWebp)
@@ -63,8 +60,7 @@ export const handler = async (m, { sock, from, args, reply }) => {
     fs.unlinkSync(tmpWebp)
 
   } catch (e) {
-    console.error('BRAT ERROR:', e)
-    reply('❌ Error generando sticker brat')
+    reply('❌ Error creando el sticker')
   }
 }
 
