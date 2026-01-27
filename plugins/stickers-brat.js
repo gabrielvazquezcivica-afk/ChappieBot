@@ -1,39 +1,9 @@
 import fs from 'fs'
-import path from 'path'
-import os from 'os'
 import axios from 'axios'
-import { spawn } from 'child_process'
-
-async function createSticker(buffer) {
-  const tmpIn = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
-  const tmpOut = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
-  fs.writeFileSync(tmpIn, buffer)
-
-  await new Promise((resolve, reject) => {
-    const ff = spawn('ffmpeg', [
-      '-i', tmpIn,
-      '-vcodec', 'libwebp',
-      '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
-      '-lossless', '1',
-      '-loop', '0',
-      '-preset', 'default',
-      '-an',
-      '-vsync', '0',
-      tmpOut
-    ])
-    ff.on('close', code => code === 0 ? resolve() : reject())
-    ff.on('error', reject)
-  })
-
-  const result = fs.readFileSync(tmpOut)
-  fs.unlinkSync(tmpIn)
-  fs.unlinkSync(tmpOut)
-  return result
-}
 
 export const handler = async (m, { sock, from, isGroup, sender, reply, args }) => {
 
-  /* 🔒 MODO ADMIN */
+  /* 🔒 MODO ADMIN SILENCIOSO */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
   if (fs.existsSync(modoadminPath)) {
@@ -54,7 +24,7 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, args }) =
   }
 
   const rawText = args.join(' ').trim()
-  if (!rawText) return reply('❌ Escribe un texto\nEjemplo: .brat Hola mundo')
+  if (!rawText) return reply('❌ Ejemplo: .brat hola mundo')
 
   // 👇 evita vertical y NO usa _
   const text = rawText.replace(/\s+/g, '+')
@@ -63,21 +33,21 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, args }) =
 
   try {
     const res = await axios.get(
-      'https://kepolu-brat.hf.space/brat',
-      {
-        params: { q: text },
-        responseType: 'arraybuffer'
-      }
+      `https://kepolu-brat.hf.space/brat?q=${encodeURIComponent(text)}`,
+      { responseType: 'arraybuffer' }
     )
 
-    const sticker = await createSticker(res.data)
+    await sock.sendMessage(
+      from,
+      { sticker: res.data },
+      { quoted: m }
+    )
 
-    await sock.sendMessage(from, { sticker }, { quoted: m })
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
-    console.error('BRAT ERROR:', e)
-    reply('❌ Error al generar el sticker')
+    console.error(e)
+    reply('❌ Error al generar sticker')
   }
 }
 
@@ -85,6 +55,5 @@ handler.command = ['brat']
 handler.tags = ['stickers']
 handler.help = ['brat <texto>']
 handler.menu = true
-handler.group = false
 
 export default handler
