@@ -26,7 +26,6 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, args }) =
   const rawText = args.join(' ').trim()
   if (!rawText) return reply('❌ Ejemplo: .brat hola mundo')
 
-  // 👇 evita vertical y NO usa _
   const text = rawText.replace(/\s+/g, '+')
 
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
@@ -37,16 +36,18 @@ export const handler = async (m, { sock, from, isGroup, sender, reply, args }) =
       { responseType: 'arraybuffer' }
     )
 
+    const stickerBuffer = Buffer.from(res.data)
+
     await sock.sendMessage(
       from,
-      { sticker: res.data },
+      { sticker: stickerBuffer },
       { quoted: m }
     )
 
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
-    console.error(e)
+    console.error('BRAT ERROR:', e)
     reply('❌ Error al generar sticker')
   }
 }
