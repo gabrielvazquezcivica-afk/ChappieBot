@@ -112,7 +112,7 @@ export const handler = async (m, {
   }
 }
 
-handler.command = ['playspotify']
+handler.command = ['spotify']
 handler.tags = ['descargas']
 handler.help = ['playspotify <nombre canción>']
 handler.menu = true
