@@ -4,7 +4,6 @@ import os from 'os'
 import axios from 'axios'
 import { spawn } from 'child_process'
 
-/* ───── 🧷 FUNCIÓN: PNG → WEBP (STICKER) ───── */
 async function createSticker(buffer) {
   const tmpIn = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
   const tmpOut = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
@@ -32,17 +31,9 @@ async function createSticker(buffer) {
   return result
 }
 
-/* ───── COMANDO BRAT ───── */
-export const handler = async (m, {
-  sock,
-  from,
-  isGroup,
-  sender,
-  reply,
-  args
-}) => {
+export const handler = async (m, { sock, from, isGroup, sender, reply, args }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (CHAPPIEBOT) ───── */
+  /* 🔒 MODO ADMIN */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
   if (fs.existsSync(modoadminPath)) {
@@ -59,16 +50,15 @@ export const handler = async (m, {
         p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
       )
     } catch {}
-    if (!isAdmin) return // 🚫 silencioso
-  }
-  /* ───────────────────────────────────────────── */
-
-  const text = args.join(' ').trim()
-  if (!text) {
-    return reply('❌ Escribe un texto\nEjemplo: `.brat Hola mundo`')
+    if (!isAdmin) return
   }
 
-  // 🎯 Reacción al iniciar
+  const rawText = args.join(' ').trim()
+  if (!rawText) return reply('❌ Escribe un texto\nEjemplo: .brat Hola mundo')
+
+  // 👇 evita vertical y NO usa _
+  const text = rawText.replace(/\s+/g, '+')
+
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
   try {
@@ -80,19 +70,9 @@ export const handler = async (m, {
       }
     )
 
-    if (!res.data || !res.data.byteLength) {
-      throw new Error('Respuesta vacía')
-    }
-
     const sticker = await createSticker(res.data)
 
-    await sock.sendMessage(
-      from,
-      { sticker },
-      { quoted: m }
-    )
-
-    // ✅ Reacción final
+    await sock.sendMessage(from, { sticker }, { quoted: m })
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
