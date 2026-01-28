@@ -3,7 +3,7 @@ let started = false
 export const handler = async () => {}
 
 // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────      
-const sistema = (titulo = 'CHAPPIE BOT') => ({      
+const sistema = (titulo = 'ChappieBot 🏜️') => ({      
   key: {      
     fromMe: false,      
     participant: '0@s.whatsapp.net',      
