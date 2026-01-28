@@ -27,29 +27,38 @@ export const handler = async (m, { sock, args, isOwner, reply }) => {
   })
   // ─────────────────────────────────────
 
-  const groups = Object.values(sock.chats || {})
-    .filter(c => c.id.endsWith('@g.us'))
-    .map(c => c.id)
+  const groupsData = await sock.groupFetchAllParticipating()
+  const groups = Object.keys(groupsData)
+
+  if (!groups.length) {
+    return reply('❌ El bot no está en ningún grupo')
+  }
 
   reply(`📢 Enviando aviso a ${groups.length} grupos...`)
+
+  let enviados = 0
 
   for (const gid of groups) {
     try {
       const meta = await sock.groupMetadata(gid)
       const mentions = meta.participants.map(p => p.id)
 
-      await sock.sendMessage(gid, {
-        text: `📢 *AVISO GLOBAL*\n\n${msg}`,
-        mentions,
-        quoted: sistema('AVISO GLOBAL')
-      })
+      await sock.sendMessage(
+        gid,
+        {
+          text: `📢 *AVISO GLOBAL*\n\n${msg}`,
+          mentions
+        },
+        { quoted: sistema('AVISO GLOBAL') }
+      )
 
+      enviados++
     } catch (e) {
       console.log('❌ Error enviando a:', gid)
     }
   }
 
-  reply('✅ Aviso enviado correctamente a todos los grupos')
+  reply(`✅ Aviso enviado a ${enviados} grupos`)
 }
 
 handler.command = ['aviso']
