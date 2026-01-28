@@ -5,14 +5,20 @@ export const handler = async (m, { sock, from, args, reply, command }) => {
   if (!text) return reply(`❌ Escribe el texto para el logo.\nEjemplo: .${command} MiNombre`)
 
   try {
-    // Ejemplo API FlamingText (cambia los parámetros según estilo)
-    const logoUrl = `https://www6.flamingtext.com/net-fu/proxy_form.cgi?&imageoutput=true&script=${command}&text=${encodeURIComponent(text)}`
+    // FlamingText: script puede ser 'free-fire-logo', 'pubg-logo', 'minecraft-logo', etc.
+    const scriptMap = {
+      logofreefire: 'free-fire-logo',
+      logopubg: 'pubg-logo',
+      logominecraft: 'minecraft-logo'
+    }
+    const script = scriptMap[command] || 'free-fire-logo'
 
+    const logoUrl = `https://www6.flamingtext.com/net-fu/proxy_form.cgi?imageoutput=true&script=${script}&text=${encodeURIComponent(text)}`
+    
     const res = await axios.get(logoUrl, { responseType: 'arraybuffer' })
     const buffer = Buffer.from(res.data, 'binary')
 
     await sock.sendMessage(from, { image: buffer }, { quoted: m })
-
   } catch (e) {
     console.error('LOGO ERROR:', e)
     reply('❌ Error al generar el logo, intenta de nuevo.')
