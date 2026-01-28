@@ -22,27 +22,33 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
 })
 // ─────────────────────────────────────
 
-export const handler = async (m, { from, isGroup, isAdmin, reply }) => {
-  if (!isGroup) return reply('❌ Solo en grupos')
-  if (!isAdmin) return reply('❌ Solo admins pueden ver la lista de warns')
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
+  if (!isAdmin) return reply('❌ Solo administradores pueden usar este comando')
 
   const data = JSON.parse(fs.readFileSync(warnsPath))
   if (!data[from] || Object.keys(data[from]).length === 0) {
     return reply('✅ No hay usuarios advertidos en este grupo')
   }
 
-  let text = '📋 *WARN LIST DEL GRUPO*\n\n'
+  let txt = '📋 *LISTA DE WARNINGS DEL GRUPO*\n\n'
+  let i = 1
+
   for (const user in data[from]) {
-    text += `👤 @${user.split('@')[0]} ➜ ${data[from][user]} warns\n`
+    txt += `${i}. @${user.split('@')[0]} → ${data[from][user]} warn(s)\n`
+    i++
   }
 
-  const mentions = Object.keys(data[from])
-  await m.reply(text, { mentions, quoted: sistema('WARNLIST') })
+  await sock.sendMessage(from, {
+    text: txt,
+    mentions: Object.keys(data[from]),
+    quoted: sistema('WARN LIST')
+  })
 }
 
 handler.command = ['warnlist']
-handler.tags = ['group']
 handler.group = true
 handler.admin = true
+handler.tags = ['group']
 handler.menu = true
 export default handler
