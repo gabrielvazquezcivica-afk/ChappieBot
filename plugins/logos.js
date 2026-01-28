@@ -1,93 +1,103 @@
 import fs from 'fs'
 import path from 'path'
-import axios from 'axios'
-import { spawn } from 'child_process'
 import os from 'os'
+import { createCanvas, loadImage, registerFont } from 'canvas'
 
-/* ───── FUNCIÓN: PNG → WEBP (STICKER) ───── */
-async function createSticker(buffer) {
-  const tmpIn = path.join(os.tmpdir(), `logo_${Date.now()}.png`)
-  const tmpOut = path.join(os.tmpdir(), `logo_${Date.now()}.webp`)
-  fs.writeFileSync(tmpIn, buffer)
+// ───── COMANDO LOGO MULTI-ESTILO ─────
+export const handler = async (m, { sock, from, args, reply }) => {
 
-  await new Promise((resolve, reject) => {
-    const ff = spawn('ffmpeg', [
-      '-i', tmpIn,
-      '-vcodec', 'libwebp',
-      '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
-      '-lossless', '1',
-      '-loop', '0',
-      '-preset', 'default',
-      '-an',
-      '-vsync', '0',
-      tmpOut
-    ])
-    ff.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg falló')))
-    ff.on('error', reject)
-  })
+  if (args.length < 2) return reply('❌ Uso correcto: .logo <estilo> <texto>\nEjemplo: `.logo neon Chappie`')
 
-  const result = fs.readFileSync(tmpOut)
-  fs.unlinkSync(tmpIn)
-  fs.unlinkSync(tmpOut)
-  return result
-}
-
-/* ───── HANDLER LOGOS ───── */
-export const handler = async (m, { sock, from, isGroup, sender, reply, args, command }) => {
-
-  /* ───── MODO ADMIN SILENCIOSO ───── */
-  let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
-  if (fs.existsSync(modoadminPath)) {
-    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = modoadminData[from] || { enabled: false }
-  }
-  if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {}
-    if (!isAdmin) return // 🚫 silencioso
-  }
-
-  const text = args.join(' ').trim()
-  if (!text) return reply(`❌ Uso correcto: .${command} <texto>`)
-
-  // Reacción inicial
-  await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
+  const style = args[0].toLowerCase()
+  const text = args.slice(1).join(' ').trim()
+  
+  if (!text) return reply('❌ Escribe un texto para el logo')
 
   try {
-    // ───── API DE LOGOS ─────
-    const apiUrl = `https://api.xteam.xyz/textpro?theme=${command}&text=${encodeURIComponent(text)}`
-    const res = await axios.get(apiUrl, { responseType: 'arraybuffer' })
+    const width = 800
+    const height = 400
+    const canvas = createCanvas(width, height)
+    const ctx = canvas.getContext('2d')
 
-    if (!res.data || !res.data.byteLength) {
-      throw new Error('Respuesta vacía')
+    // ───── FONDO SEGÚN ESTILO ─────
+    switch(style){
+      case 'neon':
+        ctx.fillStyle = '#000'
+        ctx.fillRect(0,0,width,height)
+        ctx.shadowColor = '#0ff'
+        ctx.shadowBlur = 25
+        ctx.fillStyle = '#0ff'
+        break
+      case '3d':
+        ctx.fillStyle = '#222'
+        ctx.fillRect(0,0,width,height)
+        ctx.shadowColor = '#444'
+        ctx.shadowBlur = 15
+        ctx.fillStyle = '#fff'
+        break
+      case 'fuego':
+        const gradient = ctx.createLinearGradient(0,0,width,height)
+        gradient.addColorStop(0,'#ff0000')
+        gradient.addColorStop(0.5,'#ff9900')
+        gradient.addColorStop(1,'#ffff00')
+        ctx.fillStyle = gradient
+        ctx.fillRect(0,0,width,height)
+        ctx.shadowColor = '#ff6600'
+        ctx.shadowBlur = 20
+        ctx.fillStyle = '#fff'
+        break
+      case 'sombra':
+        ctx.fillStyle = '#333'
+        ctx.fillRect(0,0,width,height)
+        ctx.shadowColor = '#000'
+        ctx.shadowBlur = 20
+        ctx.fillStyle = '#fff'
+        break
+      default:
+        // Estilo por defecto: gradiente simple
+        const grad = ctx.createLinearGradient(0,0,width,height)
+        grad.addColorStop(0,'#ff5f6d')
+        grad.addColorStop(1,'#ffc371')
+        ctx.fillStyle = grad
+        ctx.fillRect(0,0,width,height)
+        ctx.fillStyle = '#fff'
+        ctx.shadowBlur = 0
+        break
     }
 
-    const sticker = await createSticker(res.data)
+    // ───── TEXTO ─────
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
 
-    await sock.sendMessage(from, { sticker }, { quoted: m })
+    // Fuente personalizada opcional
+    const fontPath = path.join(process.cwd(),'./data/fonts/Roboto-Bold.ttf')
+    if (fs.existsSync(fontPath)) registerFont(fontPath, { family: 'Roboto' })
 
-    // Reacción final
-    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+    ctx.font = 'bold 80px Roboto'
+    ctx.fillText(text,width/2,height/2)
 
-  } catch (e) {
+    // ───── GUARDAR TEMPORAL ─────
+    const tmpFile = path.join(os.tmpdir(), `logo_${Date.now()}.png`)
+    const out = fs.createWriteStream(tmpFile)
+    const stream = canvas.createPNGStream()
+    stream.pipe(out)
+    await new Promise(resolve => out.on('finish', resolve))
+
+    // ───── ENVIAR IMAGEN ─────
+    await sock.sendMessage(from, { image: fs.readFileSync(tmpFile) }, { quoted: m })
+
+    fs.unlinkSync(tmpFile)
+
+  } catch(e){
     console.error('LOGO ERROR:', e)
-    reply('❌ No se pudo generar el logo. Intenta otro texto o comando.')
+    reply('❌ Error al generar el logo')
   }
 }
 
-/* ───── CONFIGURACIÓN DEL HANDLER ───── */
-handler.command = [
-  'neon', '3d', 'flame', 'metal', 'glitch', 'holographic', 'joker', 'sketch', 'whitegold', 'lava'
-]
+// Comando y configuración
+handler.command = ['logo']
 handler.tags = ['logos']
-handler.help = handler.command.map(c => `${c} <texto>`)
+handler.help = ['logo <estilo> <texto>']
 handler.menu = true
 handler.group = false
 
