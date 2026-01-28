@@ -1,6 +1,6 @@
 import fs from 'fs'
 import axios from 'axios'
-import cheerio from 'cheerio'
+import * as cheerio from 'cheerio'
 
 /* ───── FUNCIÓN PARA DESCARGAR IMAGEN ───── */
 async function downloadImage(url) {
