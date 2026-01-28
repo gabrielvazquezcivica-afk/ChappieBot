@@ -33,6 +33,7 @@ export const handler = async (m, {
     owner: '👑',    
     nsfw: '🔞',    
     xvideos: '🤤',
+    logos: '🏞️',
     'on-off': '📴'
   }                  
 
@@ -51,6 +52,7 @@ export const handler = async (m, {
     owner: '🤴🏻',
     nsfw: '🔥',
     xvideos: '🥵',
+    logos: '🎐',
     'on-off': '📳'
   }    
   
@@ -86,7 +88,8 @@ export const handler = async (m, {
     'stickers',    
     'owner',    
     'nsfw',
-    'xvideos'
+    'xvideos',
+    'logos'
   ]    
     
   // 🧠 Construir menú    
