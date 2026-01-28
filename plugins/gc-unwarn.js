@@ -3,6 +3,7 @@ import fs from 'fs'
 const warnsPath = './data/warns.json'
 if (!fs.existsSync(warnsPath)) fs.writeFileSync(warnsPath, JSON.stringify({}))
 
+// ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
 const sistema = (titulo = 'CHAPPIE BOT') => ({
   key: {
     fromMe: false,
@@ -19,31 +20,38 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
     }
   }
 })
+// ─────────────────────────────────────
 
-export const handler = async (m, { from, isGroup, isAdmin, reply }) => {
-  if (!isGroup) return reply('❌ Solo en grupos')
-  if (!isAdmin) return reply('❌ Solo admins')
+function getTarget(m) {
+  const ctx = m.message?.extendedTextMessage?.contextInfo
+  return ctx?.mentionedJid?.[0] || ctx?.participant || null
+}
 
-  const user = m.mentionedJid?.[0] || m.quoted?.sender
-  if (!user) return reply('⚠️ Menciona a alguien')
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
+  if (!isAdmin) return reply('❌ Solo administradores pueden usar este comando')
+
+  const user = getTarget(m)
+  if (!user) return reply('❌ Menciona o responde a un usuario')
 
   const data = JSON.parse(fs.readFileSync(warnsPath))
-  if (!data[from] || !data[from][user]) return reply('✅ No tiene warns')
+  if (!data[from] || !data[from][user]) return reply('❌ Ese usuario no tiene advertencias')
 
   data[from][user]--
   if (data[from][user] <= 0) delete data[from][user]
 
   fs.writeFileSync(warnsPath, JSON.stringify(data, null, 2))
 
-  reply(`✅ Warn quitado a @${user.split('@')[0]}`, {
+  await sock.sendMessage(from, {
+    text: `✅ Se removió una advertencia a @${user.split('@')[0]}`,
     mentions: [user],
     quoted: sistema('UNWARN')
   })
 }
 
 handler.command = ['unwarn']
-handler.tags = ['group']
 handler.group = true
 handler.admin = true
+handler.tags = ['group']
 handler.menu = true
 export default handler
