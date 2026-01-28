@@ -46,7 +46,7 @@ export const handler = async (m, { sock, args, isOwner, reply }) => {
       await sock.sendMessage(
         gid,
         {
-          text: `📢 *AVISO GLOBAL*\n\n${msg}`,
+          text: `📢 *AVISO DEL OWNER*\n\n${msg}`,
           mentions
         },
         { quoted: sistema('AVISO GLOBAL') }
