@@ -1,72 +1,93 @@
 import fs from 'fs'
 import path from 'path'
 import axios from 'axios'
+import { spawn } from 'child_process'
+import os from 'os'
 
-/* ───── MODO ADMIN ───── */
-const modoadminPath = './data/modoadmin.json'
-async function isGroupAdmin(from, sender, sock) {
-  if (!fs.existsSync(modoadminPath)) return false
-  const data = JSON.parse(fs.readFileSync(modoadminPath))
-  const groupSettings = data[from] || { enabled: false }
-  if (!groupSettings.enabled) return false
-  try {
-    const meta = await sock.groupMetadata(from)
-    const participants = meta.participants || []
-    return participants.some(p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin'))
-  } catch {
-    return false
-  }
+/* ───── FUNCIÓN: PNG → WEBP (STICKER) ───── */
+async function createSticker(buffer) {
+  const tmpIn = path.join(os.tmpdir(), `logo_${Date.now()}.png`)
+  const tmpOut = path.join(os.tmpdir(), `logo_${Date.now()}.webp`)
+  fs.writeFileSync(tmpIn, buffer)
+
+  await new Promise((resolve, reject) => {
+    const ff = spawn('ffmpeg', [
+      '-i', tmpIn,
+      '-vcodec', 'libwebp',
+      '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
+      '-lossless', '1',
+      '-loop', '0',
+      '-preset', 'default',
+      '-an',
+      '-vsync', '0',
+      tmpOut
+    ])
+    ff.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg falló')))
+    ff.on('error', reject)
+  })
+
+  const result = fs.readFileSync(tmpOut)
+  fs.unlinkSync(tmpIn)
+  fs.unlinkSync(tmpOut)
+  return result
 }
 
-/* ───── COMANDOS DE LOGOS ───── */
-const logoCommands = [
-  'neon', 'flame', '3d', 'glitch', 'sky', 'matrix', 'bubble',
-  'gold', 'ice', 'sand', 'heart', 'metal', 'shadow', 'firework',
-  'wolf', 'tiger', 'dragon', 'joker', 'flower', 'comic', 'holo', 'sign'
-]
+/* ───── HANDLER LOGOS ───── */
+export const handler = async (m, { sock, from, isGroup, sender, reply, args, command }) => {
 
-export const handler = async (m, { sock, from, sender, args, command, reply, isGroup }) => {
-  // 🚫 Verifica modo admin si es grupo
-  if (isGroup && !await isGroupAdmin(from, sender, sock)) return
+  /* ───── MODO ADMIN SILENCIOSO ───── */
+  let groupSettings = { enabled: false }
+  const modoadminPath = './data/modoadmin.json'
+  if (fs.existsSync(modoadminPath)) {
+    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = modoadminData[from] || { enabled: false }
+  }
+  if (groupSettings.enabled && isGroup) {
+    let isAdmin = false
+    try {
+      const metadata = await sock.groupMetadata(from)
+      const participants = metadata.participants || []
+      isAdmin = participants.some(
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+      )
+    } catch {}
+    if (!isAdmin) return // 🚫 silencioso
+  }
 
   const text = args.join(' ').trim()
   if (!text) return reply(`❌ Uso correcto: .${command} <texto>`)
 
-  // 🎯 Reacción inicial
+  // Reacción inicial
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
   try {
-    // Llamada a TextPro API (gratuita) para generar logo
-    const url = `https://api.textpro.me/${command}?text=${encodeURIComponent(text)}`
-    const res = await axios.get(url, { responseType: 'arraybuffer' })
+    // ───── API DE LOGOS ─────
+    const apiUrl = `https://api.xteam.xyz/textpro?theme=${command}&text=${encodeURIComponent(text)}`
+    const res = await axios.get(apiUrl, { responseType: 'arraybuffer' })
 
-    if (!res.data || !res.data.byteLength) throw new Error('Respuesta vacía')
+    if (!res.data || !res.data.byteLength) {
+      throw new Error('Respuesta vacía')
+    }
 
-    const tmpFile = path.join('./tmp', `${command}_${Date.now()}.png`)
-    fs.writeFileSync(tmpFile, res.data)
+    const sticker = await createSticker(res.data)
 
-    // Enviar imagen
-    await sock.sendMessage(from, { image: fs.readFileSync(tmpFile) }, { quoted: m })
-    fs.unlinkSync(tmpFile)
+    await sock.sendMessage(from, { sticker }, { quoted: m })
 
-    // ✅ Reacción final
+    // Reacción final
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
     console.error('LOGO ERROR:', e)
-    reply('❌ No se pudo generar el logo. Intenta otro comando o texto.')
+    reply('❌ No se pudo generar el logo. Intenta otro texto o comando.')
   }
 }
 
-// ───── TODOS LOS COMANDOS EXPLÍCITOS ─────
+/* ───── CONFIGURACIÓN DEL HANDLER ───── */
 handler.command = [
-  'neon', 'flame', '3d', 'glitch', 'sky', 'matrix', 'bubble',
-  'gold', 'ice', 'sand', 'heart', 'metal', 'shadow', 'firework',
-  'wolf', 'tiger', 'dragon', 'joker', 'flower', 'comic', 'holo', 'sign'
+  'neon', '3d', 'flame', 'metal', 'glitch', 'holographic', 'joker', 'sketch', 'whitegold', 'lava'
 ]
-
 handler.tags = ['logos']
-handler.help = logoCommands.map(c => `${c} <texto>`)
+handler.help = handler.command.map(c => `${c} <texto>`)
 handler.menu = true
 handler.group = false
 
