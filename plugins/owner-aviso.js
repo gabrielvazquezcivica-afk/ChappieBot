@@ -1,8 +1,12 @@
 // ───── AVISO GLOBAL A TODOS LOS GRUPOS ─────
-export const handler = async (m, { sock, text, isOwner, reply }) => {
+export const handler = async (m, { sock, args, isOwner, reply }) => {
+
   if (!isOwner) return reply('❌ Solo el OWNER puede usar este comando')
 
-  if (!text) return reply('✳️ Escribe el mensaje del aviso\nEjemplo:\n.aviso Se reiniciará el bot')
+  const msg = args.join(' ').trim()
+  if (!msg) {
+    return reply('✳️ Uso correcto:\n.aviso <mensaje>\n\nEjemplo:\n.aviso El bot estará en mantenimiento')
+  }
 
   // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
   const sistema = (titulo = 'CHAPPIE BOT') => ({
@@ -23,29 +27,29 @@ export const handler = async (m, { sock, text, isOwner, reply }) => {
   })
   // ─────────────────────────────────────
 
-  const groups = Object.values(sock.chats)
-    .filter(chat => chat.id.endsWith('@g.us'))
-    .map(chat => chat.id)
+  const groups = Object.values(sock.chats || {})
+    .filter(c => c.id.endsWith('@g.us'))
+    .map(c => c.id)
 
   reply(`📢 Enviando aviso a ${groups.length} grupos...`)
 
-  for (const id of groups) {
+  for (const gid of groups) {
     try {
-      const metadata = await sock.groupMetadata(id)
-      const members = metadata.participants.map(p => p.id)
+      const meta = await sock.groupMetadata(gid)
+      const mentions = meta.participants.map(p => p.id)
 
-      await sock.sendMessage(id, {
-        text: `📢 *AVISO GLOBAL*\n\n${text}`,
-        mentions: members,
+      await sock.sendMessage(gid, {
+        text: `📢 *AVISO GLOBAL*\n\n${msg}`,
+        mentions,
         quoted: sistema('AVISO GLOBAL')
       })
 
     } catch (e) {
-      console.log('Error en grupo:', id)
+      console.log('❌ Error enviando a:', gid)
     }
   }
 
-  reply('✅ Aviso enviado a todos los grupos')
+  reply('✅ Aviso enviado correctamente a todos los grupos')
 }
 
 handler.command = ['aviso']
