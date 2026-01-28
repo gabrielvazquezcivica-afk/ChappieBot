@@ -79,13 +79,20 @@ const logoStyles = {
 
 /* ───── HANDLER PRINCIPAL ───── */
 export const handler = async (m, { sock, from, args, reply }) => {
-  if (!args || args.length < 2) {
-    return reply('❌ Uso correcto:\n.logofreefire <texto>\n.logopubg <texto>\n.logominecraft <texto>\n...y más estilos')
+  if (!args || args.length < 1) {
+    return reply(
+      '❌ Uso correcto:\n' +
+      '.logofreefire <texto>\n' +
+      '.logopubg <texto>\n' +
+      '.logominecraft <texto>\n' +
+      '...y más estilos'
+    )
   }
 
   const style = args[0].toLowerCase()
   const text = args.slice(1).join(' ')
 
+  if (!text) return reply('❌ Debes escribir el texto que quieres en el logo.')
   if (!logoStyles[style]) return reply('❌ Estilo de logo no válido.')
 
   try {
