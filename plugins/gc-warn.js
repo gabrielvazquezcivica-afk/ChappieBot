@@ -22,31 +22,31 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
 })
 // ─────────────────────────────────────
 
+function getTarget(m) {
+  const ctx = m.message?.extendedTextMessage?.contextInfo
+  return ctx?.mentionedJid?.[0] || ctx?.participant || null
+}
+
 export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
-  if (!isGroup) return reply('❌ Solo en grupos')
-  if (!isAdmin) return reply('❌ Solo admins pueden usar este comando')
+  if (!isGroup) return reply('❌ Este comando solo funciona en grupos')
+  if (!isAdmin) return reply('❌ Solo administradores pueden usar este comando')
+
+  const user = getTarget(m)
+  if (!user) return reply('❌ Menciona o responde a un usuario')
 
   const data = JSON.parse(fs.readFileSync(warnsPath))
   if (!data[from]) data[from] = {}
-
-  // 👉 Detectar usuario (mención o reply)
-  let user =
-    m.mentionedJid?.[0] ||
-    m.quoted?.sender
-
-  if (!user) return reply('❌ Debes mencionar o responder a un usuario')
-
   if (!data[from][user]) data[from][user] = 0
-  data[from][user] += 1
 
-  const maxWarn = 3
+  data[from][user]++
   const warns = data[from][user]
+  const maxWarn = 3
 
   fs.writeFileSync(warnsPath, JSON.stringify(data, null, 2))
 
   if (warns >= maxWarn) {
     await sock.sendMessage(from, {
-      text: `🚫 @${user.split('@')[0]} alcanzó ${maxWarn} advertencias.\nSerá expulsado.`,
+      text: `🚫 @${user.split('@')[0]} alcanzó ${maxWarn} advertencias.\nSerá expulsado del grupo.`,
       mentions: [user],
       quoted: sistema('AUTO KICK')
     })
@@ -57,7 +57,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
     await sock.groupParticipantsUpdate(from, [user], 'remove')
   } else {
     await sock.sendMessage(from, {
-      text: `⚠️ @${user.split('@')[0]} recibió una advertencia.\n📊 Total: ${warns}/${maxWarn}`,
+      text: `⚠️ @${user.split('@')[0]} advertido\n📊 Advertencias: ${warns}/${maxWarn}`,
       mentions: [user],
       quoted: sistema('WARN')
     })
@@ -65,8 +65,8 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
 }
 
 handler.command = ['warn']
-handler.tags = ['group']
 handler.group = true
 handler.admin = true
+handler.tags = ['group']
 handler.menu = true
 export default handler
