@@ -28,13 +28,13 @@ const config = {
 
     // números crudos
     numbers: [
-      '523310167470',
+      '13652980907',
       '215590228750567'
     ],
 
     // JID base
     jid: [
-      '523310167470@s.whatsapp.net',
+      '13652980907@s.whatsapp.net',
       '215590228750567@lid'
     ]
   },
