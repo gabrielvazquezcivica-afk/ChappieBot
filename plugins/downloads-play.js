@@ -1,13 +1,12 @@
 import yts from 'yt-search'
+import fetch from 'node-fetch'
 import fs from 'fs'
-import os from 'os'
-import path from 'path'
-import { spawn } from 'child_process'
 
 export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
+
   const botName = sock.user?.name || 'ChappieBot'
 
-  /* 🔒 MODO ADMIN SILENCIOSO */
+  /* 🔒 MODO ADMIN */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
 
@@ -16,8 +15,10 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
     groupSettings = modoadminSettings[from] || { enabled: false }
   }
 
-  if (groupSettings.enabled && !isAdmin) return
-  /* ───────────────────── */
+  if (groupSettings.enabled && !isAdmin) {
+    return
+  }
+  /* ───────────── */
 
   const text = args.join(' ').trim()
 
@@ -26,95 +27,59 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
 `╭─❖ 「 🎧 ${botName} 」 ❖─╮
 │ ✍️ Uso: .play <canción>
 │ 🎵 Ejemplo: .play bad bunny
-╰─────────────────────────╯`
-    )
+╰─────────────────────────╯`)
   }
 
   try {
 
-    /* 🔍 BUSCAR EN YOUTUBE */
+    /* 🔎 BUSCAR VIDEO */
     const search = await yts(text)
 
-    if (!search.all.length) {
+    if (!search.videos.length) {
       return reply('❌ No encontré resultados')
     }
 
-    const v = search.all.find(v => v.seconds) || search.all[0]
+    const v = search.videos[0]
 
-    const { title, url, thumbnail, author, timestamp, views, ago } = v
+    const { title, url, thumbnail, timestamp, views, author } = v
 
     /* 🎶 REACCIÓN */
     await sock.sendMessage(from, {
       react: { text: '🎶', key: m.key }
     })
 
-    /* 📁 ARCHIVO TEMPORAL */
-    const base = path.join(os.tmpdir(), `${Date.now()}`)
-    const file = `${base}.m4a`
-
-    /* ⬇️ DESCARGAR AUDIO */
-    const download = new Promise((resolve, reject) => {
-
-      const yt = spawn(
-        'yt-dlp',
-        [
-          '-f', 'bestaudio',
-          '--extract-audio',
-          '--audio-format', 'm4a',
-          '--audio-quality', '0',
-          '--no-playlist',
-          '--geo-bypass',
-          '--user-agent', 'Mozilla/5.0',
-          '--no-warnings',
-          '--quiet',
-          '-o', `${base}.%(ext)s`,
-          url
-        ],
-        { stdio: 'ignore' }
-      )
-
-      yt.on('close', code => {
-        if (code === 0) resolve()
-        else reject(new Error('yt-dlp falló'))
-      })
-
-      yt.on('error', reject)
-
-    })
-
-    /* 📊 MENSAJE INFO */
+    /* 📊 INFO */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
 `╔══════ 🎧 ${botName} 🎧 ══════╗
-║ 🎵 Título   : ${title}
-║ 👤 Canal    : ${author?.name || 'Desconocido'}
+║ 🎵 Título : ${title}
+║ 👤 Canal : ${author.name}
 ║ ⏱ Duración : ${timestamp}
-║ 👁 Vistas   : ${views?.toLocaleString() || 'N/A'}
-║ 📅 Subido   : ${ago || 'N/A'}
+║ 👁 Vistas : ${views.toLocaleString()}
 ╚══════════════════════════════╝
 
 ⏳ Descargando audio...`
     }, { quoted: m })
 
-    /* ⏳ ESPERAR DESCARGA */
-    await download
+    /* 📥 API DESCARGA */
+    const api = `https://api.dorratz.com/ytmp3?url=${url}`
 
-    if (!fs.existsSync(file)) {
-      throw new Error('Archivo no generado')
+    const res = await fetch(api)
+    const json = await res.json()
+
+    if (!json.data?.download) {
+      throw new Error('No se pudo obtener el audio')
     }
 
-    const audio = fs.readFileSync(file)
+    const audioUrl = json.data.download
 
     /* 📤 ENVIAR AUDIO */
     await sock.sendMessage(from, {
-      audio: audio,
+      audio: { url: audioUrl },
       mimetype: 'audio/mpeg',
-      fileName: `${title}.m4a`
+      fileName: `${title}.mp3`
     }, { quoted: m })
-
-    /* 🧹 BORRAR TEMPORAL */
-    fs.unlinkSync(file)
 
     /* ✅ REACCIÓN FINAL */
     await sock.sendMessage(from, {
@@ -123,14 +88,13 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
 
   } catch (e) {
 
-    console.error('PLAY ERROR:', e)
+    console.log('PLAY ERROR:', e)
 
     reply(
 `╭─❖ 「 ERROR 」 ❖─╮
-│ ❌ No se pudo obtener el audio
-│ 🔁 Intenta con otra canción
-╰─────────────────╯`
-    )
+│ ❌ No se pudo descargar
+│ 🔁 Intenta otra canción
+╰─────────────────╯`)
   }
 }
 
