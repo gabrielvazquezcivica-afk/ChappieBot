@@ -1,5 +1,5 @@
 import yts from 'yt-search'
-import fetch from 'node-fetch'
+import { spawn } from 'child_process'
 import fs from 'fs'
 
 export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
@@ -7,93 +7,70 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
   const botName = sock.user?.name || 'ChappieBot'
 
   /* 🔒 MODO ADMIN */
-  let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
+  let groupSettings = { enabled: false }
 
   if (fs.existsSync(modoadminPath)) {
-    const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = modoadminSettings[from] || { enabled: false }
+    const data = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = data[from] || { enabled: false }
   }
 
-  if (groupSettings.enabled && !isAdmin) {
-    return
-  }
-  /* ───────────── */
+  if (groupSettings.enabled && !isAdmin) return
 
   const text = args.join(' ').trim()
 
   if (!text) {
-    return reply(
-`╭─❖ 「 🎧 ${botName} 」 ❖─╮
-│ ✍️ Uso: .play <canción>
-│ 🎵 Ejemplo: .play bad bunny
-╰─────────────────────────╯`)
+    return reply(`🎧 Uso: .play <canción>`)
   }
 
   try {
 
-    /* 🔎 BUSCAR VIDEO */
+    /* 🔎 Buscar video */
     const search = await yts(text)
+    if (!search.videos.length) return reply('❌ No encontré resultados')
 
-    if (!search.videos.length) {
-      return reply('❌ No encontré resultados')
-    }
+    const video = search.videos[0]
 
-    const v = search.videos[0]
-
-    const { title, url, thumbnail, timestamp, views, author } = v
-
-    /* 🎶 REACCIÓN */
     await sock.sendMessage(from, {
       react: { text: '🎶', key: m.key }
     })
 
-    /* 📊 INFO */
-    await sock.sendMessage(from, {
-      image: { url: thumbnail },
-      caption:
-`╔══════ 🎧 ${botName} 🎧 ══════╗
-║ 🎵 Título : ${title}
-║ 👤 Canal : ${author.name}
-║ ⏱ Duración : ${timestamp}
-║ 👁 Vistas : ${views.toLocaleString()}
-╚══════════════════════════════╝
+    const file = `./tmp/${Date.now()}.mp3`
 
-⏳ Descargando audio...`
-    }, { quoted: m })
+    /* 📥 Descargar audio */
+    const ytdlp = spawn('yt-dlp', [
+      '-x',
+      '--audio-format',
+      'mp3',
+      '-o',
+      file,
+      video.url
+    ])
 
-    /* 📥 API DESCARGA */
-    const api = `https://api.vevioz.com/api/button/mp3/${url}`
+    ytdlp.on('close', async (code) => {
 
-await sock.sendMessage(from, {
-  audio: { url: api },
-  mimetype: 'audio/mpeg',
-  fileName: `${title}.mp3`
-}, { quoted: m })
+      if (code !== 0) {
+        return reply('❌ Error descargando audio')
+      }
 
-return
+      await sock.sendMessage(from, {
+        audio: { url: file },
+        mimetype: 'audio/mpeg',
+        fileName: `${video.title}.mp3`
+      }, { quoted: m })
 
-    /* 📤 ENVIAR AUDIO */
-    await sock.sendMessage(from, {
-      audio: { url: audioUrl },
-      mimetype: 'audio/mpeg',
-      fileName: `${title}.mp3`
-    }, { quoted: m })
+      fs.unlinkSync(file)
 
-    /* ✅ REACCIÓN FINAL */
-    await sock.sendMessage(from, {
-      react: { text: '✅', key: m.key }
+      await sock.sendMessage(from, {
+        react: { text: '✅', key: m.key }
+      })
     })
 
   } catch (e) {
 
     console.log('PLAY ERROR:', e)
+    reply('❌ Error al procesar la canción')
 
-    reply(
-`╭─❖ 「 ERROR 」 ❖─╮
-│ ❌ No se pudo descargar
-│ 🔁 Intenta otra canción
-╰─────────────────╯`)
   }
 }
 
@@ -101,6 +78,5 @@ handler.command = ['play']
 handler.tags = ['descargas']
 handler.help = ['play <canción>']
 handler.menu = true
-handler.group = false
 
 export default handler
