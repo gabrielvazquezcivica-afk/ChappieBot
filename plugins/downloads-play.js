@@ -63,16 +63,15 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
     }, { quoted: m })
 
     /* 📥 API DESCARGA */
-    const api = `https://api.dorratz.com/ytmp3?url=${url}`
+    const api = `https://api.vevioz.com/api/button/mp3/${url}`
 
-    const res = await fetch(api)
-    const json = await res.json()
+await sock.sendMessage(from, {
+  audio: { url: api },
+  mimetype: 'audio/mpeg',
+  fileName: `${title}.mp3`
+}, { quoted: m })
 
-    if (!json.data?.download) {
-      throw new Error('No se pudo obtener el audio')
-    }
-
-    const audioUrl = json.data.download
+return
 
     /* 📤 ENVIAR AUDIO */
     await sock.sendMessage(from, {
