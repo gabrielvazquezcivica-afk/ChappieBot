@@ -4,10 +4,10 @@ import os from 'os'
 import path from 'path'
 import { spawn } from 'child_process'
 
-export const handler = async (m, { sock, from, args, reply, isGroup, sender, isAdmin }) => {
+export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
   const botName = sock.user?.name || 'ChappieBot'
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  /* 🔒 MODO ADMIN SILENCIOSO */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
 
@@ -17,14 +17,14 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
   }
 
   if (groupSettings.enabled && !isAdmin) return
-  /* ─────────────────────────────────── */
+  /* ───────────────────── */
 
   const text = args.join(' ').trim()
 
   if (!text) {
     return reply(
 `╭─❖ 「 🎧 ${botName} 」 ❖─╮
-│ ✍️ Uso: .play <nombre de la canción>
+│ ✍️ Uso: .play <canción>
 │ 🎵 Ejemplo: .play bad bunny
 ╰─────────────────────────╯`
     )
@@ -34,30 +34,26 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
 
     /* 🔍 BUSCAR EN YOUTUBE */
     const search = await yts(text)
-    if (!search.all.length) return reply('❌ No encontré resultados')
+
+    if (!search.all.length) {
+      return reply('❌ No encontré resultados')
+    }
 
     const v = search.all.find(v => v.seconds) || search.all[0]
 
-    const {
-      title,
-      url,
-      thumbnail,
-      author,
-      timestamp,
-      views,
-      ago
-    } = v
+    const { title, url, thumbnail, author, timestamp, views, ago } = v
 
-    /* 🎶 REACCIÓN INICIAL */
+    /* 🎶 REACCIÓN */
     await sock.sendMessage(from, {
       react: { text: '🎶', key: m.key }
     })
 
     /* 📁 ARCHIVO TEMPORAL */
-    const tmp = path.join(os.tmpdir(), `${Date.now()}.m4a`)
+    const base = path.join(os.tmpdir(), `${Date.now()}`)
+    const file = `${base}.m4a`
 
-    /* ⬇️ DESCARGA AUDIO */
-    const downloadPromise = new Promise((resolve, reject) => {
+    /* ⬇️ DESCARGAR AUDIO */
+    const download = new Promise((resolve, reject) => {
 
       const yt = spawn(
         'yt-dlp',
@@ -68,10 +64,10 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
           '--audio-quality', '0',
           '--no-playlist',
           '--geo-bypass',
-          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          '--user-agent', 'Mozilla/5.0',
           '--no-warnings',
           '--quiet',
-          '-o', tmp,
+          '-o', `${base}.%(ext)s`,
           url
         ],
         { stdio: 'ignore' }
@@ -90,23 +86,25 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
-`╔═══════ 🎧 ${botName} 🎧 ═══════╗
+`╔══════ 🎧 ${botName} 🎧 ══════╗
 ║ 🎵 Título   : ${title}
 ║ 👤 Canal    : ${author?.name || 'Desconocido'}
 ║ ⏱ Duración : ${timestamp}
 ║ 👁 Vistas   : ${views?.toLocaleString() || 'N/A'}
 ║ 📅 Subido   : ${ago || 'N/A'}
-╚═══════════════════════════════╝
+╚══════════════════════════════╝
 
 ⏳ Descargando audio...`
     }, { quoted: m })
 
     /* ⏳ ESPERAR DESCARGA */
-    await downloadPromise
+    await download
 
-    const audio = fs.readFileSync(tmp)
+    if (!fs.existsSync(file)) {
+      throw new Error('Archivo no generado')
+    }
 
-    if (fs.existsSync(tmp)) fs.unlinkSync(tmp)
+    const audio = fs.readFileSync(file)
 
     /* 📤 ENVIAR AUDIO */
     await sock.sendMessage(from, {
@@ -115,6 +113,9 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
       fileName: `${title}.m4a`
     }, { quoted: m })
 
+    /* 🧹 BORRAR TEMPORAL */
+    fs.unlinkSync(file)
+
     /* ✅ REACCIÓN FINAL */
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
@@ -122,7 +123,7 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
 
   } catch (e) {
 
-    console.error('PLAY ERROR:', e?.message || e)
+    console.error('PLAY ERROR:', e)
 
     reply(
 `╭─❖ 「 ERROR 」 ❖─╮
