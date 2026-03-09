@@ -10,14 +10,17 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
   /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
+
   if (fs.existsSync(modoadminPath)) {
     const modoadminSettings = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminSettings[from] || { enabled: false }
   }
-  if (groupSettings.enabled && !isAdmin) return // Silencioso si no es admin
+
+  if (groupSettings.enabled && !isAdmin) return
   /* ─────────────────────────────────── */
 
   const text = args.join(' ').trim()
+
   if (!text) {
     return reply(
 `╭─❖ 「 🎧 ${botName} 」 ❖─╮
@@ -28,24 +31,44 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
   }
 
   try {
+
     /* 🔍 BUSCAR EN YOUTUBE */
     const search = await yts(text)
     if (!search.all.length) return reply('❌ No encontré resultados')
 
     const v = search.all.find(v => v.seconds) || search.all[0]
-    const { title, url, thumbnail, author, timestamp, views, ago } = v
+
+    const {
+      title,
+      url,
+      thumbnail,
+      author,
+      timestamp,
+      views,
+      ago
+    } = v
 
     /* 🎶 REACCIÓN INICIAL */
-    await sock.sendMessage(from, { react: { text: '🎶', key: m.key } })
+    await sock.sendMessage(from, {
+      react: { text: '🎶', key: m.key }
+    })
 
-    /* ⬇️ DESCARGA EN PARALELO */
+    /* 📁 ARCHIVO TEMPORAL */
     const tmp = path.join(os.tmpdir(), `${Date.now()}.m4a`)
+
+    /* ⬇️ DESCARGA AUDIO */
     const downloadPromise = new Promise((resolve, reject) => {
+
       const yt = spawn(
         'yt-dlp',
         [
-          '-f', 'bestaudio[ext=m4a]/bestaudio',
+          '-f', 'bestaudio',
+          '--extract-audio',
+          '--audio-format', 'm4a',
+          '--audio-quality', '0',
           '--no-playlist',
+          '--geo-bypass',
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           '--no-warnings',
           '--quiet',
           '-o', tmp,
@@ -58,10 +81,12 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
         if (code === 0) resolve()
         else reject(new Error('yt-dlp falló'))
       })
+
       yt.on('error', reject)
+
     })
 
-    /* 📊 MENSAJE INFORMATIVO */
+    /* 📊 MENSAJE INFO */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
@@ -73,26 +98,32 @@ export const handler = async (m, { sock, from, args, reply, isGroup, sender, isA
 ║ 📅 Subido   : ${ago || 'N/A'}
 ╚═══════════════════════════════╝
 
-⏳ Enviando audio...`
+⏳ Descargando audio...`
     }, { quoted: m })
 
-    /* ⏱️ ESPERAR DESCARGA */
+    /* ⏳ ESPERAR DESCARGA */
     await downloadPromise
+
     const audio = fs.readFileSync(tmp)
-    fs.unlinkSync(tmp)
+
+    if (fs.existsSync(tmp)) fs.unlinkSync(tmp)
 
     /* 📤 ENVIAR AUDIO */
     await sock.sendMessage(from, {
-      audio,
-      mimetype: 'audio/mp4',
+      audio: audio,
+      mimetype: 'audio/mpeg',
       fileName: `${title}.m4a`
     }, { quoted: m })
 
     /* ✅ REACCIÓN FINAL */
-    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
 
   } catch (e) {
+
     console.error('PLAY ERROR:', e?.message || e)
+
     reply(
 `╭─❖ 「 ERROR 」 ❖─╮
 │ ❌ No se pudo obtener el audio
