@@ -10,15 +10,12 @@ export const handler = async (m, {
   from,
   args,
   reply,
-  sender
+  isOwner
 }) => {
 
-  // 👑 OWNER desde config.js
-  const owners = config.owner?.numbers || []
-  const senderNum = onlyNumber(sender)
-
-  if (!owners.includes(senderNum)) {
-    return reply('🔒 Este comando es solo para el *OWNER* del bot')
+  // 🔒 SOLO OWNER
+  if (!isOwner) {
+    return reply(global.config.messages.owner)
   }
 
   if (!args[0]) {
@@ -42,14 +39,16 @@ export const handler = async (m, {
 
   const inviteCode = match[1]
 
-  // ⏳ reacción
+  // ⏳ reacción de proceso
   await sock.sendMessage(from, {
     react: { text: '⏳', key: m.key }
   })
 
   try {
+
     await sock.groupAcceptInvite(inviteCode)
 
+    // ✅ reacción de éxito
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
     })
@@ -57,11 +56,14 @@ export const handler = async (m, {
     reply(
 `✅ *UNIDO AL GRUPO*
 
-🤖 ChappieBot ya está dentro del grupo
+🤖 ChappieBot ya entró al grupo correctamente
 👑 Acción autorizada por el OWNER`
     )
+
   } catch (e) {
-    console.error(e)
+
+    console.error('JOIN ERROR:', e)
+
     reply(
 `❌ *NO PUDE UNIRME*
 
@@ -75,7 +77,8 @@ Posibles causas:
 
 handler.command = ['join']
 handler.tags = ['owner']
-handler.owner = true
+handler.help = ['join <link>']
 handler.menu = true
+handler.owner = true
 
 export default handler
