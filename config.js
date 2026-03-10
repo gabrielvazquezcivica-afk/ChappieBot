@@ -26,16 +26,14 @@ const config = {
   owner: {
     name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
 
-    // números crudos
+    // número crudo
     numbers: [
-      '13652980907',
-      '215590228750567'
+      '13652980907'
     ],
 
     // JID base
     jid: [
-      '13652980907@s.whatsapp.net',
-      '215590228750567@lid'
+      '13652980907@s.whatsapp.net'
     ]
   },
 
