@@ -1,63 +1,32 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { createCanvas, loadImage, registerFont } from 'canvas'
+import axios from 'axios'
+import { spawn } from 'child_process'
 
-/* ───── 🖌 FUNCIÓN: TEXTO → STICKER WEBP ───── */
-async function createStickerFromText(text) {
-  const size = 512
-  const canvas = createCanvas(size, size)
-  const ctx = canvas.getContext('2d')
+/* ───── 🧷 FUNCIÓN: PNG → WEBP (STICKER) ───── */
+async function createSticker(buffer) {
+  const tmpIn = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
+  const tmpOut = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
+  const tmpProcessed = path.join(os.tmpdir(), `brat_processed_${Date.now()}.png`)
+  fs.writeFileSync(tmpIn, buffer)
 
-  // Fondo blanco
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fillRect(0, 0, size, size)
-
-  // Letras negras, centradas y con word-wrap
-  ctx.fillStyle = '#000000'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-
-  // Fuente: puedes cambiar a la que quieras
-  ctx.font = 'bold 48px Sans'
-
-  // Función de word-wrap
-  const words = text.split(' ')
-  let line = ''
-  const lines = []
-  const maxWidth = size - 40
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' '
-    const metrics = ctx.measureText(testLine)
-    if (metrics.width > maxWidth && n > 0) {
-      lines.push(line.trim())
-      line = words[n] + ' '
-    } else {
-      line = testLine
-    }
-  }
-  lines.push(line.trim())
-
-  // Dibujar líneas centradas verticalmente
-  const lineHeight = 50
-  const totalHeight = lines.length * lineHeight
-  let y = size / 2 - totalHeight / 2 + lineHeight / 2
-  for (const l of lines) {
-    ctx.fillText(l, size / 2, y)
-    y += lineHeight
-  }
-
-  // Guardar como PNG temporal
-  const tmpFile = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
-  const buffer = canvas.toBuffer('image/png')
-  fs.writeFileSync(tmpFile, buffer)
-
-  // Convertir a WebP con ffmpeg
-  const tmpWebp = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
+  // ───── Procesar con ffmpeg: letras negras, fondo blanco ─────
   await new Promise((resolve, reject) => {
-    const { spawn } = require('child_process')
+    const ffProc = spawn('ffmpeg', [
+      '-i', tmpIn,
+      '-vf',
+      `colorchannelmixer=.0:.0:.0:0:.0:.0:.0:0:.0:.0:.0:0,format=rgba`,
+      tmpProcessed
+    ])
+    ffProc.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg fallo')))
+    ffProc.on('error', reject)
+  })
+
+  // ───── Convertir a WEBP para sticker ─────
+  await new Promise((resolve, reject) => {
     const ff = spawn('ffmpeg', [
-      '-i', tmpFile,
+      '-i', tmpProcessed,
       '-vcodec', 'libwebp',
       '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
       '-lossless', '1',
@@ -65,32 +34,61 @@ async function createStickerFromText(text) {
       '-preset', 'default',
       '-an',
       '-vsync', '0',
-      tmpWebp
+      tmpOut
     ])
-    ff.on('close', code => code === 0 ? resolve() : reject(new Error('ffmpeg falló')))
+    ff.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg fallo')))
     ff.on('error', reject)
   })
 
-  fs.unlinkSync(tmpFile)
-  const result = fs.readFileSync(tmpWebp)
-  fs.unlinkSync(tmpWebp)
+  const result = fs.readFileSync(tmpOut)
+  fs.unlinkSync(tmpIn)
+  fs.unlinkSync(tmpProcessed)
+  fs.unlinkSync(tmpOut)
   return result
 }
 
 /* ───── COMANDO BRAT ───── */
-export const handler = async (m, { sock, from, args, reply }) => {
-  const text = args.join(' ').trim()
-  if (!text) return reply('❌ Escribe un texto\nEjemplo: `.brat Hola mundo`')
+export const handler = async (m, {
+  sock,
+  from,
+  isGroup,
+  sender,
+  reply,
+  args
+}) => {
 
-  // ⏳ reacción inicial
+  const text = args.join(' ').trim()
+  if (!text) {
+    return reply('❌ Escribe un texto\nEjemplo: `.brat Hola mundo`')
+  }
+
+  // 🎯 Reacción al iniciar
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
   try {
-    const sticker = await createStickerFromText(text)
+    // ───── Descargar imagen desde API ─────
+    const res = await axios.get(
+      'https://kepolu-brat.hf.space/brat',
+      {
+        params: { q: text },
+        responseType: 'arraybuffer'
+      }
+    )
 
-    await sock.sendMessage(from, { sticker }, { quoted: m })
+    if (!res.data || !res.data.byteLength) {
+      throw new Error('Respuesta vacía')
+    }
 
-    // ✅ reacción final
+    const sticker = await createSticker(res.data)
+
+    // ───── Enviar sticker ─────
+    await sock.sendMessage(
+      from,
+      { sticker },
+      { quoted: m }
+    )
+
+    // ✅ Reacción final
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
