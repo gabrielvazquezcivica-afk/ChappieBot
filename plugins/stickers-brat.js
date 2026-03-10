@@ -1,18 +1,63 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import axios from 'axios'
-import { spawn } from 'child_process'
+import { createCanvas, loadImage, registerFont } from 'canvas'
 
-/* ───── 🧷 FUNCIÓN: PNG → WEBP (STICKER) ───── */
-async function createSticker(buffer) {
-  const tmpIn = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
-  const tmpOut = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
-  fs.writeFileSync(tmpIn, buffer)
+/* ───── 🖌 FUNCIÓN: TEXTO → STICKER WEBP ───── */
+async function createStickerFromText(text) {
+  const size = 512
+  const canvas = createCanvas(size, size)
+  const ctx = canvas.getContext('2d')
 
+  // Fondo blanco
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(0, 0, size, size)
+
+  // Letras negras, centradas y con word-wrap
+  ctx.fillStyle = '#000000'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  // Fuente: puedes cambiar a la que quieras
+  ctx.font = 'bold 48px Sans'
+
+  // Función de word-wrap
+  const words = text.split(' ')
+  let line = ''
+  const lines = []
+  const maxWidth = size - 40
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' '
+    const metrics = ctx.measureText(testLine)
+    if (metrics.width > maxWidth && n > 0) {
+      lines.push(line.trim())
+      line = words[n] + ' '
+    } else {
+      line = testLine
+    }
+  }
+  lines.push(line.trim())
+
+  // Dibujar líneas centradas verticalmente
+  const lineHeight = 50
+  const totalHeight = lines.length * lineHeight
+  let y = size / 2 - totalHeight / 2 + lineHeight / 2
+  for (const l of lines) {
+    ctx.fillText(l, size / 2, y)
+    y += lineHeight
+  }
+
+  // Guardar como PNG temporal
+  const tmpFile = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
+  const buffer = canvas.toBuffer('image/png')
+  fs.writeFileSync(tmpFile, buffer)
+
+  // Convertir a WebP con ffmpeg
+  const tmpWebp = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
   await new Promise((resolve, reject) => {
+    const { spawn } = require('child_process')
     const ff = spawn('ffmpeg', [
-      '-i', tmpIn,
+      '-i', tmpFile,
       '-vcodec', 'libwebp',
       '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,fps=15',
       '-lossless', '1',
@@ -20,79 +65,32 @@ async function createSticker(buffer) {
       '-preset', 'default',
       '-an',
       '-vsync', '0',
-      tmpOut
+      tmpWebp
     ])
-    ff.on('close', code => code === 0 ? resolve() : reject())
+    ff.on('close', code => code === 0 ? resolve() : reject(new Error('ffmpeg falló')))
     ff.on('error', reject)
   })
 
-  const result = fs.readFileSync(tmpOut)
-  fs.unlinkSync(tmpIn)
-  fs.unlinkSync(tmpOut)
+  fs.unlinkSync(tmpFile)
+  const result = fs.readFileSync(tmpWebp)
+  fs.unlinkSync(tmpWebp)
   return result
 }
 
 /* ───── COMANDO BRAT ───── */
-export const handler = async (m, {
-  sock,
-  from,
-  isGroup,
-  sender,
-  reply,
-  args
-}) => {
-
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
-  let groupSettings = { enabled: false }
-  const modoadminPath = './data/modoadmin.json'
-  if (fs.existsSync(modoadminPath)) {
-    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = modoadminData[from] || { enabled: false }
-  }
-
-  if (groupSettings.enabled && isGroup) {
-    let isAdmin = false
-    try {
-      const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-      isAdmin = participants.some(
-        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-    } catch {}
-    if (!isAdmin) return
-  }
-  /* ─────────────────────────────────── */
-
+export const handler = async (m, { sock, from, args, reply }) => {
   const text = args.join(' ').trim()
-  if (!text) {
-    return reply('❌ Escribe un texto\nEjemplo: `.brat Hola mundo`')
-  }
+  if (!text) return reply('❌ Escribe un texto\nEjemplo: `.brat Hola mundo`')
 
-  // 🎯 Reacción al iniciar
+  // ⏳ reacción inicial
   await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
 
   try {
-    const res = await axios.get(
-      'https://kepolu-brat.hf.space/brat',
-      {
-        params: { q: text },
-        responseType: 'arraybuffer'
-      }
-    )
+    const sticker = await createStickerFromText(text)
 
-    if (!res.data || !res.data.byteLength) {
-      throw new Error('Respuesta vacía')
-    }
+    await sock.sendMessage(from, { sticker }, { quoted: m })
 
-    const sticker = await createSticker(res.data)
-
-    await sock.sendMessage(
-      from,
-      { sticker },
-      { quoted: m }
-    )
-
-    // ✅ Reacción final
+    // ✅ reacción final
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
   } catch (e) {
