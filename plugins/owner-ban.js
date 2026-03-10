@@ -5,33 +5,31 @@ const banPath = path.join('./data/ban.json')
 
 // Cargar lista de baneos
 let banList = {}
-if (fs.existsSync(banPath)) {
-  banList = JSON.parse(fs.readFileSync(banPath))
-}
+if (fs.existsSync(banPath)) banList = JSON.parse(fs.readFileSync(banPath))
 
-// Guardar lista de baneos
 const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
+
+const normalizeJid = (jid) => {
+  if (!jid) return null
+  return jid.includes('@') ? jid : (jid.length > 15 ? jid+'@lid' : jid+'@s.whatsapp.net')
+}
 
 export const handler = async (m, { sock, from, args, sender, isOwner }) => {
   if (!isOwner) return sock.sendMessage(from, { text: '🚫 Solo el OWNER puede usar este comando' }, { quoted: m })
 
-  if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .ban <número o @tag>' }, { quoted: m })
+  if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .ban <@tag o número>' }, { quoted: m })
 
-  const clean = args[0].replace(/[^0-9]/g, '')
-  const jid = clean.length > 15 ? clean + '@lid' : clean + '@s.whatsapp.net'
+  const mention = m.mentionedJid?.[0] || normalizeJid(args[0])
+  if (!mention) return sock.sendMessage(from, { text: '❌ Usuario no válido' }, { quoted: m })
 
-  if (banList[jid]) return sock.sendMessage(from, { text: '⚠️ Este usuario ya está baneado' }, { quoted: m })
+  if (banList[mention]) return sock.sendMessage(from, { text: '⚠️ Este usuario ya está baneado' }, { quoted: m })
 
-  // Guardar ban
-  banList[jid] = true
+  banList[mention] = true
   saveBanList()
 
   await sock.sendMessage(from, {
-    text: `╭─〔 🚫 BAN GLOBAL 〕
-│ Usuario: @${clean}
-│ Estado: Baneado
-╰────────────`,
-    mentions: [jid]
+    text: `╭─〔 🚫 BAN GLOBAL 〕\n│ Usuario baneado\n╰────────────`,
+    mentions: [mention]
   }, { quoted: m })
 }
 
@@ -39,5 +37,4 @@ handler.command = ['ban']
 handler.tags = ['owner']
 handler.owner = true
 handler.menu = true
-
 export default handler
