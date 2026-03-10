@@ -152,7 +152,7 @@ async function startBot () {
     // 🔹 CALCULAR SI ES OWNER
     let isOwner = false
     const owners = global.config.owner?.numbers || []
-    const senderNumber = sender ? sender.replace(/[^0-9]/g, '') : null
+    const senderNumber = sender?.split('@')[0].split(':')[0]
     if (senderNumber) isOwner = owners.includes(senderNumber)
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
