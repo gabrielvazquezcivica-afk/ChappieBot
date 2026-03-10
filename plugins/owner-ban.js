@@ -1,18 +1,17 @@
 import fs from 'fs'
 import path from 'path'
 
-const dataDir = './data'
-const banPath = path.join(dataDir, 'ban.json')
-
-// asegurar carpeta
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir)
-}
+const banPath = path.join('./data/ban.json')
 
 // cargar lista
-let banList = []
+let banList = {}
+
 if (fs.existsSync(banPath)) {
-  banList = JSON.parse(fs.readFileSync(banPath))
+  try {
+    banList = JSON.parse(fs.readFileSync(banPath))
+  } catch {
+    banList = {}
+  }
 }
 
 // guardar lista
@@ -20,58 +19,25 @@ const saveBanList = () => {
   fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
 }
 
-// limpiar número
 const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
 
-export const handler = async (m, {
-  sock,
-  from,
-  sender,
-  reply,
-  isOwner,
-  args
-}) => {
+export const handler = async (m, { reply, isOwner, args }) => {
 
-  const msgs = global.config.messages || {}
-
-  // 🔒 solo owner
   if (!isOwner) {
-    return reply(msgs.owner || '⚠️ Este comando es solo para el propietario')
+    return reply(global.config.messages.owner)
   }
 
-  let target
-
-  // por tag
-  if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
-    target = m.message.extendedTextMessage.contextInfo.mentionedJid[0]
+  if (!args[0]) {
+    return reply('📌 Uso: .ban <numero>')
   }
 
-  // por reply
-  else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
-    target = m.message.extendedTextMessage.contextInfo.participant
-  }
+  const clean = onlyNumber(args[0])
 
-  // por número
-  else if (args[0]) {
-    target = args[0]
-  }
-
-  if (!target) {
-    return reply('📌 Uso: .ban <número | @tag | responder mensaje>')
-  }
-
-  const clean = onlyNumber(target)
-
-  // evitar banear owner
-  if (global.config.owner.numbers.includes(clean)) {
-    return reply('❌ No puedes banear al OWNER')
-  }
-
-  if (banList.includes(clean)) {
+  if (banList[clean]) {
     return reply('⚠️ Este usuario ya está baneado')
   }
 
-  banList.push(clean)
+  banList[clean] = true
   saveBanList()
 
   reply(`✅ Usuario ${clean} baneado globalmente`)
@@ -79,7 +45,6 @@ export const handler = async (m, {
 
 handler.command = ['ban']
 handler.tags = ['owner']
-handler.help = ['ban <numero|@tag>']
 handler.owner = true
 handler.menu = true
 
