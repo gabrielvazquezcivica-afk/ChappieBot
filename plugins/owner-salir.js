@@ -5,6 +5,7 @@ function onlyNumber(jid = '') {
 }
 
 export const handler = async (m, { sock, from, reply }) => {
+  // ───── DETERMINAR QUIÉN USA EL COMANDO ─────
   const senderJid = m.key?.participant || m.sender
   const senderNum = onlyNumber(senderJid)
   const ownerNums = config.owner.numbers.map(n => onlyNumber(n))
@@ -14,7 +15,7 @@ export const handler = async (m, { sock, from, reply }) => {
   }
 
   try {
-    // ───── MENSAJE AMABLE + ESTILO FUTURISTA ─────
+    // ───── MENSAJE ESTILO FUTURISTA ─────
     const botName = sock.user?.name || 'ChappieBot'
     const mensaje = `
 ╭─❖ 「 ⚡ ${botName} 」 ❖─╮
@@ -33,6 +34,7 @@ export const handler = async (m, { sock, from, reply }) => {
 
     // ───── SALIR DEL GRUPO ─────
     await sock.groupLeave(from)
+
   } catch (e) {
     console.error('ERROR al salir del grupo:', e)
     reply('❌ Ocurrió un error al intentar salir del grupo.')
