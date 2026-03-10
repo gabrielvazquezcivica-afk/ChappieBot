@@ -154,11 +154,23 @@ async function startBot () {
     // 🔹 CALCULAR SI ES OWNER
 let isOwner = false
 
+const ownerNumbers = global.config.owner?.numbers || []
 const ownerJids = global.config.owner?.jid || []
 
-if (sender && ownerJids.includes(sender)) {
+let senderNumber = ''
+if (sender) {
+  senderNumber = sender.split('@')[0].split(':')[0]
+}
+
+// comprobar por número
+if (senderNumber && ownerNumbers.includes(senderNumber)) {
   isOwner = true
 }
+
+// comprobar por JID (LID o normal)
+if (sender && ownerJids.includes(sender)) {
+  isOwner = true
+  }
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
