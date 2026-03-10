@@ -1,25 +1,31 @@
 // ───── HELPERS ─────
-function normalizeJid (u) {
+function normalizeJid(u) {
   return typeof u === 'string' ? u : u?.id
 }
 
-function onlyNumber (jid = '') {
+function onlyNumber(jid = '') {
   return normalizeJid(jid)?.replace(/[^0-9]/g, '')
 }
 
 // ───── COMANDO AUTOADMIN ─────
-export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
+export const handler = async (m, {
+  sock,
+  from,
+  sender,
+  isGroup,
+  isOwner,
+  reply
+}) => {
+
   const msgs = global.config.messages || {}
 
+  // 🔒 Solo grupos
   if (!isGroup) {
     return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
   }
 
-  // 🔹 OWNER del bot desde config
-  const owners = global.config.owner?.numbers || []
-  const senderNum = onlyNumber(sender)
-
-  if (!owners.includes(senderNum)) {
+  // 👑 Solo OWNER
+  if (!isOwner) {
     return reply(msgs.owner || '⚠️ Este comando es solo para el propietario')
   }
 
@@ -29,6 +35,8 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   } catch {
     return reply(msgs.error || '❌ No pude obtener información del grupo')
   }
+
+  const senderNum = onlyNumber(sender)
 
   const participant = metadata.participants.find(
     p => onlyNumber(p.id) === senderNum
@@ -48,6 +56,7 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
   }
 
   try {
+
     await sock.groupParticipantsUpdate(from, [participant.id], 'promote')
 
     await sock.sendMessage(from, {
@@ -60,18 +69,22 @@ export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
 │ Rol: ADMIN
 ╰──────────────`
     )
+
   } catch {
+
     reply(
 `╭─〔 ❌ ERROR 〕
 │ No pude promover al OWNER
 │ El bot no es admin
 ╰────────────`
     )
+
   }
 }
 
 handler.command = ['autoadmin']
 handler.tags = ['owner']
+handler.help = ['autoadmin']
 handler.owner = true
 handler.group = true
 handler.menu = true
