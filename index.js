@@ -149,7 +149,7 @@ async function startBot () {
       }
     }
 
-    console.log('SENDER RAW:', sender)
+)
 
     // 🔹 CALCULAR SI ES OWNER
 let isOwner = false
