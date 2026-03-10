@@ -4,26 +4,51 @@ import config from '../config.js'
 
 const banPath = path.join('./data/ban.json')
 
-let banList = []
+// cargar lista
+let banList = {}
+
 if (fs.existsSync(banPath)) {
-  banList = JSON.parse(fs.readFileSync(banPath))
+  try {
+    banList = JSON.parse(fs.readFileSync(banPath))
+  } catch {
+    banList = {}
+  }
 }
 
-const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
+const saveBanList = () => {
+  fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
+}
 
-export const handler = async (m, { reply, sender, isOwner, args }) => {
+const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
+
+export const handler = async (m, {
+  sock,
+  from,
+  reply,
+  isOwner,
+  args
+}) => {
+
   if (!isOwner) return reply('🚫 Solo el OWNER puede usar este comando')
 
-  const target = args[0]
-  if (!target) return reply('📌 Uso: .unban <número o @tag>')
+  if (!args[0]) {
+    return reply('📌 Uso: .unban <numero | @tag>')
+  }
 
-  const clean = target.replace(/[^0-9]/g, '')
-  if (!banList.includes(clean)) return reply('⚠️ Este usuario no está baneado')
+  const clean = onlyNumber(args[0])
+  const jid = clean + '@s.whatsapp.net'
 
-  banList = banList.filter(u => u !== clean)
+  if (!banList[clean]) {
+    return reply('⚠️ Este usuario no está baneado')
+  }
+
+  delete banList[clean]
   saveBanList()
 
-  reply(`✅ Usuario ${clean} desbaneado`)
+  await sock.sendMessage(from, {
+    text: `✅ Usuario @${clean} desbaneado`,
+    mentions: [jid]
+  }, { quoted: m })
 }
 
 handler.command = ['unban']
