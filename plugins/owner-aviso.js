@@ -1,11 +1,25 @@
 // ───── AVISO GLOBAL A TODOS LOS GRUPOS ─────
 export const handler = async (m, { sock, args, isOwner, reply }) => {
 
-  if (!isOwner) return reply('❌ Solo el OWNER puede usar este comando')
+  const msgs = global.config.messages || {}
+
+  // 🔒 Solo OWNER
+  if (!isOwner) {
+    return reply(msgs.owner || '⚠️ Este comando es solo para el propietario')
+  }
 
   const msg = args.join(' ').trim()
+
   if (!msg) {
-    return reply('✳️ Uso correcto:\n.aviso <mensaje>\n\nEjemplo:\n.aviso El bot estará en mantenimiento')
+    return reply(
+`📢 *AVISO GLOBAL*
+
+Uso:
+.aviso <mensaje>
+
+Ejemplo:
+.aviso El bot estará en mantenimiento`
+    )
   }
 
   // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
@@ -34,12 +48,14 @@ export const handler = async (m, { sock, args, isOwner, reply }) => {
     return reply('❌ El bot no está en ningún grupo')
   }
 
-  reply(`📢 Enviando aviso a ${groups.length} grupos...`)
+  reply(`📡 Enviando aviso a *${groups.length}* grupos...`)
 
   let enviados = 0
 
   for (const gid of groups) {
+
     try {
+
       const meta = await sock.groupMetadata(gid)
       const mentions = meta.participants.map(p => p.id)
 
@@ -53,16 +69,22 @@ export const handler = async (m, { sock, args, isOwner, reply }) => {
       )
 
       enviados++
+
     } catch (e) {
-      console.log('❌ Error enviando a:', gid)
+
+      console.log('❌ Error enviando aviso a:', gid)
+
     }
+
   }
 
-  reply(`✅ Aviso enviado a ${enviados} grupos`)
+  reply(`✅ Aviso enviado correctamente a *${enviados}* grupos`)
 }
 
 handler.command = ['aviso']
 handler.tags = ['owner']
+handler.help = ['aviso <mensaje>']
 handler.menu = true
 handler.owner = true
+
 export default handler
