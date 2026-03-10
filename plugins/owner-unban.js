@@ -1,10 +1,8 @@
 import fs from 'fs'
 import path from 'path'
-import config from '../config.js'
 
 const banPath = path.join('./data/ban.json')
 
-// cargar lista
 let banList = {}
 
 if (fs.existsSync(banPath)) {
@@ -24,31 +22,52 @@ const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
 export const handler = async (m, {
   sock,
   from,
-  reply,
-  isOwner,
-  args
+  args,
+  isOwner
 }) => {
 
-  if (!isOwner) return reply('🚫 Solo el OWNER puede usar este comando')
-
-  if (!args[0]) {
-    return reply('📌 Uso: .unban <numero | @tag>')
+  if (!isOwner) {
+    return sock.sendMessage(from,{ text:'🚫 Solo el OWNER puede usar este comando'},{ quoted:m })
   }
 
-  const clean = onlyNumber(args[0])
-  const jid = clean + '@s.whatsapp.net'
+  let target
+
+  // tag
+  if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
+    target = m.message.extendedTextMessage.contextInfo.mentionedJid[0]
+  }
+
+  // reply
+  else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
+    target = m.message.extendedTextMessage.contextInfo.participant
+  }
+
+  // numero
+  else if (args[0]) {
+    target = args[0]
+  }
+
+  if (!target) {
+    return sock.sendMessage(from,{
+      text:'📌 Uso: .unban @usuario | responder | número'
+    },{ quoted:m })
+  }
+
+  const clean = onlyNumber(target)
 
   if (!banList[clean]) {
-    return reply('⚠️ Este usuario no está baneado')
+    return sock.sendMessage(from,{
+      text:'⚠️ Este usuario no está baneado'
+    },{ quoted:m })
   }
 
   delete banList[clean]
   saveBanList()
 
-  await sock.sendMessage(from, {
-    text: `✅ Usuario @${clean} desbaneado`,
-    mentions: [jid]
-  }, { quoted: m })
+  await sock.sendMessage(from,{
+    text:`✅ Usuario @${clean} desbaneado`,
+    mentions:[clean+'@s.whatsapp.net']
+  },{ quoted:m })
 }
 
 handler.command = ['unban']
