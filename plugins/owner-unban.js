@@ -1,91 +1,41 @@
 import fs from 'fs'
 import path from 'path'
+import config from '../config.js'
 
 const banPath = path.join('./data/ban.json')
 
-// ───── CARGAR BAN LIST ─────
+// Cargar lista de baneos
 let banList = {}
-
 if (fs.existsSync(banPath)) {
-  try {
-    banList = JSON.parse(fs.readFileSync(banPath))
-  } catch {
-    banList = {}
-  }
+  banList = JSON.parse(fs.readFileSync(banPath))
 }
 
-// ───── GUARDAR BAN LIST ─────
-const saveBanList = () => {
-  fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
-}
+// Guardar lista de baneos
+const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
 
-// ───── LIMPIAR NÚMERO ─────
-const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
+// ───── COMANDO UNBAN ─────
+export const handler = async (m, { sock, from, args, sender, isOwner }) => {
+  if (!isOwner) return sock.sendMessage(from, { text: '🚫 Solo el OWNER puede usar este comando' }, { quoted: m })
 
-export const handler = async (m, {
-  sock,
-  from,
-  args,
-  isOwner
-}) => {
+  if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .unban <número o @tag>' }, { quoted: m })
 
-  if (!isOwner) {
-    return sock.sendMessage(from,{
-      text:'🚫 Solo el OWNER puede usar este comando'
-    },{ quoted:m })
-  }
-
-  let target
-
-  // 📌 TAG
-  if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
-    target = m.message.extendedTextMessage.contextInfo.mentionedJid[0]
-  }
-
-  // 📌 REPLY
-  else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
-    target = m.message.extendedTextMessage.contextInfo.participant
-  }
-
-  // 📌 NUMERO
-  else if (args[0]) {
-    target = args[0]
-  }
-
-  if (!target) {
-    return sock.sendMessage(from,{
-      text:
-`📌 *USO DEL COMANDO*
-
-.unban @usuario
-.unban (responder mensaje)
-.unban número`
-    },{ quoted:m })
-  }
-
-  const clean = onlyNumber(target)
-
-  if (!banList[clean]) {
-    return sock.sendMessage(from,{
-      text:'⚠️ Este usuario no está baneado'
-    },{ quoted:m })
-  }
-
-  // ❌ ELIMINAR BAN
-  delete banList[clean]
-  saveBanList()
-
+  const clean = args[0].replace(/[^0-9]/g, '')
   const jid = clean + '@s.whatsapp.net'
 
-  // ✅ MENSAJE CON MENCIÓN
-  await sock.sendMessage(from,{
-    text:
-`╭─〔 ✅ DESBAN GLOBAL 〕
+  if (!banList[jid]) return sock.sendMessage(from, { text: '⚠️ Este usuario no está baneado' }, { quoted: m })
+
+  // Eliminar del ban
+  delete banList[jid]
+  saveBanList()
+
+  // Mensaje con mención
+  await sock.sendMessage(from, {
+    text: `╭─〔 ✅ DESBAN GLOBAL 〕
 │ Usuario: @${clean}
 │ Estado: Desbaneado
 ╰────────────`,
-    mentions:[jid]
-  },{ quoted:m })
+    mentions: [jid]
+  }, { quoted: m })
 }
 
 handler.command = ['unban']
