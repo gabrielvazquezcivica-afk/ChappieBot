@@ -24,18 +24,16 @@ const config = {
 
   // ───── OWNER ─────
   owner: {
-    name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
+  name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
 
-    // número crudo
-    numbers: [
-      '13652980907'
-    ],
+  numbers: [
+    '13652980907'
+  ],
 
-    // JID base
-    jid: [
-      '13652980907@s.whatsapp.net'
-    ]
-  },
+  jid: [
+    '1216247509077@lid'
+  ]
+},
 
   // ───── LOGIN ─────
   login: {
