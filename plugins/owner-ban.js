@@ -1,71 +1,40 @@
 import fs from 'fs'
 import path from 'path'
+import config from '../config.js'
 
 const banPath = path.join('./data/ban.json')
 
-// cargar lista
+// Cargar lista de baneos (objeto)
 let banList = {}
-
 if (fs.existsSync(banPath)) {
-  try {
-    banList = JSON.parse(fs.readFileSync(banPath))
-  } catch {
-    banList = {}
-  }
+  banList = JSON.parse(fs.readFileSync(banPath))
 }
 
-const saveBanList = () => {
-  fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
-}
+// Guardar lista de baneos
+const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
 
-const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
+// ───── COMANDO BAN ─────
+export const handler = async (m, { sock, from, args, sender, isOwner }) => {
+  if (!isOwner) return sock.sendMessage(from, { text: '🚫 Solo el OWNER puede usar este comando' }, { quoted: m })
 
-export const handler = async (m, {
-  sock,
-  from,
-  args,
-  isOwner
-}) => {
+  if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .ban <número o @tag>' }, { quoted: m })
 
-  if (!isOwner) {
-    return sock.sendMessage(from, { text: global.config.messages.owner }, { quoted: m })
-  }
+  const clean = args[0].replace(/[^0-9]/g, '')
+  const jid = clean + '@s.whatsapp.net'
 
-  let target
+  if (banList[jid]) return sock.sendMessage(from, { text: '⚠️ Este usuario ya está baneado' }, { quoted: m })
 
-  // por tag
-  if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
-    target = m.message.extendedTextMessage.contextInfo.mentionedJid[0]
-  }
-
-  // por reply
-  else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
-    target = m.message.extendedTextMessage.contextInfo.participant
-  }
-
-  // por número
-  else if (args[0]) {
-    target = onlyNumber(args[0]) + '@s.whatsapp.net'
-  }
-
-  if (!target) {
-    return sock.sendMessage(from, {
-      text: '📌 Uso: .ban @usuario | responder mensaje | número'
-    }, { quoted: m })
-  }
-
-  const clean = onlyNumber(target)
-
-  if (banList[clean]) {
-    return sock.sendMessage(from, { text: '⚠️ Este usuario ya está baneado' }, { quoted: m })
-  }
-
-  banList[clean] = true
+  // Agregar al ban
+  banList[jid] = true
   saveBanList()
 
+  // Mensaje con mención
   await sock.sendMessage(from, {
-    text: `🚫 Usuario @${clean} baneado globalmente`,
-    mentions: [target]
+    text: `╭─〔 🚫 BAN GLOBAL 〕
+│ Usuario: @${clean}
+│ Estado: Baneado
+╰────────────`,
+    mentions: [jid]
   }, { quoted: m })
 }
 
