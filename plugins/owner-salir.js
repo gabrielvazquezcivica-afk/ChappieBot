@@ -1,22 +1,16 @@
 import config from '../config.js'
 
-function onlyNumber(jid = '') {
-  return jid?.toString().replace(/[^0-9]/g, '')
-}
+export const handler = async (m, { sock, from, reply, isOwner }) => {
 
-export const handler = async (m, { sock, from, reply }) => {
-  // ───── DETERMINAR QUIÉN USA EL COMANDO ─────
-  const senderJid = m.key?.participant || m.sender
-  const senderNum = onlyNumber(senderJid)
-  const ownerNums = config.owner.numbers.map(n => onlyNumber(n))
-
-  if (!ownerNums.includes(senderNum)) {
-    return reply('🚫 Solo el OWNER del bot puede usar este comando.')
+  // 🔒 SOLO OWNER
+  if (!isOwner) {
+    return reply(global.config.messages.owner)
   }
 
   try {
-    // ───── MENSAJE ESTILO FUTURISTA ─────
     const botName = sock.user?.name || 'ChappieBot'
+
+    // ───── MENSAJE DE DESPEDIDA ─────
     const mensaje = `
 ╭─❖ 「 ⚡ ${botName} 」 ❖─╮
 │ 👋 Hola amig@s, gracias por la diversión
@@ -36,15 +30,16 @@ export const handler = async (m, { sock, from, reply }) => {
     await sock.groupLeave(from)
 
   } catch (e) {
-    console.error('ERROR al salir del grupo:', e)
+    console.error('SALIR ERROR:', e)
     reply('❌ Ocurrió un error al intentar salir del grupo.')
   }
 }
 
 handler.command = ['salir']
 handler.tags = ['owner']
+handler.help = ['salir']
+handler.menu = true
 handler.owner = true
 handler.group = true
-handler.menu = true
 
 export default handler
