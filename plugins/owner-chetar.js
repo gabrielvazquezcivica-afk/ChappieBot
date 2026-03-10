@@ -12,17 +12,11 @@ function saveDB(data) {
   fs.writeFileSync(registroPath, JSON.stringify(data, null, 2))
 }
 
-function onlyNumber(jid = '') {
-  return jid.replace(/[^0-9]/g, '')
-}
+// ───── COMANDO ─────
+export const handler = async (m, { sock, from, sender, args, reply, isOwner }) => {
 
-export const handler = async (m, { sock, from, sender, args, reply }) => {
-
-  // 👑 OWNER
-  const owners = global.config.owner?.numbers || []
-  const senderNum = onlyNumber(sender)
-
-  if (!owners.includes(senderNum)) {
+  // 🔒 SOLO OWNER
+  if (!isOwner) {
     return reply('🚫 Solo el OWNER puede usar este comando')
   }
 
@@ -33,7 +27,7 @@ export const handler = async (m, { sock, from, sender, args, reply }) => {
 
   const db = loadDB()
 
-  // 🎯 objetivo
+  // 🎯 Usuario objetivo
   let target = sender
   if (m.mentionedJid && m.mentionedJid[0]) {
     target = m.mentionedJid[0]
@@ -58,7 +52,7 @@ export const handler = async (m, { sock, from, sender, args, reply }) => {
   const text = `
 😈 CHETADO EXITOSO
 
-👤 Usuario: @${onlyNumber(target)}
+👤 Usuario: @${target.split('@')[0]}
 💰 Coins: +${coins}
 ✨ EXP: +${exp}
 ⭐ Nivel: +${level}
