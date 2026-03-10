@@ -1,45 +1,46 @@
 import fs from 'fs'
 import path from 'path'
-import config from '../config.js'
 
 const banPath = path.join('./data/ban.json')
 
-// Cargar lista de baneos
+// cargar lista
 let banList = {}
+
 if (fs.existsSync(banPath)) {
-  banList = JSON.parse(fs.readFileSync(banPath))
+  try {
+    banList = JSON.parse(fs.readFileSync(banPath))
+  } catch {
+    banList = {}
+  }
 }
 
-// Guardar lista de baneos
-const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
+// guardar lista
+const saveBanList = () => {
+  fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
+}
 
-// ───── HELPER ─────
-const normalizeJid = (jid = '') => jid?.toString().replace(/[^0-9]/g, '')
+const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
 
-export const handler = async (m, { sock, reply, sender, isOwner, args }) => {
-  if (!isOwner) return reply('🚫 Solo el OWNER puede usar este comando')
+export const handler = async (m, { reply, isOwner, args }) => {
 
-  // Determinar target: mención, respuesta o número
-  let targetJid = m.mentionedJid?.[0] || m.quoted?.sender || (args[0] ? args[0].includes('@') ? args[0] : args[0] + '@s.whatsapp.net' : null)
-  if (!targetJid) return reply('📌 Debes mencionar al usuario, responder o escribir su número')
-
-  const targetNum = normalizeJid(targetJid)
-  if (banList[targetNum]) {
-    return reply({
-      text: `⚠️ El usuario ya está baneado`,
-      mentions: [targetJid]
-    })
+  if (!isOwner) {
+    return reply(global.config.messages.owner)
   }
 
-  // Guardar baneo
-  banList[targetNum] = true
+  if (!args[0]) {
+    return reply('📌 Uso: .ban <numero>')
+  }
+
+  const clean = onlyNumber(args[0])
+
+  if (banList[clean]) {
+    return reply('⚠️ Este usuario ya está baneado')
+  }
+
+  banList[clean] = true
   saveBanList()
 
-  // Mensaje de confirmación
-  await sock.sendMessage(m.key.remoteJid, {
-    text: `✅ Usuario baneado`,
-    mentions: [targetJid]
-  }, { quoted: m })
+  reply(`✅ Usuario ${clean} baneado globalmente`)
 }
 
 handler.command = ['ban']
