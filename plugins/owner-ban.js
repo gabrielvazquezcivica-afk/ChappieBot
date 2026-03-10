@@ -14,33 +14,59 @@ if (fs.existsSync(banPath)) {
   }
 }
 
-// guardar lista
 const saveBanList = () => {
   fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
 }
 
 const onlyNumber = (jid = '') => jid.replace(/[^0-9]/g, '')
 
-export const handler = async (m, { reply, isOwner, args }) => {
+export const handler = async (m, {
+  sock,
+  from,
+  args,
+  isOwner
+}) => {
 
   if (!isOwner) {
-    return reply(global.config.messages.owner)
+    return sock.sendMessage(from, { text: global.config.messages.owner }, { quoted: m })
   }
 
-  if (!args[0]) {
-    return reply('📌 Uso: .ban <numero>')
+  let target
+
+  // por tag
+  if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
+    target = m.message.extendedTextMessage.contextInfo.mentionedJid[0]
   }
 
-  const clean = onlyNumber(args[0])
+  // por reply
+  else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
+    target = m.message.extendedTextMessage.contextInfo.participant
+  }
+
+  // por número
+  else if (args[0]) {
+    target = onlyNumber(args[0]) + '@s.whatsapp.net'
+  }
+
+  if (!target) {
+    return sock.sendMessage(from, {
+      text: '📌 Uso: .ban @usuario | responder mensaje | número'
+    }, { quoted: m })
+  }
+
+  const clean = onlyNumber(target)
 
   if (banList[clean]) {
-    return reply('⚠️ Este usuario ya está baneado')
+    return sock.sendMessage(from, { text: '⚠️ Este usuario ya está baneado' }, { quoted: m })
   }
 
   banList[clean] = true
   saveBanList()
 
-  reply(`✅ Usuario ${clean} baneado globalmente`)
+  await sock.sendMessage(from, {
+    text: `🚫 Usuario @${clean} baneado globalmente`,
+    mentions: [target]
+  }, { quoted: m })
 }
 
 handler.command = ['ban']
