@@ -149,8 +149,6 @@ async function startBot () {
       }
     }
 
-)
-
     // 🔹 CALCULAR SI ES OWNER
 let isOwner = false
 
