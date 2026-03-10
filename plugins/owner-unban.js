@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import config from '../config.js'
 
 const banPath = path.join('./data/ban.json')
 
@@ -13,22 +12,20 @@ if (fs.existsSync(banPath)) {
 // Guardar lista de baneos
 const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
 
-// ───── COMANDO UNBAN ─────
 export const handler = async (m, { sock, from, args, sender, isOwner }) => {
   if (!isOwner) return sock.sendMessage(from, { text: '🚫 Solo el OWNER puede usar este comando' }, { quoted: m })
 
   if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .unban <número o @tag>' }, { quoted: m })
 
   const clean = args[0].replace(/[^0-9]/g, '')
-  const jid = clean + '@s.whatsapp.net'
+  const jid = clean.length > 15 ? clean + '@lid' : clean + '@s.whatsapp.net'
 
   if (!banList[jid]) return sock.sendMessage(from, { text: '⚠️ Este usuario no está baneado' }, { quoted: m })
 
-  // Eliminar del ban
+  // Eliminar ban
   delete banList[jid]
   saveBanList()
 
-  // Mensaje con mención
   await sock.sendMessage(from, {
     text: `╭─〔 ✅ DESBAN GLOBAL 〕
 │ Usuario: @${clean}
