@@ -1,9 +1,7 @@
-// ───── AVISO GLOBAL A TODOS LOS GRUPOS ─────
 export const handler = async (m, { sock, args, isOwner, reply }) => {
 
   const msgs = global.config.messages || {}
 
-  // 🔒 Solo OWNER
   if (!isOwner) {
     return reply(msgs.owner || '⚠️ Este comando es solo para el propietario')
   }
@@ -22,7 +20,6 @@ Ejemplo:
     )
   }
 
-  // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
   const sistema = (titulo = 'CHAPPIE BOT') => ({
     key: {
       fromMe: false,
@@ -39,7 +36,6 @@ Ejemplo:
       }
     }
   })
-  // ─────────────────────────────────────
 
   const groupsData = await sock.groupFetchAllParticipating()
   const groups = Object.keys(groupsData)
@@ -53,11 +49,9 @@ Ejemplo:
   let enviados = 0
 
   for (const gid of groups) {
-
     try {
 
-      const meta = await sock.groupMetadata(gid)
-      const mentions = meta.participants.map(p => p.id)
+      const mentions = groupsData[gid].participants.map(p => p.id)
 
       await sock.sendMessage(
         gid,
@@ -71,11 +65,8 @@ Ejemplo:
       enviados++
 
     } catch (e) {
-
       console.log('❌ Error enviando aviso a:', gid)
-
     }
-
   }
 
   reply(`✅ Aviso enviado correctamente a *${enviados}* grupos`)
