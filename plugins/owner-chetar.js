@@ -27,10 +27,20 @@ export const handler = async (m, { sock, from, sender, args, reply, isOwner }) =
 
   const db = loadDB()
 
-  // 🎯 Usuario objetivo
-  let target = sender
-  if (m.mentionedJid && m.mentionedJid[0]) {
+  // 🎯 Determinar usuario objetivo
+  let target
+
+  // 1️⃣ Si hay mención
+  if (m.mentionedJid && m.mentionedJid.length > 0) {
     target = m.mentionedJid[0]
+  } 
+  // 2️⃣ Si se responde a un mensaje
+  else if (m.message?.extendedTextMessage?.contextInfo?.participant) {
+    target = m.message.extendedTextMessage.contextInfo.participant
+  } 
+  // 3️⃣ Fallback: te cheta a ti mismo
+  else {
+    target = sender
   }
 
   if (!db[target]?.registered) {
