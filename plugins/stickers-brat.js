@@ -4,12 +4,13 @@ import os from 'os'
 import axios from 'axios'
 import { spawn } from 'child_process'
 
+/* ───── FUNCIÓN: PNG → WEBP (STICKER) ───── */
 async function createSticker(buffer) {
   const tmpIn = path.join(os.tmpdir(), `brat_${Date.now()}.png`)
   const tmpOut = path.join(os.tmpdir(), `brat_${Date.now()}.webp`)
   fs.writeFileSync(tmpIn, buffer)
 
-  // ───── FFmpeg: fondo blanco + overlay + webp ─────
+  // FFmpeg: fondo blanco + overlay + webp
   await new Promise((resolve, reject) => {
     const ff = spawn('ffmpeg', [
       '-i', tmpIn,
@@ -32,3 +33,63 @@ async function createSticker(buffer) {
   fs.unlinkSync(tmpOut)
   return result
 }
+
+/* ───── COMANDO BRAT ───── */
+export const handler = async (m, { sock, from, isGroup, sender, reply, args }) => {
+
+  // 🔒 Modo admin silencioso (opcional)
+  let groupSettings = { enabled: false }
+  const modoadminPath = './data/modoadmin.json'
+  if (fs.existsSync(modoadminPath)) {
+    const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
+    groupSettings = modoadminData[from] || { enabled: false }
+  }
+  if (groupSettings.enabled && isGroup) {
+    let isAdmin = false
+    try {
+      const metadata = await sock.groupMetadata(from)
+      const participants = metadata.participants || []
+      isAdmin = participants.some(
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+      )
+    } catch {}
+    if (!isAdmin) return
+  }
+
+  const text = args.join(' ').trim()
+  if (!text) return reply('❌ Escribe un texto\nEjemplo: `.brat Hola mundo`')
+
+  // 🎨 Reacción inicial
+  await sock.sendMessage(from, { react: { text: '🎨', key: m.key } })
+
+  try {
+    // 🔹 Llamada a la API del generador Brat
+    const res = await axios.get('https://kepolu-brat.hf.space/brat', {
+      params: { q: text },
+      responseType: 'arraybuffer'
+    })
+
+    if (!res.data || !res.data.byteLength) throw new Error('Respuesta vacía')
+
+    // 🔹 Crear sticker con fondo blanco y letras negras
+    const sticker = await createSticker(res.data)
+
+    // 🔹 Enviar sticker
+    await sock.sendMessage(from, { sticker }, { quoted: m })
+
+    // ✅ Reacción final
+    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+
+  } catch (e) {
+    console.error('BRAT ERROR:', e)
+    reply('❌ Error al generar el sticker')
+  }
+}
+
+handler.command = ['brat']
+handler.tags = ['stickers']
+handler.help = ['brat <texto>']
+handler.menu = true
+handler.group = false
+
+export default handler
