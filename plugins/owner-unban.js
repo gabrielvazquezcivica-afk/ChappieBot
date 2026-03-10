@@ -3,10 +3,13 @@ import path from 'path'
 
 const banPath = path.join('./data/ban.json')
 
-let banList = {}
-if (fs.existsSync(banPath)) banList = JSON.parse(fs.readFileSync(banPath))
+// Usar la misma lista global que ban.js
+global.banList = global.banList || {}
+if (fs.existsSync(banPath)) {
+  global.banList = JSON.parse(fs.readFileSync(banPath))
+}
 
-const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
+const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(global.banList, null, 2))
 
 const normalizeJid = (jid) => {
   if (!jid) return null
@@ -21,9 +24,9 @@ export const handler = async (m, { sock, from, args, sender, isOwner }) => {
   const mention = m.mentionedJid?.[0] || normalizeJid(args[0])
   if (!mention) return sock.sendMessage(from, { text: '❌ Usuario no válido' }, { quoted: m })
 
-  if (!banList[mention]) return sock.sendMessage(from, { text: '⚠️ Este usuario no está baneado' }, { quoted: m })
+  if (!global.banList[mention]) return sock.sendMessage(from, { text: '⚠️ Este usuario no está baneado' }, { quoted: m })
 
-  delete banList[mention]
+  delete global.banList[mention]
   saveBanList()
 
   await sock.sendMessage(from, {
