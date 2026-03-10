@@ -8,23 +8,27 @@ if (fs.existsSync(banPath)) banList = JSON.parse(fs.readFileSync(banPath))
 
 const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
 
+const normalizeJid = (jid) => {
+  if (!jid) return null
+  return jid.includes('@') ? jid : (jid.length > 15 ? jid+'@lid' : jid+'@s.whatsapp.net')
+}
+
 export const handler = async (m, { sock, from, args, sender, isOwner }) => {
   if (!isOwner) return sock.sendMessage(from, { text: '🚫 Solo el OWNER puede usar este comando' }, { quoted: m })
-  if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .unban <número o @tag>' }, { quoted: m })
 
-  const clean = args[0].replace(/[^0-9]/g, '')
-  const jid = clean.length > 15 ? clean + '@lid' : clean + '@s.whatsapp.net'
+  if (!args[0]) return sock.sendMessage(from, { text: '📌 Uso: .unban <@tag o número>' }, { quoted: m })
 
-  if (!banList[jid]) return sock.sendMessage(from, { text: '⚠️ Este usuario no está baneado' }, { quoted: m })
+  const mention = m.mentionedJid?.[0] || normalizeJid(args[0])
+  if (!mention) return sock.sendMessage(from, { text: '❌ Usuario no válido' }, { quoted: m })
 
-  delete banList[jid]
+  if (!banList[mention]) return sock.sendMessage(from, { text: '⚠️ Este usuario no está baneado' }, { quoted: m })
+
+  delete banList[mention]
   saveBanList()
 
   await sock.sendMessage(from, {
-    text: `╭─〔 ✅ DESBAN GLOBAL 〕
-│ Usuario desbaneado
-╰────────────`,
-    mentions: [jid]
+    text: `╭─〔 ✅ DESBAN GLOBAL 〕\n│ Usuario desbaneado\n╰────────────`,
+    mentions: [mention]
   }, { quoted: m })
 }
 
