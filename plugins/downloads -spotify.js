@@ -2,7 +2,6 @@ import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
 
-/* ───── QUOTED SISTEMA (CHAPPIEBOT) ───── */
 const sistema = (titulo = 'CHAPPIE BOT') => ({
   key: {
     fromMe: false,
@@ -19,7 +18,6 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
     }
   }
 })
-// ─────────────────────────────────────
 
 export const handler = async (m, {
   sock,
@@ -30,9 +28,10 @@ export const handler = async (m, {
   args
 }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
+  /* ───── MODO ADMIN ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
+
   if (fs.existsSync(modoadminPath)) {
     const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
     groupSettings = modoadminData[from] || { enabled: false }
@@ -49,7 +48,6 @@ export const handler = async (m, {
     } catch {}
     if (!isAdmin) return
   }
-  /* ───────────────────────────────── */
 
   const text = args.join(' ')
   if (!text) return reply('❌ Escribe el nombre de la canción')
@@ -61,73 +59,66 @@ export const handler = async (m, {
 
   await sock.sendMessage(from, { react: { text: '🎧', key: m.key } })
 
-  /* ───── OBTENER INFO DE LA CANCIÓN ───── */
+  /* ───── UN SOLO COMANDO RÁPIDO ───── */
 
-  const infoCmd = `yt-dlp --dump-json "ytsearch1:${text}"`
+  const cmd = `yt-dlp -f bestaudio --no-playlist --extract-audio --audio-format mp3 --audio-quality 0 --print "%(title)s|%(uploader)s|%(duration)s" -o "${file}" "ytsearch1:${text}"`
 
-  exec(infoCmd, async (err, stdout) => {
+  exec(cmd, async (err, stdout) => {
+
+    if (err) {
+      console.error(err)
+      return reply('❌ Error al descargar la canción')
+    }
 
     let title = text
     let artist = 'Desconocido'
     let duration = 'Desconocida'
 
     try {
-      const data = JSON.parse(stdout)
-      title = data.title || text
-      artist = data.uploader || 'Desconocido'
-      duration = data.duration
-        ? `${Math.floor(data.duration / 60)}:${('0' + data.duration % 60).slice(-2)}`
-        : 'Desconocida'
+      const info = stdout.trim().split('|')
+      title = info[0] || text
+      artist = info[1] || 'Desconocido'
+
+      if (info[2]) {
+        const d = parseInt(info[2])
+        duration = `${Math.floor(d/60)}:${('0'+d%60).slice(-2)}`
+      }
+
     } catch {}
 
-    /* ───── MENSAJE DE INFORMACIÓN ───── */
+    /* ───── INFO ───── */
+
+    await sock.sendMessage(from,{
+      text:
+`🎧 *CANCIÓN ENCONTRADA*
+
+📀 ${title}
+🎤 ${artist}
+⏱ ${duration}`
+    },{ quoted: sistema('🎵 SPOTIFY') })
+
+    /* ───── AUDIO ───── */
 
     await sock.sendMessage(
       from,
       {
-        text:
-`🎧 *CANCIÓN ENCONTRADA*
-
-📀 Título: ${title}
-🎤 Artista: ${artist}
-⏱ Duración: ${duration}
-
-⬇️ Descargando audio...`
+        audio: fs.readFileSync(file),
+        mimetype: 'audio/mpeg'
       },
-      { quoted: sistema('🎵 SPOTIFY SEARCH') }
+      { quoted: sistema('🎧 SPOTIFY DOWNLOAD') }
     )
 
-    /* ───── DESCARGA ───── */
+    fs.unlinkSync(file)
 
-    const cmd = `yt-dlp -f bestaudio --no-playlist --extract-audio --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
+    await sock.sendMessage(from,{ react:{ text:'✅', key:m.key } })
 
-    exec(cmd, async (err) => {
-
-      if (err) {
-        console.error('SPOTIFY ERROR:', err)
-        return reply('❌ Error al descargar la canción')
-      }
-
-      await sock.sendMessage(
-        from,
-        {
-          audio: fs.readFileSync(file),
-          mimetype: 'audio/mpeg'
-        },
-        { quoted: sistema('🎧 SPOTIFY DOWNLOAD') }
-      )
-
-      fs.unlinkSync(file)
-
-      await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
-
-    })
   })
+
 }
 
 handler.command = ['spotify']
 handler.tags = ['descargas']
-handler.help = ['spotify <nombre de la canción>']
+handler.help = ['spotify <nombre>']
 handler.menu = true
 handler.group = false
 
