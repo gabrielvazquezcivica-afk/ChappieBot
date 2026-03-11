@@ -22,13 +22,15 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
 // ─────────────────────────────────────
 
 /* ───── EDITAR MENSAJE ───── */
-async function editProgress(sock, from, msg, text){
-  await sock.sendMessage(from,{
-    protocolMessage:{
+async function editProgress(sock, from, msg, text) {
+  await sock.sendMessage(from, {
+    protocolMessage: {
       key: msg.key,
       type: 14,
-      editedMessage:{
-        conversation: text
+      editedMessage: {
+        extendedTextMessage: {
+          text: text
+        }
       }
     }
   })
