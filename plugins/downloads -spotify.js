@@ -17,57 +17,45 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
   }
 })
 
-export const handler = async (m, {
-  sock,
-  from,
-  reply,
-  args
-}) => {
+export const handler = async (m,{ sock, from, reply, args }) => {
 
-  const text = args.join(' ')
-  if (!text) return reply('❌ Escribe el nombre de la canción')
+const text = args.join(' ')
+if(!text) return reply('❌ Escribe el nombre de la canción')
 
-  await sock.sendMessage(from,{ react:{ text:'🎧', key:m.key }})
+await sock.sendMessage(from,{ react:{ text:'🎧', key:m.key }})
 
-  try {
+try{
 
-    /* API DE MÚSICA */
-    const res = await fetch(`https://api.dorratz.com/ytplay?q=${encodeURIComponent(text)}`)
-    const data = await res.json()
+const res = await fetch(`https://api.nekorinn.my.id/downloader/youtube/play?q=${encodeURIComponent(text)}`)
+const json = await res.json()
 
-    const title = data.title
-    const artist = data.author
-    const duration = data.duration
-    const thumb = data.thumbnail
-    const audio = data.audio
+const data = json.result
 
-    /* TARJETA DE CANCIÓN */
-
-    await sock.sendMessage(from,{
-      image:{ url: thumb },
-      caption:
+await sock.sendMessage(from,{
+image:{ url:data.thumbnail },
+caption:
 `🎧 *CANCIÓN ENCONTRADA*
 
-📀 ${title}
-🎤 ${artist}
-⏱ ${duration}
+📀 ${data.title}
+👤 ${data.channel}
+⏱ ${data.duration}
 
 ⬇️ Enviando audio...`
-    },{ quoted: sistema('🎵 SPOTIFY') })
+},{ quoted:sistema('🎵 SPOTIFY') })
 
-    /* AUDIO */
+await sock.sendMessage(from,{
+audio:{ url:data.audio },
+mimetype:'audio/mpeg'
+})
 
-    await sock.sendMessage(from,{
-      audio:{ url: audio },
-      mimetype:'audio/mpeg'
-    })
+await sock.sendMessage(from,{ react:{ text:'✅', key:m.key }})
 
-    await sock.sendMessage(from,{ react:{ text:'✅', key:m.key }})
+}catch(e){
 
-  } catch(e){
-    console.log(e)
-    reply('❌ No se pudo obtener la canción')
-  }
+console.log(e)
+reply('❌ No se pudo obtener la canción')
+
+}
 
 }
 
