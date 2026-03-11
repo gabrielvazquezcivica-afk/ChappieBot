@@ -55,13 +55,14 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
 ⏳ Descargando audio...`
     }, { quoted: m })
 
-    const file = `./tmp/${Date.now()}.mp3`
+    const file = `./tmp/${Date.now()}.m4a`
 
-    /* 📥 Descargar */
+    /* 📥 Descargar audio rápido */
     const ytdlp = spawn('yt-dlp', [
-      '-x',
-      '--audio-format',
-      'mp3',
+      '-f',
+      'bestaudio[ext=m4a]',
+      '--no-playlist',
+      '--quiet',
       '-o',
       file,
       url
@@ -75,9 +76,9 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
 
       /* 🎵 Enviar audio */
       await sock.sendMessage(from, {
-        audio: { url: file },
-        mimetype: 'audio/mpeg',
-        fileName: `${title}.mp3`
+        audio: fs.readFileSync(file),
+        mimetype: 'audio/mp4',
+        fileName: `${title}.m4a`
       }, { quoted: m })
 
       fs.unlinkSync(file)
