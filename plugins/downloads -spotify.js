@@ -82,7 +82,7 @@ await sock.sendMessage(from,{
 audio: fs.readFileSync(file),
 mimetype:'audio/mp4',
 fileName:`${title}.m4a`
-},{ quoted:m })
+},{ quoted:sistema('🎧 SPOTIFY DOWNLOAD') })
 
 fs.unlinkSync(file)
 
