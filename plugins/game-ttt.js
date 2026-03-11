@@ -2,17 +2,7 @@ import fs from 'fs'
 
 let ttt = {}
 
-const emojis = {
-1:"1️⃣",
-2:"2️⃣",
-3:"3️⃣",
-4:"4️⃣",
-5:"5️⃣",
-6:"6️⃣",
-7:"7️⃣",
-8:"8️⃣",
-9:"9️⃣"
-}
+const emojis = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣"]
 
 function draw(board){
 return `
@@ -24,17 +14,22 @@ ${board[6]}${board[7]}${board[8]}
 
 function win(b){
 
-const w = [
+const wins = [
 [0,1,2],[3,4,5],[6,7,8],
 [0,3,6],[1,4,7],[2,5,8],
 [0,4,8],[2,4,6]
 ]
 
-for (let i of w){
-if(b[i[0]]==b[i[1]] && b[i[1]]==b[i[2]]) return true
+for(let w of wins){
+if(b[w[0]] === b[w[1]] && b[w[1]] === b[w[2]])
+return true
 }
 
 return false
+}
+
+function empate(board){
+return board.every(c => c === "❌" || c === "⭕")
 }
 
 export const handler = async (m,{
@@ -75,10 +70,6 @@ if(!isAdmin) return
 
 /* ───────────────── */
 
-if(!args[0] && !m.mentionedJid?.length){
-return reply("🎮 Usa:\n.ttt @usuario")
-}
-
 /* ───── SALIR ───── */
 
 if(args[0] === "salir"){
@@ -86,18 +77,17 @@ delete ttt[from]
 return reply("❌ Juego terminado")
 }
 
-/* ───── INICIAR ───── */
+/* ───── INICIAR PARTIDA ───── */
 
-if(m.mentionedJid?.length){
+if(m.mentionedJid && m.mentionedJid.length){
 
 const enemy = m.mentionedJid[0]
 
+if(enemy === sender)
+return reply("⚠️ No puedes jugar contra ti mismo")
+
 ttt[from] = {
-board:[
-emojis[1],emojis[2],emojis[3],
-emojis[4],emojis[5],emojis[6],
-emojis[7],emojis[8],emojis[9]
-],
+board:[...emojis],
 players:[sender,enemy],
 turn:0
 }
@@ -114,18 +104,19 @@ Turno:
 ${draw(ttt[from].board)}`,
 mentions:[sender,enemy]
 })
+
 }
 
 /* ───── JUGAR ───── */
 
 const game = ttt[from]
 
-if(!game) return reply("⚠️ No hay partida activa")
+if(!game) return
 
 const pos = parseInt(args[0]) - 1
 
 if(isNaN(pos) || pos < 0 || pos > 8)
-return reply("⚠️ Usa un número del 1 al 9")
+return reply("⚠️ Usa números del 1 al 9")
 
 if(game.players[game.turn] !== sender)
 return reply("⏳ No es tu turno")
@@ -135,10 +126,12 @@ return reply("⚠️ Casilla ocupada")
 
 game.board[pos] = game.turn ? "⭕" : "❌"
 
+/* ───── GANADOR ───── */
+
 if(win(game.board)){
 
 await sock.sendMessage(from,{
-text:`🏆 Ganó @${sender.split('@')[0]}
+text:`🏆 *Ganó* @${sender.split('@')[0]}
 
 ${draw(game.board)}`,
 mentions:[sender]
@@ -148,6 +141,22 @@ delete ttt[from]
 return
 }
 
+/* ───── EMPATE ───── */
+
+if(empate(game.board)){
+
+await sock.sendMessage(from,{
+text:`🤝 *EMPATE*
+
+${draw(game.board)}`
+})
+
+delete ttt[from]
+return
+}
+
+/* ───── CAMBIAR TURNO ───── */
+
 game.turn = game.turn ? 0 : 1
 
 await sock.sendMessage(from,{
@@ -155,13 +164,13 @@ text:`${draw(game.board)}
 
 Turno:
 @${game.players[game.turn].split('@')[0]}`,
-mentions:[game.players[0],game.players[1]]
+mentions:game.players
 })
 
 }
 
 handler.command = ['ttt']
-handler.tags = ['game']
+handler.tags = ['games']
 handler.menu = true
 handler.group = true
 
