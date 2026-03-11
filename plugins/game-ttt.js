@@ -170,7 +170,7 @@ mentions:game.players
 }
 
 handler.command = ['ttt']
-handler.tags = ['games']
+handler.tags = ['game']
 handler.menu = true
 handler.group = true
 
