@@ -21,22 +21,6 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
 })
 // ─────────────────────────────────────
 
-/* ───── EDITAR MENSAJE ───── */
-async function editProgress(sock, from, msg, text) {
-  await sock.sendMessage(from, {
-    protocolMessage: {
-      key: msg.key,
-      type: 14,
-      editedMessage: {
-        extendedTextMessage: {
-          text: text
-        }
-      }
-    }
-  })
-}
-// ──────────────────────────
-
 export const handler = async (m, {
   sock,
   from,
@@ -77,15 +61,8 @@ export const handler = async (m, {
 
   await sock.sendMessage(from, { react: { text: '🎧', key: m.key } })
 
-  /* ───── MENSAJE PROGRESO 10% ───── */
-  const progressMsg = await sock.sendMessage(from,{
-    text:
-`🎧 *Buscando canción...*
+  /* ───── OBTENER INFO DE LA CANCIÓN ───── */
 
-▰▱▱▱▱▱▱▱▱▱ 10%`
-  },{ quoted: sistema('⚡ DESCARGA INICIADA') })
-
-  /* ───── OBTENER INFO ───── */
   const infoCmd = `yt-dlp --dump-json "ytsearch1:${text}"`
 
   exec(infoCmd, async (err, stdout) => {
@@ -103,14 +80,24 @@ export const handler = async (m, {
         : 'Desconocida'
     } catch {}
 
-    /* ───── PROGRESO 40% ───── */
+    /* ───── MENSAJE DE INFORMACIÓN ───── */
 
-    await editProgress(sock, from, progressMsg,
-`🎧 *Preparando descarga...*
+    await sock.sendMessage(
+      from,
+      {
+        text:
+`🎧 *CANCIÓN ENCONTRADA*
 
-▰▰▰▰▱▱▱▱▱▱ 40%`)
+📀 Título: ${title}
+🎤 Artista: ${artist}
+⏱ Duración: ${duration}
 
-    /* ───── DESCARGA RÁPIDA ───── */
+⬇️ Descargando audio...`
+      },
+      { quoted: sistema('🎵 SPOTIFY SEARCH') }
+    )
+
+    /* ───── DESCARGA ───── */
 
     const cmd = `yt-dlp -f bestaudio --no-playlist --extract-audio --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
 
@@ -121,38 +108,16 @@ export const handler = async (m, {
         return reply('❌ Error al descargar la canción')
       }
 
-      /* ───── PROGRESO 80% ───── */
-
-      await editProgress(sock, from, progressMsg,
-`🎧 *Descargando audio...*
-
-▰▰▰▰▰▰▰▰▱▱ 80%`)
-
       await sock.sendMessage(
         from,
         {
           audio: fs.readFileSync(file),
-          mimetype: 'audio/mpeg',
-          caption:
-`🎧 *MÚSICA ENCONTRADA*
-
-📀 Título: ${title}
-🎤 Artista: ${artist}
-⏱ Duración: ${duration}
-
-> ChappieBot`
+          mimetype: 'audio/mpeg'
         },
         { quoted: sistema('🎧 SPOTIFY DOWNLOAD') }
       )
 
       fs.unlinkSync(file)
-
-      /* ───── PROGRESO 100% ───── */
-
-      await editProgress(sock, from, progressMsg,
-`✅ *Descarga completada*
-
-▰▰▰▰▰▰▰▰▰▰ 100%`)
 
       await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
