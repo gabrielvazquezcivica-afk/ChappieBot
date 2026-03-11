@@ -1,4 +1,6 @@
-import fetch from 'node-fetch'
+import yts from 'yt-search'
+import { spawn } from 'child_process'
+import fs from 'fs'
 
 const sistema = (titulo = 'CHAPPIE BOT') => ({
   key: {
@@ -19,41 +21,81 @@ const sistema = (titulo = 'CHAPPIE BOT') => ({
 
 export const handler = async (m,{ sock, from, reply, args }) => {
 
-const text = args.join(' ')
+const text = args.join(' ').trim()
 if(!text) return reply('❌ Escribe el nombre de la canción')
 
 await sock.sendMessage(from,{ react:{ text:'🎧', key:m.key }})
 
 try{
 
-const res = await fetch(`https://api.nekorinn.my.id/downloader/youtube/play?q=${encodeURIComponent(text)}`)
-const json = await res.json()
+/* 🔎 BUSCAR VIDEO */
+const search = await yts(text)
 
-const data = json.result
+if(!search.videos.length){
+return reply('❌ No encontré resultados')
+}
+
+const video = search.videos[0]
+
+const { title, url, thumbnail, timestamp, views, author } = video
+
+/* 🎵 TARJETA TIPO SPOTIFY */
 
 await sock.sendMessage(from,{
-image:{ url:data.thumbnail },
+image:{ url: thumbnail },
 caption:
-`🎧 *CANCIÓN ENCONTRADA*
+`╭─❖ 「 🎧 SPOTIFY 」 ❖─╮
+│ 🎵 Título: ${title}
+│ 👤 Artista: ${author.name}
+│ ⏱ Duración: ${timestamp}
+│ 👁 Vistas: ${views.toLocaleString()}
+╰────────────────
 
-📀 ${data.title}
-👤 ${data.channel}
-⏱ ${data.duration}
+⬇️ Descargando audio...`
+},{ quoted:sistema('🎵 SPOTIFY SEARCH') })
 
-⬇️ Enviando audio...`
-},{ quoted:sistema('🎵 SPOTIFY') })
+/* 📁 ARCHIVO */
+
+const file = `./tmp/${Date.now()}.m4a`
+
+/* ⚡ DESCARGA RÁPIDA */
+
+const ytdlp = spawn('yt-dlp',[
+'-f',
+'bestaudio[ext=m4a]',
+'--no-playlist',
+'--quiet',
+'-o',
+file,
+url
+])
+
+ytdlp.on('close', async(code)=>{
+
+if(code !== 0){
+return reply('❌ Error descargando audio')
+}
+
+/* 🎧 ENVIAR AUDIO */
 
 await sock.sendMessage(from,{
-audio:{ url:data.audio },
-mimetype:'audio/mpeg'
+audio: fs.readFileSync(file),
+mimetype:'audio/mp4',
+fileName:`${title}.m4a`
+},{ quoted:m })
+
+fs.unlinkSync(file)
+
+await sock.sendMessage(from,{
+react:{ text:'✅', key:m.key }
 })
 
-await sock.sendMessage(from,{ react:{ text:'✅', key:m.key }})
+})
 
 }catch(e){
 
-console.log(e)
-reply('❌ No se pudo obtener la canción')
+console.log('SPOTIFY ERROR:',e)
+reply('❌ Error al procesar la canción')
 
 }
 
@@ -61,7 +103,7 @@ reply('❌ No se pudo obtener la canción')
 
 handler.command = ['spotify']
 handler.tags = ['descargas']
-handler.help = ['spotify <nombre>']
+handler.help = ['spotify <canción>']
 handler.menu = true
 
 export default handler
