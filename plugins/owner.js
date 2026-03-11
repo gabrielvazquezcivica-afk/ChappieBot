@@ -1,42 +1,38 @@
-import config from '../config.js'
+const sistema = (titulo = 'CHAPPIE BOT') => ({
+  key: {
+    fromMe: false,
+    participant: '0@s.whatsapp.net',
+    remoteJid: 'status@broadcast'
+  },
+  message: {
+    orderMessage: {
+      itemCount: 1,
+      message: titulo,
+      footerText: 'ChappieBot',
+      surface: 2,
+      sellerJid: '0@s.whatsapp.net'
+    }
+  }
+})
 
 export const handler = async (m, { sock, from }) => {
 
-  // 👑 Reacción al ejecutor
-  await sock.sendMessage(from, {
-    react: { text: '👑', key: m.key }
-  })
+await sock.sendMessage(from,{
+text:
+`╭─❖ 「 👑 OWNER 」 ❖─╮
+│ 👤 Nombre: SoyGabo
+│ 📸 IG: gabriel_gdl_90
+│ 📱 Tel: +1 (365) 298-0907
+╰────────────────
 
-  // 📞 Owner
-  const ownerNumber = config.owner.numbers[0] || 'No definido'
+🤖 Bot: ChappieBot`
+},{ quoted: sistema('👑 OWNER INFO') })
 
-  // 📸 Instagram
-  const instagramUser = 'gabriel_gdl_90'
-  const instagramURL = `https://instagram.com/${instagramUser}`
-
-  // 🖼 Imagen del owner
-  const ownerImage = 'https://i.postimg.cc/Z5jgVfmX/file-00000000c4407230be23ee400c514cf9.jpg' // cambia si quieres
-
-  // ───── TEXTO CORTO ─────
-  const text = `
-👑 Owner: ${config.owner.name}
-🤖 Bot: ${config.bot.name}
-📞 Número: ${ownerNumber}
-📸 IG: ${instagramURL}
-`.trim()
-
-  // ───── ENVIAR IMAGEN + TEXTO ─────
-  await sock.sendMessage(
-    from,
-    {
-      image: { url: ownerImage },
-      caption: text
-    },
-    { quoted: m }
-  )
 }
 
-handler.command = ['owner']
+handler.command = ['owner','creador']
 handler.tags = ['info']
-handler.menu = true
 handler.help = ['owner']
+handler.menu = true
+
+export default handler
