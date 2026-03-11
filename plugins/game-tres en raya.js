@@ -30,9 +30,8 @@ const w = [
 [0,4,8],[2,4,6]
 ]
 
-for(let i of w){
-if(b[i[0]]==b[i[1]] && b[i[1]]==b[i[2]])
-return true
+for (let i of w){
+if(b[i[0]]==b[i[1]] && b[i[1]]==b[i[2]]) return true
 }
 
 return false
@@ -47,14 +46,14 @@ reply,
 isGroup
 })=>{
 
-/* ───── 🔒 MODO ADMIN ───── */
+/* ───── MODO ADMIN ───── */
 
 let groupSettings = { enabled:false }
 const modoadminPath = './data/modoadmin.json'
 
 if(fs.existsSync(modoadminPath)){
-const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
-groupSettings = modoadminData[from] || { enabled:false }
+const data = JSON.parse(fs.readFileSync(modoadminPath))
+groupSettings = data[from] || { enabled:false }
 }
 
 if(groupSettings.enabled && isGroup){
@@ -62,11 +61,9 @@ if(groupSettings.enabled && isGroup){
 let isAdmin = false
 
 try{
-
 const metadata = await sock.groupMetadata(from)
-const participants = metadata.participants || []
 
-isAdmin = participants.some(
+isAdmin = metadata.participants.some(
 p => p.id === sender &&
 (p.admin === 'admin' || p.admin === 'superadmin')
 )
@@ -76,16 +73,22 @@ p => p.id === sender &&
 if(!isAdmin) return
 }
 
-/* ───────────────────── */
+/* ───────────────── */
 
-// salir
-if(args[0] == "salir"){
+if(!args[0] && !m.mentionedJid?.length){
+return reply("🎮 Usa:\n.ttt @usuario")
+}
+
+/* ───── SALIR ───── */
+
+if(args[0] === "salir"){
 delete ttt[from]
 return reply("❌ Juego terminado")
 }
 
-// iniciar
-if(m.mentionedJid){
+/* ───── INICIAR ───── */
+
+if(m.mentionedJid?.length){
 
 const enemy = m.mentionedJid[0]
 
@@ -111,28 +114,30 @@ Turno:
 ${draw(ttt[from].board)}`,
 mentions:[sender,enemy]
 })
-
 }
+
+/* ───── JUGAR ───── */
 
 const game = ttt[from]
 
-if(!game) return
+if(!game) return reply("⚠️ No hay partida activa")
 
-const pos = parseInt(args[0]) -1
+const pos = parseInt(args[0]) - 1
 
-if(isNaN(pos)) return
+if(isNaN(pos) || pos < 0 || pos > 8)
+return reply("⚠️ Usa un número del 1 al 9")
 
 if(game.players[game.turn] !== sender)
 return reply("⏳ No es tu turno")
 
-if(game.board[pos] == "❌" || game.board[pos] == "⭕")
+if(game.board[pos] === "❌" || game.board[pos] === "⭕")
 return reply("⚠️ Casilla ocupada")
 
 game.board[pos] = game.turn ? "⭕" : "❌"
 
 if(win(game.board)){
 
-sock.sendMessage(from,{
+await sock.sendMessage(from,{
 text:`🏆 Ganó @${sender.split('@')[0]}
 
 ${draw(game.board)}`,
@@ -145,7 +150,7 @@ return
 
 game.turn = game.turn ? 0 : 1
 
-sock.sendMessage(from,{
+await sock.sendMessage(from,{
 text:`${draw(game.board)}
 
 Turno:
