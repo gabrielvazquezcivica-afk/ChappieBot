@@ -27,7 +27,7 @@ const emojis = [
   // ───── DISEÑO TIPO INFOGRUPO ─────    
   let text = `╭━━━〔 📣 MENCIÓN GENERAL 〕━━━╮    
 ┃ ${metadata.subject}    
-┃ MIEMBROS: 💫 ${participants.length} 💫   
+┃ MIEMBROS: ${participants.length}    
 ╰━━━━━━━━━━━━━━━━━━━━━━╯    
     
 ╭━━━〔 🚀 USUARIOS 🚀 〕━━━╮    
