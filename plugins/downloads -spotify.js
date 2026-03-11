@@ -61,25 +61,90 @@ export const handler = async (m, {
 
   await sock.sendMessage(from, { react: { text: '🎧', key: m.key } })
 
-  const cmd = `yt-dlp --js-runtimes node -x --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
+  /* ───── MENSAJE DE PROGRESO ───── */
 
-  exec(cmd, async (err) => {
-    if (err) {
-      console.error('SPOTIFY ERROR:', err)
-      return reply('❌ Error al descargar la canción')
-    }
+  const progressMsg = await sock.sendMessage(from, {
+    text:
+`🎧 *Buscando canción...*
 
-    await sock.sendMessage(
-      from,
-      {
-        audio: fs.readFileSync(file),
-        mimetype: 'audio/mpeg'
-      },
-      { quoted: sistema('🎧 SPOTIFY DOWNLOAD') }
-    )
+▰▱▱▱▱▱▱▱▱▱ 10%`
+  }, { quoted: sistema('⚡ DESCARGA INICIADA') })
 
-    fs.unlinkSync(file)
-    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+  /* ───── INFO DE LA CANCIÓN ───── */
+
+  const infoCmd = `yt-dlp --dump-json "ytsearch1:${text}"`
+
+  exec(infoCmd, async (err, stdout) => {
+
+    let title = text
+    let artist = 'Desconocido'
+    let duration = 'Desconocida'
+
+    try {
+      const data = JSON.parse(stdout)
+      title = data.title || text
+      artist = data.uploader || 'Desconocido'
+      duration = data.duration
+        ? `${Math.floor(data.duration / 60)}:${('0' + data.duration % 60).slice(-2)}`
+        : 'Desconocida'
+    } catch {}
+
+    /* ───── ACTUALIZAR PROGRESO ───── */
+
+    await sock.sendMessage(from,{
+      edit: progressMsg.key,
+      text:`🎧 *Preparando descarga...*
+
+▰▰▰▰▱▱▱▱▱▱ 40%`
+    })
+
+    /* ───── DESCARGA RÁPIDA ───── */
+
+    const cmd = `yt-dlp -f bestaudio --no-playlist --extract-audio --audio-format mp3 --audio-quality 0 -o "${file}" "ytsearch1:${text}"`
+
+    exec(cmd, async (err) => {
+
+      if (err) {
+        console.error('SPOTIFY ERROR:', err)
+        return reply('❌ Error al descargar la canción')
+      }
+
+      await sock.sendMessage(from,{
+        edit: progressMsg.key,
+        text:`🎧 *Descargando audio...*
+
+▰▰▰▰▰▰▰▰▱▱ 80%`
+      })
+
+      await sock.sendMessage(
+        from,
+        {
+          audio: fs.readFileSync(file),
+          mimetype: 'audio/mpeg',
+          caption:
+`🎧 *MÚSICA ENCONTRADA*
+
+📀 Título: ${title}
+🎤 Artista: ${artist}
+⏱ Duración: ${duration}
+
+⚡ Descarga completada`
+        },
+        { quoted: sistema('🎧 SPOTIFY DOWNLOAD') }
+      )
+
+      fs.unlinkSync(file)
+
+      await sock.sendMessage(from,{
+        edit: progressMsg.key,
+        text:`✅ *Descarga completada*
+
+▰▰▰▰▰▰▰▰▰▰ 100%`
+      })
+
+      await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+
+    })
   })
 }
 
