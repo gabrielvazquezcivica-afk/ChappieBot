@@ -1,4 +1,4 @@
-unimport util from 'util'
+import util from 'util'
 import chalk from 'chalk'
 import figlet from 'figlet'
 import fs from 'fs'
