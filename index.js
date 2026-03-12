@@ -170,6 +170,23 @@ if (sender && ownerJids.includes(sender)) {
   isOwner = true
   }
 
+    // 🔹 RESPUESTA SOLO PARA OWNER
+const msg = text.toLowerCase()
+
+if (msg === 'hola cariño' && isOwner) {
+
+  await sock.sendMessage(from,{
+    text:
+`👑 Hola mi creador.
+
+Es un placer verte por aquí.
+Estoy funcionando correctamente 🤖
+
+¿En qué puedo ayudarte hoy?`
+  },{ quoted: m })
+
+  }
+    
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
