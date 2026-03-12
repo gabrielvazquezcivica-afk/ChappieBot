@@ -170,34 +170,6 @@ if (sender && ownerJids.includes(sender)) {
   isOwner = true
   }
 
-    // 🔹 RESPUESTA SOLO PARA OWNER
-const msg = text.toLowerCase()
-
-// 🔹 DETECTAR OWNER
-const ownerNumbers = global.config.owner?.numbers || []
-let senderNumber = ''
-
-if (sender) {
-  senderNumber = sender.split('@')[0].split(':')[0]
-}
-
-const isOwnerNow = ownerNumbers.includes(senderNumber)
-
-// 🔹 RESPUESTA SOLO PARA OWNER
-if (msg === 'Hola cariño' && isOwnerNow) {
-
-  await sock.sendMessage(from,{
-    text:
-`👑 Hola mi creador.
-
-Estoy funcionando perfectamente 🤖
-Siempre es un gusto verte por aquí.
-
-¿En qué puedo ayudarte hoy?`
-  },{ quoted: m })
-
-}
-    
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
