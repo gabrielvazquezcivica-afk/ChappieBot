@@ -164,24 +164,7 @@ if (sender) {
 if (senderNumber && ownerNumbers.includes(senderNumber)) {
   isOwner = true
 }
-
-    // 🔹 RESPUESTA SOLO PARA OWNER
-const msg = text.toLowerCase()
-
-if (msg === 'hola cariño' && isOwner) {
-
-  await sock.sendMessage(from,{
-    text:
-`👑 Hola mi creador.
-
-Es un placer verte por aquí.
-Estoy funcionando correctamente 🤖
-
-¿En qué puedo ayudarte hoy?`
-  },{ quoted: m })
-
-    }
-    
+  
 // comprobar por JID (LID o normal)
 if (sender && ownerJids.includes(sender)) {
   isOwner = true
