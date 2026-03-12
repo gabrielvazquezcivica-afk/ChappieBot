@@ -1,4 +1,4 @@
-import util from 'util'
+unimport util from 'util'
 import chalk from 'chalk'
 import figlet from 'figlet'
 import fs from 'fs'
@@ -165,6 +165,23 @@ if (senderNumber && ownerNumbers.includes(senderNumber)) {
   isOwner = true
 }
 
+    // 🔹 RESPUESTA SOLO PARA OWNER
+const msg = text.toLowerCase()
+
+if (msg === 'hola cariño' && isOwner) {
+
+  await sock.sendMessage(from,{
+    text:
+`👑 Hola mi creador.
+
+Es un placer verte por aquí.
+Estoy funcionando correctamente 🤖
+
+¿En qué puedo ayudarte hoy?`
+  },{ quoted: m })
+
+    }
+    
 // comprobar por JID (LID o normal)
 if (sender && ownerJids.includes(sender)) {
   isOwner = true
