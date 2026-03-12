@@ -81,7 +81,7 @@ delete juego[from]
 }
 
 handler.command = ['adivinanza']
-handler.tags = ['juegos']
+handler.tags = ['frases']
 handler.help = ['adivinanza']
 handler.menu = true
 handler.group = true
