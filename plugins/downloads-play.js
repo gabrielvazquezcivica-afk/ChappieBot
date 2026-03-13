@@ -4,47 +4,47 @@ import fs from 'fs'
 
 export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
 
-  const botName = sock.user?.name || 'ChappieBot'
+const botName = sock.user?.name || 'ChappieBot'
 
-  /* 🔒 MODO ADMIN */
-  const modoadminPath = './data/modoadmin.json'
-  let groupSettings = { enabled: false }
+/* 🔒 MODO ADMIN */
+const modoadminPath = './data/modoadmin.json'
+let groupSettings = { enabled: false }
 
-  if (fs.existsSync(modoadminPath)) {
-    const data = JSON.parse(fs.readFileSync(modoadminPath))
-    groupSettings = data[from] || { enabled: false }
-  }
+if (fs.existsSync(modoadminPath)) {
+const data = JSON.parse(fs.readFileSync(modoadminPath))
+groupSettings = data[from] || { enabled: false }
+}
 
-  if (groupSettings.enabled && !isAdmin) return
+if (groupSettings.enabled && !isAdmin) return
 
-  const text = args.join(' ').trim()
+const text = args.join(' ').trim()
 
-  if (!text) {
-    return reply(`🎧 Uso: .play <canción>`)
-  }
+if (!text) {
+return reply('🎧 Uso: .play <canción>')
+}
 
-  try {
+/* ⚡ REACCIÓN INSTANTÁNEA */
+sock.sendMessage(from,{
+react:{ text:'🎶', key:m.key }
+})
 
-    /* 🔎 Buscar video */
-    const search = await yts(text)
+try {
 
-    if (!search.videos.length) {
-      return reply('❌ No encontré resultados')
-    }
+/* 🔎 BUSCAR VIDEO */
+const search = await yts(text)
 
-    const video = search.videos[0]
+if (!search.videos.length) {
+return reply('❌ No encontré resultados')
+}
 
-    const { title, url, thumbnail, timestamp, views, author } = video
+const video = search.videos[0]
 
-    /* 🎶 Reacción */
-    await sock.sendMessage(from, {
-      react: { text: '🎶', key: m.key }
-    })
+const { title, url, thumbnail, timestamp, views, author } = video
 
-    /* 📊 Enviar info */
-    await sock.sendMessage(from, {
-      image: { url: thumbnail },
-      caption:
+/* 📊 INFO */
+await sock.sendMessage(from,{
+image:{ url:thumbnail },
+caption:
 `╭─❖ 「 🎧 ${botName} 」 ❖─╮
 │ 🎵 Título: ${title}
 │ 👤 Canal: ${author.name}
@@ -52,50 +52,50 @@ export const handler = async (m, { sock, from, args, reply, isAdmin }) => {
 │ 👁 Vistas: ${views.toLocaleString()}
 ╰────────────────
 
-⏳ Descargando audio...`
-    }, { quoted: m })
+⬇️ Descargando audio...`
+},{ quoted:m })
 
-    const file = `./tmp/${Date.now()}.m4a`
+const file = `./tmp/${Date.now()}.m4a`
 
-    /* 📥 Descargar audio rápido */
-    const ytdlp = spawn('yt-dlp', [
-      '-f',
-      'bestaudio[ext=m4a]',
-      '--no-playlist',
-      '--quiet',
-      '-o',
-      file,
-      url
-    ])
+/* 🚀 DESCARGA RÁPIDA */
+const ytdlp = spawn('yt-dlp',[
+'-f','bestaudio[ext=m4a]',
+'--no-playlist',
+'--no-warnings',
+'--quiet',
+'-o',file,
+url
+])
 
-    ytdlp.on('close', async (code) => {
+ytdlp.on('close', async(code)=>{
 
-      if (code !== 0) {
-        return reply('❌ Error descargando audio')
-      }
+if(code !== 0){
+return reply('❌ Error descargando audio')
+}
 
-      /* 🎵 Enviar audio */
-      await sock.sendMessage(from, {
-        audio: fs.readFileSync(file),
-        mimetype: 'audio/mp4',
-        fileName: `${title}.m4a`
-      }, { quoted: m })
+/* 🎵 ENVIAR AUDIO RÁPIDO */
+await sock.sendMessage(from,{
+audio:{ url:file },
+mimetype:'audio/mp4',
+fileName:`${title}.m4a`
+},{ quoted:m })
 
-      fs.unlinkSync(file)
+fs.unlinkSync(file)
 
-      /* ✅ Reacción final */
-      await sock.sendMessage(from, {
-        react: { text: '✅', key: m.key }
-      })
+/* ✅ REACCIÓN FINAL */
+sock.sendMessage(from,{
+react:{ text:'✅', key:m.key }
+})
 
-    })
+})
 
-  } catch (e) {
+}catch(e){
 
-    console.log('PLAY ERROR:', e)
-    reply('❌ Error al procesar la canción')
+console.log('PLAY ERROR:',e)
+reply('❌ Error al procesar la canción')
 
-  }
+}
+
 }
 
 handler.command = ['play']
