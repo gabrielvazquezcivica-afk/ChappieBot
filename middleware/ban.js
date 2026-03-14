@@ -1,45 +1,15 @@
 import fs from 'fs'
-import path from 'path'
 
-const banPath = path.join('./data/ban.json')
+const file = './data/ban.json'
 
-// Cargar lista de baneos
-let banList = {}
-if (fs.existsSync(banPath)) {
-  banList = JSON.parse(fs.readFileSync(banPath))
+export default async function banMiddleware(m) {
+
+  if (!fs.existsSync(file)) return
+
+  const banned = JSON.parse(fs.readFileSync(file))
+
+  const user = m.key.participant || m.key.remoteJid
+
+  if (banned.includes(user)) return false
+
 }
-
-// Guardar lista de baneos
-const saveBanList = () => fs.writeFileSync(banPath, JSON.stringify(banList, null, 2))
-
-/**
- * Revisar si un JID está baneado
- * @param {string} jid
- * @returns {boolean}
- */
-export const isBanned = (jid) => {
-  if (!jid) return false
-  return !!banList[jid]
-}
-
-/**
- * Banear un usuario por JID
- * @param {string} jid
- */
-export const banUser = (jid) => {
-  if (!jid) return
-  banList[jid] = true
-  saveBanList()
-}
-
-/**
- * Desbanear un usuario por JID
- * @param {string} jid
- */
-export const unbanUser = (jid) => {
-  if (!jid) return
-  delete banList[jid]
-  saveBanList()
-}
-
-export default isBanned
