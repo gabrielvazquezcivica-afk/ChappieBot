@@ -24,13 +24,12 @@ const quoted = ctx?.quotedMessage
 
 if(!quoted) return reply('📸 Responde a una foto de ver una vez')
 
-const type = Object.keys(quoted)[0]
+let msg = quoted.viewOnceMessage?.message ||
+          quoted.viewOnceMessageV2?.message ||
+          quoted.viewOnceMessageV2Extension?.message
 
-if(type !== 'viewOnceMessageV2' && type !== 'viewOnceMessage'){
-return reply('❌ Ese mensaje no es de ver una vez')
-}
+if(!msg) return reply('❌ Ese mensaje no es de ver una vez')
 
-const msg = quoted[type].message
 const mediaType = Object.keys(msg)[0]
 
 const stream = await downloadContentFromMessage(
