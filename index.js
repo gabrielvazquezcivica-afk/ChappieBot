@@ -127,7 +127,13 @@ async function startBot () {
     const pushName = m.pushName || 'Usuario'
 
     // 🔹 BLOQUEO GLOBAL POR BAN
-    if (isBanned(sender)) return // 🚫 Usuario baneado, bloqueo silencioso
+let cleanSender = sender
+
+if (cleanSender) {
+  cleanSender = cleanSender.split(':')[0]
+}
+
+if (isBanned(cleanSender) && !isOwner) return
 
     // 🔹 BORRAR MENSAJES DE USUARIOS SILENCIADOS
     await muteWatcher(sock, m)
