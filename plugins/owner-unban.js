@@ -11,28 +11,48 @@ function saveBan(data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2))
 }
 
+function getUser(m, args) {
+
+  if (m.mentionedJid?.length) {
+    return m.mentionedJid[0].split(':')[0]
+  }
+
+  if (m.quoted?.sender) {
+    return m.quoted.sender.split(':')[0]
+  }
+
+  if (args[0]) {
+    const num = args[0].replace(/[^0-9]/g, '')
+    if (!num) return null
+    return num + '@s.whatsapp.net'
+  }
+
+  return null
+}
+
 export const handler = async (m, { sock, isOwner, args, reply }) => {
 
-  if (!isOwner) return
+  if (!isOwner) return reply('⚠️ Solo el owner puede usar este comando')
 
-  let user =
-    m.mentionedJid?.[0] ||
-    m.quoted?.sender ||
-    (args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null)
+  const user = getUser(m, args)
 
   if (!user) return reply('⚠️ Menciona o responde al usuario')
 
   let banned = loadBan()
 
-  if (!banned.includes(user)) return reply('⚠️ Ese usuario no está baneado')
+  if (!banned.includes(user)) {
+    return reply('⚠️ Ese usuario no está baneado')
+  }
 
   banned = banned.filter(u => u !== user)
 
   saveBan(banned)
 
+  const number = user.split('@')[0]
+
   await sock.sendMessage(
     m.chat,
-    { text: `✅ Usuario desbaneado\n\n${user.split('@')[0]}` },
+    { text: `✅ Usuario desbaneado\n\n👤 ${number}` },
     { quoted: m }
   )
 
@@ -41,5 +61,6 @@ export const handler = async (m, { sock, isOwner, args, reply }) => {
 handler.command = ['unban']
 handler.tags = ['owner']
 handler.owner = true
+handler.menu = true
 
 export default handler
