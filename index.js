@@ -126,6 +126,7 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
+    let isOwner = false
 
     // 🔹 BLOQUEO GLOBAL POR BAN
 let cleanSender = sender
@@ -157,7 +158,7 @@ if (isBanned(cleanSender) && !isOwner) return
     }
 
     // 🔹 CALCULAR SI ES OWNER
-let isOwner = false
+ isOwner = false
 
 const ownerNumbers = global.config.owner?.numbers || []
 const ownerJids = global.config.owner?.jid || []
