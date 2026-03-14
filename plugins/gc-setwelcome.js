@@ -17,9 +17,14 @@ function saveSettings(settings) {
 export const handler = async (m, { sock, from, isGroup, isAdmin, args, reply }) => {
   if (!isGroup) return reply('⚠️ Solo funciona en grupos')
   if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
-  if (!args || args.length < 2) return reply('⚠️ Uso: .setwelcome <texto>')
+  if (!args || args.length < 1) return reply('⚠️ Uso: .setwelcome <texto>')
 
-  const text = args.join(' ')
+  const raw =
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+
+  const text = raw.replace(/^\.setwelcome\s*/i, '')
 
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
