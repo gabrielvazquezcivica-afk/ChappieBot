@@ -11,24 +11,26 @@ function saveBan(data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2))
 }
 
-export const handler = async (m, { sock, mentionedJid, isOwner, reply }) => {
+export const handler = async (m, { sock, isOwner, args, reply }) => {
 
   if (!isOwner) return reply('⚠️ Solo el owner puede usar este comando')
 
-  const user = mentionedJid[0]
-  if (!user) return reply('⚠️ Menciona al usuario')
+  let user =
+    m.mentionedJid?.[0] ||
+    m.quoted?.sender ||
+    (args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null)
+
+  if (!user) return reply('⚠️ Menciona o responde al usuario')
 
   let banned = loadBan()
 
-  if (banned.includes(user)) {
-    return reply('⚠️ Ese usuario ya está baneado')
-  }
+  if (banned.includes(user)) return reply('⚠️ Ese usuario ya está baneado')
 
   banned.push(user)
   saveBan(banned)
 
   await sock.sendMessage(m.chat, {
-    text: `🚫 Usuario baneado del bot\n\n👤 @${user.split('@')[0]}`,
+    text: `🚫 Usuario baneado\n\n👤 @${user.split('@')[0]}`,
     mentions: [user]
   }, { quoted: m })
 
