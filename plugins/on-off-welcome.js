@@ -80,6 +80,8 @@ handler.before = async (_, { sock }) => {
     // 🔹 Reemplazar @user por la mención real
     text = text.replace(/@user/g, `@${user.split('@')[0]}`)
 
+    text = text.replace(/\\n/g, '\n')
+
     // ───── OBTENER FOTO ─────
     let image = null
     try {
