@@ -15,10 +15,17 @@ export const handler = async (m, { sock, isOwner, args, reply }) => {
 
   if (!isOwner) return reply('⚠️ Solo el owner puede usar este comando')
 
-  let user =
-    m.mentionedJid?.[0] ||
-    m.quoted?.sender ||
-    (args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null)
+  let user = null
+
+  if (m.mentionedJid && m.mentionedJid.length) {
+    user = m.mentionedJid[0]
+  } else if (m.quoted && m.quoted.sender) {
+    user = m.quoted.sender
+  } else if (args[0]) {
+    const number = args[0].replace(/[^0-9]/g, '')
+    if (number.length < 5) return reply('⚠️ Número inválido')
+    user = number + '@s.whatsapp.net'
+  }
 
   if (!user) return reply('⚠️ Menciona o responde al usuario')
 
@@ -29,11 +36,14 @@ export const handler = async (m, { sock, isOwner, args, reply }) => {
   banned.push(user)
   saveBan(banned)
 
-  await sock.sendMessage(m.chat, {
-    text: `🚫 Usuario baneado\n\n👤 @${user.split('@')[0]}`,
-    mentions: [user]
-  }, { quoted: m })
-
+  await sock.sendMessage(
+    m.chat,
+    {
+      text: `🚫 Usuario baneado\n\n👤 @${user.split('@')[0]}`,
+      mentions: [user]
+    },
+    { quoted: m }
+  )
 }
 
 handler.command = ['ban']
