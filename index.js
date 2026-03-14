@@ -126,7 +126,6 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
-    let isOwner = false // ✅ declarado antes del ban
 
     // 🔹 BLOQUEO GLOBAL POR BAN
 let cleanSender = sender
