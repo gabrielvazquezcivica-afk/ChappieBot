@@ -26,12 +26,12 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   ]    
 
   // ───── MENSAJE SIMPLIFICADO ─────
-  let text = `📣 INVOCANDO GRUPO 📣
+  let text = `📣 𝐼𝑁𝑉𝑂𝐶𝐴𝑁𝐷𝑂 𝐺𝑅𝑈𝑃𝑂 📣
 
-GRUPO: ${metadata.subject}
-MIEMBROS: ${participants.length}
+𝖦𝖱𝖴𝖯𝖮: ${metadata.subject}
+𝖬𝖨𝖤𝖬𝖡𝖱𝖮𝖲: ${participants.length}
 
-ETIQUETAS 🌠
+𝑬𝑻𝑰𝑸𝑼𝑬𝑻𝑨𝑺 🌠
 `        
         
   const mentions = []        
