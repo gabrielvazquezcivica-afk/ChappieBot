@@ -151,7 +151,7 @@ const last = global.cooldownHola[sender] || 0
 
 if (!text.startsWith(global.prefix)) {
 
-  if (text.toLowerCase() === 'hola') {
+  if (text.toLowerCase() === 'hola','holi','ola','oli','buenas') {
 
     if (now - last < cooldown) return
 
@@ -172,28 +172,6 @@ if (!text.startsWith(global.prefix)) {
   }
 
   return
-}
-
-    // ───── DETECTOR PUT0 ─────
-if (text.toLowerCase().includes('puto')) {
-
-  const frases = [
-    '😏 @USER dijo "puto"... ¿te estás describiendo?',
-    '😂 @USER anda gritando puto como si alguien le hubiera quitado el novio.',
-    '🤨 @USER dijo puto… sospechoso.',
-    '😹 @USER anda diciendo puto… todo bien bro?',
-    '💀 @USER dijo puto… pero el primero en pensarlo fue él.',
-    '🤣 @USER gritando puto… alguien anda proyectándose.'
-  ]
-
-  const frase = frases[Math.floor(Math.random() * frases.length)]
-    .replace('@USER', `@${sender.split('@')[0]}`)
-
-  await sock.sendMessage(from, {
-    text: frase,
-    mentions: [sender]
-  }, { quoted: m })
-
 }
     
     if (!text || !text.startsWith(global.prefix)) return
