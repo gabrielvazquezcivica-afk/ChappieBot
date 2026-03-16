@@ -14,7 +14,33 @@ const acr = new acrcloud({
   access_secret: 'bvgaIAEtADBTbLwiPGYlxupWqkNGIjT7J9Ag2vIu'
 })
 
-export const handler = async (m, { sock, from, reply }) => {
+export const handler = async (m, { sock, from, sender, isGroup, reply }) => {
+
+  /* ───── 🔒 MODO ADMIN (SILENCIOSO) ───── */
+  let groupSettings = { enabled: false }
+  const modoadminPath = './data/modoadmin.json'
+
+  if (fs.existsSync(modoadminPath)) {
+    try {
+      const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
+      groupSettings = modoadminData[from] || { enabled: false }
+    } catch {
+      groupSettings = { enabled: false }
+    }
+  }
+
+  if (groupSettings.enabled && isGroup) {
+    try {
+      const metadata = await sock.groupMetadata(from)
+      const participants = metadata.participants || []
+
+      const isAdmin = participants.some(
+        p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
+      )
+
+      if (!isAdmin) return // bloqueo silencioso
+    } catch {}
+  }
 
   await sock.sendMessage(from, {
     react: { text: '🎵', key: m.key }
@@ -84,9 +110,7 @@ export const handler = async (m, { sock, from, reply }) => {
     await reply(text)
 
   } catch (e) {
-
     reply('❌ NO SE PUDO IDENTIFICAR LA CANCIÓN')
-
   }
 
 }
