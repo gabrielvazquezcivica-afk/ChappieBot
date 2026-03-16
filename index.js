@@ -142,16 +142,18 @@ if (isBanned(cleanSender) && !isOwner) return
 
     const text = getText(m)
 
-    // ───── SALUDO AUTOMÁTICO ─────
+// ───── SALUDO AUTOMÁTICO ─────
 global.cooldownHola = global.cooldownHola || {}
 
-const now = Date.now()
-const cooldown = 20000 // 20 segundos
-const last = global.cooldownHola[sender] || 0
+if (text) {
 
-if (!text.startsWith(global.prefix)) {
+  const msg = text.toLowerCase().trim()
 
-  if (text.toLowerCase() === 'hola','holi','ola','oli','buenas') {
+  if (msg === 'hola') {
+
+    const now = Date.now()
+    const cooldown = 20000
+    const last = global.cooldownHola[sender] || 0
 
     if (now - last < cooldown) return
 
@@ -166,13 +168,16 @@ if (!text.startsWith(global.prefix)) {
     else saludo = 'Buenas noches'
 
     await sock.sendMessage(from, {
-      text: `👋 ${saludo} ${pushName}\n\nSoy *ChappieBot* 🤖\nEstoy aquí para ayudarte.\n\nUsa *${global.prefix}menu* para ver mis comandos.`
+      text: `👋 ${saludo} ${pushName}
+
+🤖 Soy *ChappieBot*
+
+Usa *${global.prefix}menu* para ver mis comandos.`
     }, { quoted: m })
 
   }
 
-  return
-}
+  }
     
     if (!text || !text.startsWith(global.prefix)) return
 
