@@ -141,6 +141,38 @@ if (isBanned(cleanSender) && !isOwner) return
     await muteWatcher(sock, m)
 
     const text = getText(m)
+
+    // ───── SALUDO AUTOMÁTICO ─────
+global.cooldownHola = global.cooldownHola || {}
+
+const now = Date.now()
+const cooldown = 20000 // 20 segundos
+const last = global.cooldownHola[sender] || 0
+
+if (!text.startsWith(global.prefix)) {
+
+  if (text.toLowerCase() === 'hola') {
+
+    if (now - last < cooldown) return
+
+    global.cooldownHola[sender] = now
+
+    const hora = new Date().getHours()
+
+    let saludo = 'Hola'
+
+    if (hora >= 6 && hora < 12) saludo = 'Buenos días'
+    else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
+    else saludo = 'Buenas noches'
+
+    await sock.sendMessage(from, {
+      text: `👋 ${saludo} ${pushName}\n\nSoy *ChappieBot* 🤖\nEstoy aquí para ayudarte.\n\nUsa *${global.prefix}menu* para ver mis comandos.`
+    }, { quoted: m })
+
+  }
+
+  return
+}
     if (!text || !text.startsWith(global.prefix)) return
 
     // 🔹 CALCULAR SI ES ADMIN
