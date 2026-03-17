@@ -54,7 +54,7 @@ export const handler = async (m, { sock, from, plugins, reply }) => {
   }
 }
 
-handler.command = ['bot', 'botinfo', 'info']
+handler.command = ['botinfo']
 handler.tags = ['info']
 handler.menu = true
 
