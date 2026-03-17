@@ -235,23 +235,21 @@ if (sender && ownerJids.includes(sender)) {
       const cmds = Array.isArray(h.command) ? h.command : [h.command]
       if (!cmds.includes(command)) continue
 
-      try {
-        await h(m, {
-          sock,
-          from,
-          sender,
-          pushName,
-          isGroup,
-          isAdmin,
-          isOwner,
-          args,
-          command,
-          plugins,
-          reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
-        })
-      } catch (e) {
-        console.log(chalk.red('❌ Error comando:'), e)
-      }
+      h(m, {
+  sock,
+  from,
+  sender,
+  pushName,
+  isGroup,
+  isAdmin,
+  isOwner,
+  args,
+  command,
+  plugins,
+  reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+}).catch(e => {
+  console.log(chalk.red('❌ Error comando:'), e)
+})
       break
     }
   })
