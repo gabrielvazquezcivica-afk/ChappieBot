@@ -24,23 +24,38 @@ export const handler = async (m, { sock, from, sender, isGroup, args, command, r
     } catch {}
   }
 
-  const text = args.join(' ')
+  const text = args.join(' ').trim()
+
   if (!text) {
     return reply(`🤖 ESCRIBE UNA PREGUNTA
 
 Ejemplo:
-.${command} hola`)
+.${command} ¿Qué es la inteligencia artificial?`)
+  }
+
+  // 💬 RESPUESTA ESPECIAL PARA "hola"
+  if (text.toLowerCase() === 'hola') {
+    return reply(`👋 Hola ${m.pushName || ''}
+
+Soy ChappieBot 🤖
+
+Puedes preguntarme cosas como:
+• Cuéntame un chiste
+• Dame un dato curioso
+• ¿Qué es la inteligencia artificial?`)
   }
 
   try {
 
+    // 🧠 reacción
     await sock.sendMessage(from, {
       react: { text: '🧠', key: m.key }
     })
 
+    // ✍️ escribiendo
     await sock.sendPresenceUpdate('composing', from)
 
-    // ✅ API NUEVA FUNCIONAL
+    // 🔥 API
     const res = await fetch(`https://api.simsimi.vn/v2/simtalk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -49,12 +64,23 @@ Ejemplo:
 
     const data = await res.json()
 
-    const respuesta = data.message || 'No entendí la pregunta'
+    let respuesta = data.message
+
+    // 🧠 mejora de respuesta
+    if (!respuesta || respuesta.toLowerCase().includes('no entend')) {
+      respuesta = `🤖 No entendí bien tu mensaje.
+
+Intenta algo más claro como:
+• Cuéntame un chiste
+• ¿Qué es el amor?
+• Dame un dato curioso`
+    }
 
     await reply(`🤖 RESPUESTA
 
 ${respuesta}`)
 
+    // ✅ reacción
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
     })
@@ -67,7 +93,7 @@ ${respuesta}`)
       react: { text: '❌', key: m.key }
     })
 
-    reply('❌ ERROR EN LA IA')
+    reply('❌ ERROR AL CONSULTAR LA IA')
   }
 
 }
