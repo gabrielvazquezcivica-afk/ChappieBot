@@ -1,9 +1,11 @@
 import os from 'os'
 
-export const handler = async (m, { sock, plugins, reply }) => {
+export const handler = async (m, { sock, from, plugins, reply }) => {
 
   // ✍️ SIMULAR ESCRIBIENDO
-  await sock.sendPresenceUpdate('composing',from)
+  if (from) {
+    await sock.sendPresenceUpdate('composing', from)
+  }
 
   const start = performance.now()
 
@@ -27,7 +29,7 @@ export const handler = async (m, { sock, plugins, reply }) => {
   const minutes = Math.floor((uptime % 3600) / 60)
   const seconds = Math.floor(uptime % 60)
 
-  // ⏳ pequeño delay para que se note
+  // ⏳ pequeño delay para realismo
   await new Promise(resolve => setTimeout(resolve, 1200))
 
   // 🎨 MENSAJE
@@ -44,13 +46,15 @@ export const handler = async (m, { sock, plugins, reply }) => {
 ╰━━━━━━━━━━━━━━━━⬣
 `.trim()
 
-  await sock.sendMessage(m.chat, { text }, { quoted: m })
+  await sock.sendMessage(from, { text }, { quoted: m })
 
-  // 📴 quitar estado de escribiendo
-  await sock.sendPresenceUpdate('paused',from)
+  // 📴 quitar "escribiendo"
+  if (from) {
+    await sock.sendPresenceUpdate('paused', from)
+  }
 }
 
-handler.command = ['botinfo']
+handler.command = ['bot', 'botinfo', 'info']
 handler.tags = ['info']
 handler.menu = true
 
