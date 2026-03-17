@@ -1,91 +1,56 @@
-export const handler = async (m, { sock, from, args, command, reply }) => {
+import os from 'os'
 
-  const text = args.join(' ').toLowerCase().trim()
+export const handler = async (m, { sock, plugins, reply }) => {
 
-  if (!text) {
-    return reply(`🤖 ESCRIBE ALGO
+  // ✍️ SIMULAR ESCRIBIENDO
+  await sock.sendPresenceUpdate('composing', m.chat)
 
-Ejemplo:
-.${command} hola`)
-  }
+  const start = performance.now()
 
-  // 🤖 reacción inicial
-  await sock.sendMessage(from, {
-    react: { text: '🤖', key: m.key }
-  })
+  // 📌 CONFIG
+  const botName = sock.user?.name || 'ChappieBot'
+  const ownerName = global.config.owner?.name || 'Owner'
 
-  // ✍️ escribiendo...
-  await sock.sendPresenceUpdate('composing', from)
+  // ⚡ velocidad
+  const speed = (performance.now() - start).toFixed(2)
 
-  // ⏳ pequeño delay para que se vea real
-  await new Promise(resolve => setTimeout(resolve, 1500))
+  // 🧩 plugins
+  const totalPlugins = plugins.length
 
-  let respuesta = ''
+  // 📊 RAM
+  const ram = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)
+  const totalRam = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2)
 
-  // 🧠 RESPUESTAS
-  if (text.includes('hola')) {
-    respuesta = `👋 Hola ${m.pushName || ''}\nSoy ChappieBot 🤖`
-  }
+  // ⏱️ uptime
+  const uptime = process.uptime()
+  const hours = Math.floor(uptime / 3600)
+  const minutes = Math.floor((uptime % 3600) / 60)
+  const seconds = Math.floor(uptime % 60)
 
-  else if (text.includes('como estas')) {
-    respuesta = '😎 Estoy funcionando al 100%'
-  }
+  // ⏳ pequeño delay para que se note
+  await new Promise(resolve => setTimeout(resolve, 1200))
 
-  else if (text.includes('quien eres')) {
-    respuesta = '🤖 Soy ChappieBot, tu asistente virtual'
-  }
+  // 🎨 MENSAJE
+  const text = `
+╭━━━〔 🤖 ${botName} 〕━━━⬣
+┃
+┃ 👑 Owner: ${ownerName}
+┃ ⚡ Velocidad: ${speed} ms
+┃ 🧩 Plugins: ${totalPlugins}
+┃
+┃ 📊 RAM: ${ram} MB / ${totalRam} GB
+┃ ⏱️ Activo: ${hours}h ${minutes}m ${seconds}s
+┃
+╰━━━━━━━━━━━━━━━━⬣
+`.trim()
 
-  else if (text.includes('que haces')) {
-    respuesta = '⚙️ Ayudo en grupos, ejecuto comandos y me adapto a lo que necesites'
-  }
+  await sock.sendMessage(m.chat, { text }, { quoted: m })
 
-  else if (text.includes('chiste')) {
-    respuesta = '😂 ¿Por qué el bot no fue a la fiesta?\nPorque estaba ejecutando comandos 😎'
-  }
-
-  else if (text.includes('amor')) {
-    respuesta = '💖 El amor es complicado… pero siempre vale la pena'
-  }
-
-  else if (text.includes('dueño') || text.includes('owner')) {
-    respuesta = '👑 Mi creador es el dueño del bot'
-  }
-
-  else if (text.includes('menu')) {
-    respuesta = `📜 Usa ${global.prefix}menu para ver todos los comandos`
-  }
-
-  else if (text.includes('grupo')) {
-    respuesta = '👥 Este bot funciona mejor en grupos'
-  }
-
-  else if (text.includes('gracias')) {
-    respuesta = '🙏 De nada, para eso estoy 😎'
-  }
-
-  else if (text.includes('adios')) {
-    respuesta = '👋 Hasta luego'
-  }
-
-  else {
-    respuesta = `🤖 Aún no entiendo eso
-
-Prueba con:
-• hola
-• chiste
-• quien eres
-• que haces`
-  }
-
-  await reply(respuesta)
-
-  // ✅ reacción final
-  await sock.sendMessage(from, {
-    react: { text: '✅', key: m.key }
-  })
+  // 📴 quitar estado de escribiendo
+  await sock.sendPresenceUpdate('paused', m.chat)
 }
 
-handler.command = ['bot']
+handler.command = ['botinfo']
 handler.tags = ['info']
 handler.menu = true
 
