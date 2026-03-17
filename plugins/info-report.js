@@ -30,12 +30,20 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
   const isGroup = from.endsWith('@g.us')
 
   let groupName = 'CHAT PRIVADO'
+  let groupLink = 'NO APLICA'
 
   if (isGroup) {
     try {
       const metadata = await sock.groupMetadata(from)
       groupName = metadata.subject
-    } catch {}
+
+      // 🔗 LINK DEL GRUPO
+      const code = await sock.groupInviteCode(from)
+      groupLink = `https://chat.whatsapp.com/${code}`
+
+    } catch {
+      groupLink = 'NO SE PUDO OBTENER'
+    }
   }
 
   // 🕒 HORA
@@ -53,6 +61,7 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
 ┃ 👤 USUARIO: ${pushName}
 ┃ 🔢 NÚMERO: ${userTag}
 ┃ 📍 CHAT: ${groupName}
+┃ 🔗 LINK: ${groupLink}
 ┃ 🕒 HORA: ${hora}
 ┃
 ┃ 📝 MENSAJE:
