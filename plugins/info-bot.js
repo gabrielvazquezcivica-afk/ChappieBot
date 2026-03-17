@@ -3,7 +3,7 @@ import os from 'os'
 export const handler = async (m, { sock, plugins, reply }) => {
 
   // ✍️ SIMULAR ESCRIBIENDO
-  await sock.sendPresenceUpdate('composing', m.chat)
+  await sock.sendPresenceUpdate('composing',from)
 
   const start = performance.now()
 
@@ -47,7 +47,7 @@ export const handler = async (m, { sock, plugins, reply }) => {
   await sock.sendMessage(m.chat, { text }, { quoted: m })
 
   // 📴 quitar estado de escribiendo
-  await sock.sendPresenceUpdate('paused', m.chat)
+  await sock.sendPresenceUpdate('paused',from)
 }
 
 handler.command = ['botinfo']
