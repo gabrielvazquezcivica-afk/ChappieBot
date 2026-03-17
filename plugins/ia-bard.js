@@ -11,54 +11,50 @@ export const handler = async (m, { sock, from, sender, isGroup, args, command, r
     try {
       const modoadminData = JSON.parse(fs.readFileSync(modoadminPath))
       groupSettings = modoadminData[from] || { enabled: false }
-    } catch {
-      groupSettings = { enabled: false }
-    }
+    } catch {}
   }
 
   if (groupSettings.enabled && isGroup) {
     try {
       const metadata = await sock.groupMetadata(from)
-      const participants = metadata.participants || []
-
-      const isAdmin = participants.some(
+      const isAdmin = metadata.participants.some(
         p => p.id === sender && (p.admin === 'admin' || p.admin === 'superadmin')
       )
-
-      if (!isAdmin) return // bloqueo silencioso
+      if (!isAdmin) return
     } catch {}
   }
 
-  // 🔹 texto corregido
   const text = args.join(' ')
-
   if (!text) {
-    return reply(`🤖 INGRESA UNA PREGUNTA
+    return reply(`🤖 ESCRIBE UNA PREGUNTA
 
 Ejemplo:
-.${command} ¿Conoces a Chappie?`)
+.${command} hola`)
   }
 
   try {
 
-    // ⏳ reacción
     await sock.sendMessage(from, {
-      react: { text: '🕒', key: m.key }
+      react: { text: '🧠', key: m.key }
     })
 
-    // ✍️ escribiendo
     await sock.sendPresenceUpdate('composing', from)
 
-    const apii = await fetch(`https://aemt.me/bard?text=${encodeURIComponent(text)}`)
-    const res = await apii.json()
+    // ✅ API NUEVA FUNCIONAL
+    const res = await fetch(`https://api.simsimi.vn/v2/simtalk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `text=${encodeURIComponent(text)}&lc=es`
+    })
 
-    if (!res?.result) throw 'Sin respuesta'
+    const data = await res.json()
+
+    const respuesta = data.message || 'No entendí la pregunta'
 
     await reply(`🤖 RESPUESTA
 
-${res.result}`)
+${respuesta}`)
 
-    // ✅ reacción
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
     })
@@ -68,16 +64,16 @@ ${res.result}`)
     console.error(e)
 
     await sock.sendMessage(from, {
-      react: { text: '✖️', key: m.key }
+      react: { text: '❌', key: m.key }
     })
 
-    reply('❌ ERROR AL CONSULTAR LA IA')
+    reply('❌ ERROR EN LA IA')
   }
 
 }
 
 handler.command = ['bard']
-handler.tags = ['ai']
+handler.tags = ['ia']
 handler.group = true
 handler.menu = true
 
