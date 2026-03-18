@@ -1,4 +1,4 @@
-let handler = async (m, { conn }) => {
+let handler = async (m, { sock, from }) => {
 
 let menu = `
 🎧 *MENÚ DE AUDIOS - CHAPPIEBOT*
@@ -9,7 +9,7 @@ Activa con:
 Desactiva con:
 .audios off
 
-📀 LISTA COMPLETA:
+📀 LISTA:
 
 • bueno master
 • tralalero tralala
@@ -52,11 +52,9 @@ Desactiva con:
 • yamete
 • FBI
 • motivacion
-
-⚡ Usa el texto EXACTO
 `
 
-await conn.sendMessage(m.chat, { text: menu }, { quoted: m })
+await sock.sendMessage(from, { text: menu }, { quoted: m })
 }
 
 handler.command = ['menu2']
