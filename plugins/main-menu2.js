@@ -4,10 +4,10 @@ let menu = `
 🎧 *MENÚ DE AUDIOS - CHAPPIEBOT*
 
 Activa con:
-*.audios on*
+.audios on
 
 Desactiva con:
-*.audios off*
+.audios off
 
 📀 LISTA COMPLETA:
 
@@ -53,7 +53,7 @@ Desactiva con:
 • FBI
 • motivacion
 
-⚡ Usa el texto EXACTO para activar el audio
+⚡ Usa el texto EXACTO
 `
 
 await conn.sendMessage(m.chat, { text: menu }, { quoted: m })
@@ -61,5 +61,7 @@ await conn.sendMessage(m.chat, { text: menu }, { quoted: m })
 
 handler.command = ['menu2']
 handler.tags = ['info']
+handler.help = ['menu2']
+handler.menu = true
 
 export default handler
