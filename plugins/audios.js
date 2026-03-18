@@ -54,8 +54,6 @@ export const handler = async (m, { sock, command }) => {
 
   if (!audios[command]) return
 
-  await sock.sendPresenceUpdate('recording', m.chat)
-
   await sock.sendMessage(m.chat, {
     audio: { url: audios[command] },
     mimetype: 'audio/mp4',
