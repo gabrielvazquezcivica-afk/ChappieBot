@@ -119,16 +119,15 @@ Total de comandos: ${totalCommands}\n`
     
   menu += `\n\n> ${botName}`    
     
-  // 🔥 ENVÍO CON TU IMAGEN
-  await conn.sendMessage(
-    m.chat,
-    {
-      image: fs.readFileSync('./media/09468e5b244dffd8429c355778d80518.jpg'),
-      caption: menu
-    },
-    { quoted: m }
-  )
-}     
+    // ✅ Enviar menú SOLO TEXTO
+  await sock.sendMessage(    
+    from,    
+    {    
+      text: menu    
+    },    
+    { quoted: m }    
+  )    
+}        
     
 handler.command = ['menu']    
 handler.tags = ['info']    
