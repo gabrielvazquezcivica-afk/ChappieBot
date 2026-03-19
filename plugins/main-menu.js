@@ -138,13 +138,11 @@ Total de comandos: ${totalCommands}\n`
     
   menu += `\n\n> ${botName}`    
     
-      // ✅ Enviar menú SOLO TEXTO
+  // ✅ ENVÍO CON SISTEMA (QUOTED PRO)
   await sock.sendMessage(    
     from,    
-    {    
-      text: menu    
-    },    
-    { quoted: m }    
+    { text: menu },    
+    { quoted: sistema('📜 MENÚ PRINCIPAL') }    
   )    
 }    
     
