@@ -19,30 +19,47 @@ await sock.sendMessage(from,{
 react:{ text:'👀', key:m.key }
 })
 
-/* ✅ USAR m.quoted (IMPORTANTE) */
+/* 🔍 DETECTAR MENSAJE CITADO (2 FORMAS) */
 let q = m.quoted
-if(!q) return reply('📸 Responde a una foto')
 
-let mime = (q.msg || q).mimetype || ''
-if(!mime.includes('image')) {
-return reply('❌ Responde a una foto')
+if (!q) {
+  const ctx = m.message?.extendedTextMessage?.contextInfo
+  const quotedMsg = ctx?.quotedMessage
+  if (quotedMsg) {
+    const type = Object.keys(quotedMsg)[0]
+    q = quotedMsg[type]
+  }
 }
 
-/* 🔽 DESCARGAR MEDIA */
+if (!q) return reply('📸 Responde a una foto')
+
+/* 🧠 MIME */
+let mime = q.mimetype || q?.msg?.mimetype || ''
+
+if (!mime || !mime.includes('image')) {
+  return reply('❌ Responde a una foto válida')
+}
+
+/* ⛔ VALIDAR MEDIAKEY */
+if (!q.mediaKey && !q?.msg?.mediaKey) {
+  return reply('❌ No se pudo obtener la imagen (media caducada)')
+}
+
+/* 🔽 DESCARGAR */
 const stream = await downloadContentFromMessage(
-q.msg || q,
-'image'
+  q.msg || q,
+  'image'
 )
 
 let buffer = Buffer.from([])
 
 for await (const chunk of stream){
-buffer = Buffer.concat([buffer,chunk])
+  buffer = Buffer.concat([buffer,chunk])
 }
 
-/* 📸 ENVIAR FOTO */
+/* 📸 ENVIAR */
 await sock.sendMessage(from,{
-image: buffer
+  image: buffer
 },{ quoted:m })
 
 }
