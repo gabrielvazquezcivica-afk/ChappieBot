@@ -19,20 +19,18 @@ await sock.sendMessage(from,{
 react:{ text:'👀', key:m.key }
 })
 
-const ctx = m.message?.extendedTextMessage?.contextInfo
-const quoted = ctx?.quotedMessage
+/* ✅ USAR m.quoted (IMPORTANTE) */
+let q = m.quoted
+if(!q) return reply('📸 Responde a una foto')
 
-if(!quoted) return reply('📸 Responde a una foto')
-
-/* 🔍 buscar cualquier media */
-const type = Object.keys(quoted)[0]
-
-if(!type.includes('image')) {
+let mime = (q.msg || q).mimetype || ''
+if(!mime.includes('image')) {
 return reply('❌ Responde a una foto')
 }
 
+/* 🔽 DESCARGAR MEDIA */
 const stream = await downloadContentFromMessage(
-quoted[type],
+q.msg || q,
 'image'
 )
 
@@ -42,9 +40,9 @@ for await (const chunk of stream){
 buffer = Buffer.concat([buffer,chunk])
 }
 
-/* 📸 enviar foto */
+/* 📸 ENVIAR FOTO */
 await sock.sendMessage(from,{
-image:buffer
+image: buffer
 },{ quoted:m })
 
 }
