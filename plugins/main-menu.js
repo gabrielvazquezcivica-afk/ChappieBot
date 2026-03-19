@@ -1,20 +1,3 @@
-const sistema = (titulo = 'CHAPPIE BOT') => ({
-  key: {
-    fromMe: false,
-    participant: '0@s.whatsapp.net',
-    remoteJid: 'status@broadcast'
-  },
-  message: {
-    orderMessage: {
-      itemCount: 1,
-      message: titulo,
-      footerText: 'ChappieBot',
-      surface: 2,
-      sellerJid: '0@s.whatsapp.net'
-    }
-  }
-})
-  
 export const handler = async (m, {                  
   sock,                  
   from,                  
