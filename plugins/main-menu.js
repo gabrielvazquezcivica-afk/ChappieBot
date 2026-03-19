@@ -119,14 +119,11 @@ Total de comandos: ${totalCommands}\n`
     
   menu += `\n\n> ${botName}`    
     
-  // 📸 Enviar menú con imagen    
+  // ✅ Enviar menú SOLO TEXTO
   await sock.sendMessage(    
     from,    
     {    
-      image: {    
-        url: 'https://i.postimg.cc/WbC7LpM9/09468e5b244dffd8429c355778d80518.jpg'    
-      },    
-      caption: menu    
+      text: menu    
     },    
     { quoted: m }    
   )    
