@@ -100,6 +100,24 @@ handler.before = async (_, { sock }) => {
       } else {
         await sock.sendMessage(id, { text, mentions, quoted:update })
       }
+
+           // 🎵 AUDIO
+      if (action === 'add') {
+        await sock.sendMessage(id, {
+          audio: { url: 'https://files.catbox.moe/phazeo.mp3' },
+          mimetype: 'audio/mpeg',
+          ptt: true
+        })
+      }
+
+      if (action === 'remove') {
+        await sock.sendMessage(id, {
+          audio: { url: 'https://files.catbox.moe/b3b2ts.mp3' },
+          mimetype: 'audio/mpeg',
+          ptt: true
+        })
+      }
+      
     } catch(e){console.log('❌ Error welcome:',e)}
   })
 }
