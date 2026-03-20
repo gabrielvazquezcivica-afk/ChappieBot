@@ -149,7 +149,7 @@ if (text) {
 
   const msg = text.toLowerCase().trim()
 
-  if (msg === ['hola','holi','ola','oli'] {
+  if (msg === 'hola') {
 
     const now = Date.now()
     const cooldown = 20000
