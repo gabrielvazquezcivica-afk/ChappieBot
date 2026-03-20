@@ -3,29 +3,6 @@ import path from 'path'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 
-// ───── SISTEMA PREVIEW (CUADRITO CON IMAGEN) ─────
-const sistema = async (sock, from, titulo = '𝑪𝒉𝒂𝒑𝒑𝒊𝒆 𝑩𝒐𝒕') => {
-  let pp = 'https://i.imgur.com/0a1a1a1.png'
-
-  try {
-    pp = await sock.profilePictureUrl(from, 'image')
-  } catch (e) {}
-
-  return {
-    contextInfo: {
-      externalAdReply: {
-        title: titulo,
-        body: 'Sistema de bienvenida',
-        thumbnailUrl: pp,
-        sourceUrl: 'https://whatsapp.com',
-        mediaType: 1,
-        renderLargerThumbnail: false
-      }
-    }
-  }
-}
-// ─────────────────────────────────────
-
 // ───── FUNCIONES PARA SETTINGS ─────
 function loadSettings() {
   if (!fs.existsSync(settingsPath)) return {}
@@ -117,9 +94,6 @@ handler.before = async (_, { sock }) => {
 
     try {
       const mentions = [user]
-      
-      // 🔥 SISTEMA AQUÍ
-      const sys = await sistema(sock, id, action === 'add' ? '👋 Bienvenido' : '👋 Despedida')
       
       if (image) {
         await sock.sendMessage(id, { image, caption:text, mentions, quoted:update })
