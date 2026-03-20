@@ -100,24 +100,6 @@ handler.before = async (_, { sock }) => {
       } else {
         await sock.sendMessage(id, { text, mentions, quoted:update })
       }
-
-            // 🎵 AUDIO BIENVENIDA
-      if (action === 'add') {
-        await sock.sendMessage(id, {
-          audio: { url: 'https://files.catbox.moe/y0jgrt.ogg' },
-          mimetype: 'audio/ogg; codecs=opus',
-          ptt: true
-        })
-      }
-
-      // 🎵 AUDIO SALIDA
-      if (action === 'remove') {
-        await sock.sendMessage(id, {
-          audio: { url: 'https://files.catbox.moe/lf41lt.ogg' },
-          mimetype: 'audio/ogg; codecs=opus',
-          ptt: true
-        })
-      }
       
     } catch(e){console.log('❌ Error welcome:',e)}
   })
