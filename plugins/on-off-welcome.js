@@ -101,19 +101,20 @@ handler.before = async (_, { sock }) => {
         await sock.sendMessage(id, { text, mentions, quoted:update })
       }
 
-           // 🎵 AUDIO
+            // 🎵 AUDIO BIENVENIDA
       if (action === 'add') {
         await sock.sendMessage(id, {
-          audio: { url: 'https://files.catbox.moe/phazeo.mp3' },
-          mimetype: 'audio/mpeg',
+          audio: { url: 'https://files.catbox.moe/y0jgrt.ogg' },
+          mimetype: 'audio/ogg; codecs=opus',
           ptt: true
         })
       }
 
+      // 🎵 AUDIO SALIDA
       if (action === 'remove') {
         await sock.sendMessage(id, {
-          audio: { url: 'https://files.catbox.moe/b3b2ts.mp3' },
-          mimetype: 'audio/mpeg',
+          audio: { url: 'https://files.catbox.moe/lf41lt.ogg' },
+          mimetype: 'audio/ogg; codecs=opus',
           ptt: true
         })
       }
