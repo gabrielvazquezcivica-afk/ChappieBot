@@ -120,6 +120,17 @@ async function startBot () {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
 
+        // 👀 LEER MENSAJES GLOBAL
+    try {
+      if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
+        await sock.readMessages([m.key])
+      }
+    } catch (e) {
+      console.log('❌ Error leyendo mensaje:', e)
+    }
+
+    if (m.key.fromMe) return
+
     const from = m.key.remoteJid
     if (!from) return
     const isGroup = from.endsWith('@g.us')
