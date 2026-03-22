@@ -138,13 +138,13 @@ Total de comandos: ${totalCommands}\n`
     
   menu += `\n\n> ${botName}`    
     
-  // ✅ ENVÍO CON SISTEMA (QUOTED PRO)
-  await sock.sendMessage(    
-    from,    
-    { text: menu },    
-    { quoted: sistema('📜 MENÚ PRINCIPAL') }    
-  )    
-}    
+  // ✅ ENVÍO (ESTABLE)
+  await sock.sendMessage(
+    from,
+    { text: menu },
+    { quoted: sistema('📜 MENÚ PRINCIPAL') }
+  )
+}   
     
 handler.command = ['menu']    
 handler.tags = ['info']    
