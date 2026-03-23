@@ -33,11 +33,11 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   for (const p of participants) {        
     const name = p?.notify || p?.id.split('@')[0]        
     const emoji = emojis[Math.floor(Math.random() * emojis.length)]    
-    text += `${emoji} @${name}\n`        
+    text += `${emoji} → @${name}\n`        
     mentions.push(p.id)        
   }        
         
-  text += `\n> ${botName.toUpperCase()}`        
+  text += `\n> 𝘚𝘖𝘠𝘎𝘈𝘉𝘖 ✦        
         
   await sock.sendMessage(        
     from,        
