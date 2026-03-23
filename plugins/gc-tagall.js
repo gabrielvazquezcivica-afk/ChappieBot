@@ -13,7 +13,7 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
         
   const participants = metadata.participants        
         
-  // Reacción al comando        
+  // Reacción        
   await sock.sendMessage(from, { react: { text: '🗣️', key: m.key } })        
         
   // ───── EMOJIS RANDOM ─────    
@@ -25,14 +25,8 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     '📣','📢','📡','🧬','🛰️','💫','🌈','🎆','🎇','🎉'    
   ]    
 
-  // ───── MENSAJE SIMPLIFICADO ─────
-  let text = `📣 INVOCANDO GRUPO 📣
-
-GRUPO: ${metadata.subject}
-MIEMBROS: ${participants.length}
-
-ETIQUETAS: 
-`        
+  // ───── MENSAJE NUEVO ─────
+  let text = `> ${metadata.subject}\n\n𝘌𝘛𝘐𝘘𝘜𝘌𝘛𝘈𝘚:\n`        
         
   const mentions = []        
         
