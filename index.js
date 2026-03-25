@@ -268,23 +268,3 @@ if (sender && ownerJids.includes(sender)) {
 
 // ───── INIT ─────
 startBot()
-
-// 🧹 LIMPIADOR RAM
-setInterval(() => {
-  try {
-    global.adminCache = {}
-    global.cooldownHola = {}
-
-    if (global.gc) global.gc()
-
-    const used = process.memoryUsage()
-    console.log('🧹 Limpieza RAM')
-    console.log(`📊 ${(used.rss / 1024 / 1024).toFixed(2)} MB`)
-  } catch (e) {}
-}, 5 * 60 * 1000)
-
-// ♻️ REINICIO AUTOMÁTICO
-setTimeout(() => {
-  console.log('♻️ Reiniciando para evitar lag...')
-  process.exit(1)
-}, 2 * 60 * 60 * 1000)
