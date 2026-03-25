@@ -268,3 +268,24 @@ if (sender && ownerJids.includes(sender)) {
 
 // ───── INIT ─────
 startBot()
+
+// 🧹 LIMPIEZA INTELIGENTE SIN REINICIO
+setInterval(() => {
+  try {
+    // 🔥 limpiar caches
+    global.adminCache = {}
+    global.cooldownHola = {}
+
+    // 🧠 forzar limpieza de memoria (si está activado)
+    if (global.gc) global.gc()
+
+    // 📊 uso de RAM
+    const used = process.memoryUsage()
+
+    console.log('🧹 Limpieza automática hecha')
+    console.log(`📊 RAM: ${(used.rss / 1024 / 1024).toFixed(2)} MB`)
+
+  } catch (e) {
+    console.log('❌ Error limpiando RAM:', e)
+  }
+}, 5 * 60 * 1000) // cada 5 minutos
