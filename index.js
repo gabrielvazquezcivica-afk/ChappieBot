@@ -269,23 +269,33 @@ if (sender && ownerJids.includes(sender)) {
 // ───── INIT ─────
 startBot()
 
-// 🧹 LIMPIEZA INTELIGENTE SIN REINICIO
-setInterval(() => {
+// ♻️ SOFT RESET (REINICIO INTERNO SIN APAGAR BOT)
+setInterval(async () => {
   try {
-    // 🔥 limpiar caches
+    console.log('♻️ Ejecutando limpieza profunda...')
+
+    // 🧹 limpiar caches
     global.adminCache = {}
     global.cooldownHola = {}
 
-    // 🧠 forzar limpieza de memoria (si está activado)
+    // 🧩 recargar plugins (CLAVE 🔥)
+    const dir = path.join(__dirname, 'plugins')
+
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
+      const filePath = path.join(dir, file)
+
+      delete import.cache?.[filePath] // por si acaso
+    }
+
+    plugins = []
+    await loadPlugins()
+
+    // 🧠 limpiar memoria
     if (global.gc) global.gc()
 
-    // 📊 uso de RAM
-    const used = process.memoryUsage()
-
-    console.log('🧹 Limpieza automática hecha')
-    console.log(`📊 RAM: ${(used.rss / 1024 / 1024).toFixed(2)} MB`)
+    console.log('✅ Limpieza profunda completada')
 
   } catch (e) {
-    console.log('❌ Error limpiando RAM:', e)
+    console.log('❌ Error en limpieza profunda:', e)
   }
-}, 5 * 60 * 1000) // cada 5 minutos
+}, 30 * 60 * 1000) // cada 30 minutos
