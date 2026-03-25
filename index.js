@@ -268,34 +268,3 @@ if (sender && ownerJids.includes(sender)) {
 
 // ───── INIT ─────
 startBot()
-
-// ♻️ SOFT RESET (REINICIO INTERNO SIN APAGAR BOT)
-setInterval(async () => {
-  try {
-    console.log('♻️ Ejecutando limpieza profunda...')
-
-    // 🧹 limpiar caches
-    global.adminCache = {}
-    global.cooldownHola = {}
-
-    // 🧩 recargar plugins (CLAVE 🔥)
-    const dir = path.join(__dirname, 'plugins')
-
-    for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
-      const filePath = path.join(dir, file)
-
-      delete import.cache?.[filePath] // por si acaso
-    }
-
-    plugins = []
-    await loadPlugins()
-
-    // 🧠 limpiar memoria
-    if (global.gc) global.gc()
-
-    console.log('✅ Limpieza profunda completada')
-
-  } catch (e) {
-    console.log('❌ Error en limpieza profunda:', e)
-  }
-}, 30 * 60 * 1000) // cada 30 minutos
