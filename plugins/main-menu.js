@@ -1,22 +1,3 @@
-// ───── QUOTED SISTEMA (CHAPPIEBOT) ─────      
-const sistema = (titulo = '𝑪𝒉𝒂𝒑𝒑𝒊𝒆 𝑩𝒐𝒕') => ({      
-  key: {      
-    fromMe: false,      
-    participant: '0@s.whatsapp.net',      
-    remoteJid: 'status@broadcast'      
-  },      
-  message: {      
-    orderMessage: {      
-      itemCount: 1,      
-      message: titulo,      
-      footerText: 'ChappieBot',      
-      surface: 2,      
-      sellerJid: '0@s.whatsapp.net'      
-    }      
-  }      
-})      
-// ─────────────────────────────────────
-
 export const handler = async (m, {                  
   sock,                  
   from,                  
@@ -138,12 +119,13 @@ Total de comandos: ${totalCommands}\n`
     
   menu += `\n\n> ${botName}`    
     
-  // ✅ ENVÍO (ESTABLE)
-  await sock.sendMessage(
-    from,
-    { text: menu },
-    { quoted: sistema('📜 MENÚ PRINCIPAL') }
-  )
+  // 🚀 ENVÍO CON IMAGEN (FIX REAL)
+  await new Promise(r => setTimeout(r, 300))
+
+  await sock.sendMessage(from, {
+    image: { url: 'https://i.postimg.cc/0jXLvZxR/868bfb1ce56805562e86e1b517df1460.jpg' },
+    caption: menu
+  })
 }   
     
 handler.command = ['menu']    
