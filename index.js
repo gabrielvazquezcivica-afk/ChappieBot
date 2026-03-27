@@ -178,12 +178,18 @@ async function startBot () {
       const args = text.slice(global.prefix.length).trim().split(/\s+/)
       const command = args.shift().toLowerCase()
 
-      console.log(
-        chalk.blue('\n📩'),
-        pushName,
-        '|',
-        command
-      )
+          // ───── LOG LIMPIO ─────
+    let groupName = 'Privado'
+    if (isGroup) {
+      groupName = global.adminCache[from]?.name || 'Grupo'
+    }
+
+    console.log(
+      chalk.blue('\n📩 COMANDO'),
+      '\n👤', pushName,
+      '\n👥', groupName,
+      '\n⚡', command
+    )
 
       // EJECUTAR
       for (const p of plugins) {
