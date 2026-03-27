@@ -17,11 +17,6 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
     } catch {}
   }
 
-  // ✅ REACCIÓN
-  await sock.sendMessage(from, {
-    react: { text: '📢', key: m.key }
-  })
-
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')
 
   // 🔹 Verificar admin según index.js
