@@ -28,7 +28,7 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   // ───── MENSAJE EDITADO ─────  
   let text = `> ${metadata.subject}
   
-𝘌𝘛𝘐𝘘𝘜𝘌𝘛𝘈𝘚:
+𝐄𝐓𝐈𝐐𝐔𝐄𝐓𝐀𝐒:
 `          
           
   const mentions = []          
@@ -40,7 +40,7 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     mentions.push(p.id)          
   }          
           
-  text += `\n> 𝘓𝘐𝘝𝘌 𝘈 𝘏𝘈𝘗𝘗𝘠 𝘓𝘐𝘍𝘌 ⭐🤍`          
+  text += `\n> 𝐋𝐈𝐕𝐄 𝐀 𝐇𝐀𝐏𝐏𝐘 𝐋𝐈𝐅𝐄 ⭐🤍`          
           
   await sock.sendMessage(          
     from,          
