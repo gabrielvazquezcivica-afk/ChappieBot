@@ -17,6 +17,10 @@ util.inspect.defaultOptions.depth = 0
 util.inspect.defaultOptions.colors = false
 process.env.NODE_NO_WARNINGS = '1'
 
+// ───── CONTROL DE CARGA ─────
+global.processing = new Set()
+global.adminCache = {}
+
 // ───── ERRORES ─────
 process.on('uncaughtException', err => {
   if (String(err).includes('Bad MAC')) return
@@ -32,12 +36,9 @@ process.on('unhandledRejection', err => {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// ───── GLOBALS ─────
+// ───── GLOBAL ─────
 global.config = config
 global.prefix = config.bot.prefix
-global.cmdMap = {}
-global.adminCache = {}
-global.cooldownHola = {}
 
 // ───── BANNER ─────
 function showBanner () {
@@ -53,26 +54,13 @@ let plugins = []
 async function loadPlugins () {
   const dir = path.join(__dirname, 'plugins')
   plugins = []
-  global.cmdMap = {}
 
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
       const plugin = await import(
         pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
       )
-
-      const p = plugin.default ?? plugin
-      plugins.push(p)
-
-      const h = p.handler ?? p
-      if (!h?.command) continue
-
-      const cmds = Array.isArray(h.command) ? h.command : [h.command]
-
-      for (const cmd of cmds) {
-        global.cmdMap[cmd] = h
-      }
-
+      plugins.push(plugin.default ?? plugin)
     } catch (e) {
       console.log(chalk.red('❌ Error plugin:'), file, e)
     }
@@ -89,26 +77,24 @@ const getText = m =>
   m.message?.videoMessage?.caption ||
   ''
 
-// ───── START BOT ─────
+// ───── START ─────
 async function startBot () {
   showBanner()
   await loadPlugins()
 
   const sock = await connectBot()
 
-  // 🔹 BEFORE (IMPORTANTE NO QUITAR)
+  // BEFORE
   for (const p of plugins) {
     const h = p.handler ?? p
     if (typeof h?.before === 'function') {
       try {
         await h.before(null, { sock })
-      } catch (e) {
-        console.log(chalk.red('❌ Error before plugin:'), e)
-      }
+      } catch {}
     }
   }
 
-  // 🔹 EVENTOS
+  // EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
   })
@@ -117,33 +103,23 @@ async function startBot () {
     const { connection, lastDisconnect } = update
 
     if (connection === 'open') {
-      console.log(chalk.green('✅ Conectado | Comandos activos'))
+      console.log(chalk.green('✅ Conectado'))
     }
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
-      console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
+      console.log(chalk.red('⚠️ Cerrado:'), reason)
 
       if (reason !== DisconnectReason.loggedOut) {
-        console.log(chalk.yellow('🔁 Reintentando en 3s...'))
         setTimeout(startBot, 3000)
       }
     }
   })
 
-  // ───── MENSAJES ─────
+  // MENSAJES
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
-
-    // 👀 lectura optimizada
-    try {
-      if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
-        if (Math.random() < 0.2) {
-          await sock.readMessages([m.key])
-        }
-      }
-    } catch {}
 
     const from = m.key.remoteJid
     if (!from) return
@@ -152,125 +128,94 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
-    let isOwner = false
+    // 🚫 ANTI-SPAM PROCESO
+    if (global.processing.has(sender)) return
+    global.processing.add(sender)
 
-    // 🔹 BAN
-    let cleanSender = sender?.split(':')[0]
-    if (isBanned(cleanSender) && !isOwner) return
-
-    // 🔹 MUTE
-    await muteWatcher(sock, m)
-
-    const text = getText(m)
-
-    // ───── SALUDO MULTI ─────
-    if (text) {
-      const msg = text.toLowerCase().trim()
-
-      if (['hola','holi','ola','oli'].includes(msg)) {
-        const now = Date.now()
-        const cooldown = 20000
-        const last = global.cooldownHola[sender] || 0
-
-        if (now - last < cooldown) return
-        global.cooldownHola[sender] = now
-
-        const hora = new Date().getHours()
-        let saludo = 'Hola'
-
-        if (hora >= 6 && hora < 12) saludo = 'Buenos días'
-        else if (hora < 19) saludo = 'Buenas tardes'
-        else saludo = 'Buenas noches'
-
-        await sock.sendMessage(from, {
-          text: `👋 ${saludo} ${pushName}
-
-🤖 Soy *ChappieBot*
-
-Usa *${global.prefix}menu*`
-        }, { quoted: m })
+    try {
+      // 👀 leer mensajes ligero
+      if (Math.random() < 0.1) {
+        await sock.readMessages([m.key])
       }
-    }
 
-    if (!text || !text.startsWith(global.prefix)) return
+      const text = getText(m)
 
-    // 🔹 ADMIN CACHE
-    let isAdmin = false
-    if (isGroup && sender) {
-      try {
-        if (!global.adminCache[from] || Date.now() - global.adminCache[from].time > 60000) {
-          const metadata = await sock.groupMetadata(from)
-          global.adminCache[from] = {
-            data: metadata.participants,
-            time: Date.now()
+      // 🚀 SOLO COMANDOS
+      if (!text || !text.startsWith(global.prefix)) return
+
+      // BAN
+      let cleanSender = sender?.split(':')[0]
+      if (isBanned(cleanSender)) return
+
+      // MUTE
+      await muteWatcher(sock, m)
+
+      // ADMIN CACHE
+      let isAdmin = false
+      if (isGroup && sender) {
+        try {
+          if (!global.adminCache[from] || Date.now() - global.adminCache[from].time > 60000) {
+            const metadata = await sock.groupMetadata(from)
+            global.adminCache[from] = {
+              admins: metadata.participants.filter(p => p.admin).map(p => p.id),
+              time: Date.now()
+            }
           }
-        }
 
-        const admins = global.adminCache[from].data
-          .filter(p => p.admin)
-          .map(p => p.id)
+          isAdmin = global.adminCache[from].admins.includes(sender)
+        } catch {}
+      }
 
-        isAdmin = admins.includes(sender)
-      } catch {}
-    }
+      // OWNER
+      let isOwner = false
+      const ownerNumbers = global.config.owner?.numbers || []
+      const senderNumber = sender?.split('@')[0]?.split(':')[0]
 
-    // 🔹 OWNER
-    const ownerNumbers = global.config.owner?.numbers || []
-    const ownerJids = global.config.owner?.jid || []
+      if (ownerNumbers.includes(senderNumber)) {
+        isOwner = true
+      }
 
-    const senderNumber = sender?.split('@')[0]?.split(':')[0]
+      const args = text.slice(global.prefix.length).trim().split(/\s+/)
+      const command = args.shift().toLowerCase()
 
-    if (ownerNumbers.includes(senderNumber) || ownerJids.includes(sender)) {
-      isOwner = true
-    }
-
-    const args = text.slice(global.prefix.length).trim().split(/\s+/)
-    const command = args.shift().toLowerCase()
-
-    console.log(
-      chalk.blue('\n📩 COMANDO'),
-      '\n👤', pushName,
-      '\n📍', isGroup ? 'Grupo' : 'Privado',
-      '\n⚡', command
-    )
-
-    // 🚀 EJECUCIÓN RÁPIDA
-    const handler = global.cmdMap[command]
-
-    if (handler) {
-      handler(m, {
-        sock,
-        from,
-        sender,
+      console.log(
+        chalk.blue('\n📩'),
         pushName,
-        isGroup,
-        isAdmin,
-        isOwner,
-        args,
-        command,
-        plugins,
-        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
-      }).catch(e => {
-        console.log(chalk.red('❌ Error comando:'), e)
-      })
+        '|',
+        command
+      )
+
+      // EJECUTAR
+      for (const p of plugins) {
+        const h = p.handler ?? p
+        if (!h?.command) continue
+
+        const cmds = Array.isArray(h.command) ? h.command : [h.command]
+        if (!cmds.includes(command)) continue
+
+        await h(m, {
+          sock,
+          from,
+          sender,
+          pushName,
+          isGroup,
+          isAdmin,
+          isOwner,
+          args,
+          command,
+          plugins,
+          reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+        }).catch(() => {})
+
+        break
+      }
+
+    } finally {
+      // 🔓 LIBERAR PROCESO
+      global.processing.delete(sender)
     }
   })
 }
 
-// ───── INIT ─────
+// INIT
 startBot()
-
-// ♻️ LIMPIEZA AUTOMÁTICA
-setInterval(async () => {
-  try {
-    global.adminCache = {}
-    global.cooldownHola = {}
-
-    plugins = []
-    await loadPlugins()
-
-    if (global.gc) global.gc()
-
-    console.log('🧹 Limpieza automática hecha')
-  } catch {}
-}, 30 * 60 * 1000)
