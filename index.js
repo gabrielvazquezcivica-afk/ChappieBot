@@ -138,11 +138,6 @@ async function startBot () {
       } catch {}
     }
 
-    // ✍️ ESCRIBIENDO
-    try {
-      await sock.sendPresenceUpdate('composing', from)
-    } catch {}
-
     let isOwner = false
 
     // BAN GLOBAL
