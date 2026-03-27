@@ -10,14 +10,14 @@ import { connectBot } from './lib/connection.js'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js'
 import { autoAdminOwnerEvent } from './lib/autoAdminOwner.js'
-import { isBanned } from './middleware/ban.js' // ✅ IMPORTAR BAN GLOBAL
+import { isBanned } from './middleware/ban.js'
 
 // ───── CONFIG GLOBAL ─────
 util.inspect.defaultOptions.depth = 0
 util.inspect.defaultOptions.colors = false
 process.env.NODE_NO_WARNINGS = '1'
 
-// ───── ERRORES GLOBALES ─────
+// ───── ERRORES ─────
 process.on('uncaughtException', err => {
   if (String(err).includes('Bad MAC')) return
   console.error(chalk.red('❌ uncaughtException:'), err)
@@ -32,9 +32,12 @@ process.on('unhandledRejection', err => {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// ───── VARIABLES GLOBALES ─────
+// ───── GLOBALS ─────
 global.config = config
 global.prefix = config.bot.prefix
+global.cmdMap = {}
+global.adminCache = {}
+global.cooldownHola = {}
 
 // ───── BANNER ─────
 function showBanner () {
@@ -50,13 +53,26 @@ let plugins = []
 async function loadPlugins () {
   const dir = path.join(__dirname, 'plugins')
   plugins = []
+  global.cmdMap = {}
 
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
       const plugin = await import(
         pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
       )
-      plugins.push(plugin.default ?? plugin)
+
+      const p = plugin.default ?? plugin
+      plugins.push(p)
+
+      const h = p.handler ?? p
+      if (!h?.command) continue
+
+      const cmds = Array.isArray(h.command) ? h.command : [h.command]
+
+      for (const cmd of cmds) {
+        global.cmdMap[cmd] = h
+      }
+
     } catch (e) {
       console.log(chalk.red('❌ Error plugin:'), file, e)
     }
@@ -80,7 +96,7 @@ async function startBot () {
 
   const sock = await connectBot()
 
-  // 🔹 EJECUTAR handler.before (AUTODETECT, WATCHERS, ETC)
+  // 🔹 BEFORE (IMPORTANTE NO QUITAR)
   for (const p of plugins) {
     const h = p.handler ?? p
     if (typeof h?.before === 'function') {
@@ -92,7 +108,7 @@ async function startBot () {
     }
   }
 
-  // ✅ AUTO-ADMIN OWNER (EVENTO)
+  // 🔹 EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
   })
@@ -120,117 +136,97 @@ async function startBot () {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
 
-        // 👀 LEER MENSAJES GLOBAL
+    // 👀 lectura optimizada
     try {
       if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
-        await sock.readMessages([m.key])
+        if (Math.random() < 0.2) {
+          await sock.readMessages([m.key])
+        }
       }
-    } catch (e) {
-      console.log('❌ Error leyendo mensaje:', e)
-    }
-
-    if (m.key.fromMe) return
+    } catch {}
 
     const from = m.key.remoteJid
     if (!from) return
+
     const isGroup = from.endsWith('@g.us')
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
     let isOwner = false
 
-    // 🔹 BLOQUEO GLOBAL POR BAN
-let cleanSender = sender
+    // 🔹 BAN
+    let cleanSender = sender?.split(':')[0]
+    if (isBanned(cleanSender) && !isOwner) return
 
-if (cleanSender) {
-  cleanSender = cleanSender.split(':')[0]
-}
-
-if (isBanned(cleanSender) && !isOwner) return
-
-    // 🔹 BORRAR MENSAJES DE USUARIOS SILENCIADOS
+    // 🔹 MUTE
     await muteWatcher(sock, m)
 
     const text = getText(m)
 
-// ───── SALUDO AUTOMÁTICO ─────
-global.cooldownHola = global.cooldownHola || {}
+    // ───── SALUDO MULTI ─────
+    if (text) {
+      const msg = text.toLowerCase().trim()
 
-if (text) {
+      if (['hola','holi','ola','oli'].includes(msg)) {
+        const now = Date.now()
+        const cooldown = 20000
+        const last = global.cooldownHola[sender] || 0
 
-  const msg = text.toLowerCase().trim()
+        if (now - last < cooldown) return
+        global.cooldownHola[sender] = now
 
-  if (msg === 'hola') {
+        const hora = new Date().getHours()
+        let saludo = 'Hola'
 
-    const now = Date.now()
-    const cooldown = 20000
-    const last = global.cooldownHola[sender] || 0
+        if (hora >= 6 && hora < 12) saludo = 'Buenos días'
+        else if (hora < 19) saludo = 'Buenas tardes'
+        else saludo = 'Buenas noches'
 
-    if (now - last < cooldown) return
-
-    global.cooldownHola[sender] = now
-
-    const hora = new Date().getHours()
-
-    let saludo = 'Hola'
-
-    if (hora >= 6 && hora < 12) saludo = 'Buenos días'
-    else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
-    else saludo = 'Buenas noches'
-
-    await sock.sendMessage(from, {
-      text: `👋 ${saludo} ${pushName}
+        await sock.sendMessage(from, {
+          text: `👋 ${saludo} ${pushName}
 
 🤖 Soy *ChappieBot*
 
-Usa *${global.prefix}menu* para ver mis comandos.`
-    }, { quoted: m })
-
-  }
-
-  }
-    
-    if (!text || !text.startsWith(global.prefix)) return
-
-    // 🔹 CALCULAR SI ES ADMIN
-    let isAdmin = false
-    if (isGroup && sender) {
-      try {
-        const metadata = await sock.groupMetadata(from)
-        const admins = metadata.participants
-          .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
-          .map(p => p.id)
-        isAdmin = admins.includes(sender)
-      } catch {
-        isAdmin = false
+Usa *${global.prefix}menu*`
+        }, { quoted: m })
       }
     }
 
-    // 🔹 CALCULAR SI ES OWNER
- isOwner = false
+    if (!text || !text.startsWith(global.prefix)) return
 
-const ownerNumbers = global.config.owner?.numbers || []
-const ownerJids = global.config.owner?.jid || []
+    // 🔹 ADMIN CACHE
+    let isAdmin = false
+    if (isGroup && sender) {
+      try {
+        if (!global.adminCache[from] || Date.now() - global.adminCache[from].time > 60000) {
+          const metadata = await sock.groupMetadata(from)
+          global.adminCache[from] = {
+            data: metadata.participants,
+            time: Date.now()
+          }
+        }
 
-let senderNumber = ''
-if (sender) {
-  senderNumber = sender.split('@')[0].split(':')[0]
-}
+        const admins = global.adminCache[from].data
+          .filter(p => p.admin)
+          .map(p => p.id)
 
-// comprobar por número
-if (senderNumber && ownerNumbers.includes(senderNumber)) {
-  isOwner = true
-}
-  
-// comprobar por JID (LID o normal)
-if (sender && ownerJids.includes(sender)) {
-  isOwner = true
-  }
+        isAdmin = admins.includes(sender)
+      } catch {}
+    }
+
+    // 🔹 OWNER
+    const ownerNumbers = global.config.owner?.numbers || []
+    const ownerJids = global.config.owner?.jid || []
+
+    const senderNumber = sender?.split('@')[0]?.split(':')[0]
+
+    if (ownerNumbers.includes(senderNumber) || ownerJids.includes(sender)) {
+      isOwner = true
+    }
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
-    // 📟 LOG DE CONSOLA
     console.log(
       chalk.blue('\n📩 COMANDO'),
       '\n👤', pushName,
@@ -238,33 +234,43 @@ if (sender && ownerJids.includes(sender)) {
       '\n⚡', command
     )
 
-    // 🔹 Ejecutar plugin
-    for (const p of plugins) {
-      const h = p.handler ?? p
-      if (!h?.command) continue
+    // 🚀 EJECUCIÓN RÁPIDA
+    const handler = global.cmdMap[command]
 
-      const cmds = Array.isArray(h.command) ? h.command : [h.command]
-      if (!cmds.includes(command)) continue
-
-      h(m, {
-  sock,
-  from,
-  sender,
-  pushName,
-  isGroup,
-  isAdmin,
-  isOwner,
-  args,
-  command,
-  plugins,
-  reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
-}).catch(e => {
-  console.log(chalk.red('❌ Error comando:'), e)
-})
-      break
+    if (handler) {
+      handler(m, {
+        sock,
+        from,
+        sender,
+        pushName,
+        isGroup,
+        isAdmin,
+        isOwner,
+        args,
+        command,
+        plugins,
+        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+      }).catch(e => {
+        console.log(chalk.red('❌ Error comando:'), e)
+      })
     }
   })
 }
 
 // ───── INIT ─────
 startBot()
+
+// ♻️ LIMPIEZA AUTOMÁTICA
+setInterval(async () => {
+  try {
+    global.adminCache = {}
+    global.cooldownHola = {}
+
+    plugins = []
+    await loadPlugins()
+
+    if (global.gc) global.gc()
+
+    console.log('🧹 Limpieza automática hecha')
+  } catch {}
+}, 30 * 60 * 1000)
