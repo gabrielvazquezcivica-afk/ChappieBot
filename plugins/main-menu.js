@@ -122,11 +122,10 @@ Total de comandos: ${totalCommands}\n`
   // 🚀 ENVÍO CON IMAGEN (FIX REAL)
   await new Promise(r => setTimeout(r, 300))
 
-  await sock.sendMessage(from, {
-    image: { url: 'https://i.postimg.cc/0jXLvZxR/868bfb1ce56805562e86e1b517df1460.jpg' },
-    caption: menu
-  })
-}   
+await sock.sendMessage(from, {
+  image: { url: 'https://i.postimg.cc/0jXLvZxR/868bfb1ce56805562e86e1b517df1460.jpg' },
+  caption: menu
+}, { quoted: m })
     
 handler.command = ['menu']    
 handler.tags = ['info']    
