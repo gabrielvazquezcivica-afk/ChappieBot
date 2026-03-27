@@ -17,11 +17,13 @@ util.inspect.defaultOptions.depth = 0
 util.inspect.defaultOptions.colors = false
 process.env.NODE_NO_WARNINGS = '1'
 
-// ───── CONTROL DE CARGA ─────
-global.processing = new Set()
+// 🔥 GLOBALS
+global.config = config
+global.prefix = config.bot.prefix
 global.adminCache = {}
+global.autoRead = true
 
-// ───── ERRORES ─────
+// ───── ERRORES GLOBALES ─────
 process.on('uncaughtException', err => {
   if (String(err).includes('Bad MAC')) return
   console.error(chalk.red('❌ uncaughtException:'), err)
@@ -35,10 +37,6 @@ process.on('unhandledRejection', err => {
 // ───── PATHS ─────
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-// ───── GLOBAL ─────
-global.config = config
-global.prefix = config.bot.prefix
 
 // ───── BANNER ─────
 function showBanner () {
@@ -77,7 +75,7 @@ const getText = m =>
   m.message?.videoMessage?.caption ||
   ''
 
-// ───── START ─────
+// ───── START BOT ─────
 async function startBot () {
   showBanner()
   await loadPlugins()
@@ -90,7 +88,9 @@ async function startBot () {
     if (typeof h?.before === 'function') {
       try {
         await h.before(null, { sock })
-      } catch {}
+      } catch (e) {
+        console.log(chalk.red('❌ Error before plugin:'), e)
+      }
     }
   }
 
@@ -103,20 +103,21 @@ async function startBot () {
     const { connection, lastDisconnect } = update
 
     if (connection === 'open') {
-      console.log(chalk.green('✅ Conectado'))
+      console.log(chalk.green('✅ Conectado | Comandos activos'))
     }
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode
-      console.log(chalk.red('⚠️ Cerrado:'), reason)
+      console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
 
       if (reason !== DisconnectReason.loggedOut) {
+        console.log(chalk.yellow('🔁 Reintentando en 3s...'))
         setTimeout(startBot, 3000)
       }
     }
   })
 
-  // MENSAJES
+  // ───── MENSAJES ─────
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0]
     if (!m?.message || m.key.fromMe) return
@@ -128,61 +129,98 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
-    // 🚫 ANTI-SPAM PROCESO
-    if (global.processing.has(sender)) return
-    global.processing.add(sender)
-
-    try {
-      // 👀 leer mensajes ligero
-      if (Math.random() < 0.1) {
-        await sock.readMessages([m.key])
-      }
-
-      const text = getText(m)
-
-      // 🚀 SOLO COMANDOS
-      if (!text || !text.startsWith(global.prefix)) return
-
-      // BAN
-      let cleanSender = sender?.split(':')[0]
-      if (isBanned(cleanSender)) return
-
-      // MUTE
-      await muteWatcher(sock, m)
-
-      // ADMIN CACHE
-      let isAdmin = false
-      if (isGroup && sender) {
-        try {
-          if (!global.adminCache[from] || Date.now() - global.adminCache[from].time > 60000) {
-            const metadata = await sock.groupMetadata(from)
-            global.adminCache[from] = {
-              admins: metadata.participants.filter(p => p.admin).map(p => p.id),
-              time: Date.now()
-            }
-          }
-
-          isAdmin = global.adminCache[from].admins.includes(sender)
-        } catch {}
-      }
-
-      // OWNER
-      let isOwner = false
-      const ownerNumbers = global.config.owner?.numbers || []
-      const senderNumber = sender?.split('@')[0]?.split(':')[0]
-
-      if (ownerNumbers.includes(senderNumber)) {
-        isOwner = true
-      }
-
-      const args = text.slice(global.prefix.length).trim().split(/\s+/)
-      const command = args.shift().toLowerCase()
-
-          // ───── LOG LIMPIO ─────
-    let groupName = 'Privado'
-    if (isGroup) {
-      groupName = global.adminCache[from]?.name || 'Grupo'
+    // 👀 LEER MENSAJE GLOBAL
+    if (global.autoRead) {
+      try {
+        if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
+          await sock.readMessages([m.key])
+        }
+      } catch {}
     }
+
+    // ✍️ ESCRIBIENDO
+    try {
+      await sock.sendPresenceUpdate('composing', from)
+    } catch {}
+
+    let isOwner = false
+
+    // BAN GLOBAL
+    let cleanSender = sender
+    if (cleanSender) cleanSender = cleanSender.split(':')[0]
+    if (isBanned(cleanSender) && !isOwner) return
+
+    await muteWatcher(sock, m)
+
+    const text = getText(m)
+
+    // SALUDO
+    global.cooldownHola = global.cooldownHola || {}
+
+    if (text) {
+      const msg = text.toLowerCase().trim()
+
+      if (msg === 'hola') {
+        const now = Date.now()
+        const cooldown = 20000
+        const last = global.cooldownHola[sender] || 0
+        if (now - last < cooldown) return
+
+        global.cooldownHola[sender] = now
+
+        const hora = new Date().getHours()
+        let saludo = 'Hola'
+        if (hora >= 6 && hora < 12) saludo = 'Buenos días'
+        else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
+        else saludo = 'Buenas noches'
+
+        await sock.sendMessage(from, {
+          text: `👋 ${saludo} ${pushName}
+
+🤖 Soy *ChappieBot*
+
+Usa *${global.prefix}menu* para ver mis comandos.`
+        }, { quoted: m })
+      }
+    }
+
+    if (!text || !text.startsWith(global.prefix)) return
+
+    // ADMIN + CACHE
+    let isAdmin = false
+    if (isGroup && sender) {
+      try {
+        if (!global.adminCache[from]) {
+          const metadata = await sock.groupMetadata(from)
+          global.adminCache[from] = {
+            admins: metadata.participants
+              .filter(p => p.admin)
+              .map(p => p.id),
+            name: metadata.subject
+          }
+        }
+        isAdmin = global.adminCache[from].admins.includes(sender)
+      } catch {
+        isAdmin = false
+      }
+    }
+
+    // OWNER
+    const ownerNumbers = global.config.owner?.numbers || []
+    const ownerJids = global.config.owner?.jid || []
+
+    let senderNumber = ''
+    if (sender) senderNumber = sender.split('@')[0].split(':')[0]
+
+    if (senderNumber && ownerNumbers.includes(senderNumber)) isOwner = true
+    if (sender && ownerJids.includes(sender)) isOwner = true
+
+    const args = text.slice(global.prefix.length).trim().split(/\s+/)
+    const command = args.shift().toLowerCase()
+
+    // LOG PRO
+    let groupName = 'Privado'
+    if (isGroup) groupName = global.adminCache[from]?.name || 'Grupo'
 
     console.log(
       chalk.blue('\n📩 COMANDO'),
@@ -191,37 +229,34 @@ async function startBot () {
       '\n⚡', command
     )
 
-      // EJECUTAR
-      for (const p of plugins) {
-        const h = p.handler ?? p
-        if (!h?.command) continue
+    // COMANDOS
+    for (const p of plugins) {
+      const h = p.handler ?? p
+      if (!h?.command) continue
 
-        const cmds = Array.isArray(h.command) ? h.command : [h.command]
-        if (!cmds.includes(command)) continue
+      const cmds = Array.isArray(h.command) ? h.command : [h.command]
+      if (!cmds.includes(command)) continue
 
-        await h(m, {
-          sock,
-          from,
-          sender,
-          pushName,
-          isGroup,
-          isAdmin,
-          isOwner,
-          args,
-          command,
-          plugins,
-          reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
-        }).catch(() => {})
+      h(m, {
+        sock,
+        from,
+        sender,
+        pushName,
+        isGroup,
+        isAdmin,
+        isOwner,
+        args,
+        command,
+        plugins,
+        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+      }).catch(e => {
+        console.log(chalk.red('❌ Error comando:'), e)
+      })
 
-        break
-      }
-
-    } finally {
-      // 🔓 LIBERAR PROCESO
-      global.processing.delete(sender)
+      break
     }
   })
 }
 
-// INIT
+// ───── INIT ─────
 startBot()
