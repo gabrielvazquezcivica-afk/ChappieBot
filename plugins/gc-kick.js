@@ -6,45 +6,53 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
     
   if (!isGroup) return reply(msgs.group || '⚠️ Este comando solo funciona en grupos')    
     
+  // ⚠️ Solo admins pueden ejecutar    
   if (!isAdmin) return reply(msgs.admin || '⚠️ Solo administradores pueden usar este comando')    
     
   const metadata = await sock.groupMetadata(from)    
   const groupOwner = metadata.owner    
     
-  // 🎯 Usuario objetivo
+  // 🎯 Usuario objetivo: mención o reply    
   const ctx = m.message?.extendedTextMessage?.contextInfo    
   const user = ctx?.mentionedJid?.[0] || ctx?.participant    
     
   if (!user) {    
-    return reply('⚠️ Menciona o responde al usuario\nEjemplo: .kick @usuario')    
+    return reply(    
+      '⚠️ Uso incorrecto:\nMenciona al usuario o responde a su mensaje\nEjemplo: .kick @usuario'    
+    )    
   }    
     
-  // 🔥 LIMPIAR IDS
-  const userClean = user.split('@')[0].split(':')[0]
-  const senderClean = sender.split('@')[0].split(':')[0]
+  // 🔥 LIMPIAR IDs (CLAVE)
+  const cleanUser = user.split('@')[0].split(':')[0]
+  const cleanSender = sender.split('@')[0].split(':')[0]
+  const cleanBot = botJid.split('@')[0].split(':')[0]
   const cleanOwners = owners.map(o => o.split(':')[0])
     
-  // 🔒 PROTECCIONES
+  // 🔒 Protecciones    
   if (user === groupOwner) return reply('🛡 No puedes expulsar al creador del grupo')    
-  if (user === botJid) return reply('⚠️ No puedo expulsarme a mí mismo')    
+  if (cleanUser === cleanBot) return reply('⚠️ No puedo expulsarme a mí mismo')    
     
-  if (cleanOwners.includes(userClean) || owners.some(o => user.includes(o))) {
+  // 🛡 Protección owner del bot (FIX REAL)
+  if (cleanOwners.includes(cleanUser)) {
     return reply('🛡 No puedes expulsar al OWNER del bot')
   }
     
   try {    
+    // 🚨 Reacción al comando    
     await sock.sendMessage(from, { react: { text: '🚪', key: m.key } })    
     
+    // 👢 Expulsar usuario    
     await sock.groupParticipantsUpdate(from, [user], 'remove')    
     
-    await sock.sendMessage(
-      from,
-      {
-        text: `🚨 Usuario expulsado:\n🍁 @${userClean}\n👮 Por: @${senderClean}\n> ${botName}`,
-        mentions: [user, sender]
-      },
-      { quoted: m }
-    )
+    // 📢 Mensaje informativo    
+    await sock.sendMessage(    
+      from,    
+      {    
+        text: `🚨 Usuario expulsado:\n🍁 @${cleanUser}\n👮 Expulsado por: @${cleanSender}\n> ${botName}`,    
+        mentions: [user, sender]    
+      },    
+      { quoted: m }    
+    )    
     
   } catch (e) {    
     console.log('❌ Error kick:', e)    
