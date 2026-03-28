@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import fs from 'fs'
+import { exec } from 'child_process'
 
 export const handler = async (m, {
   sock,
@@ -10,7 +11,7 @@ export const handler = async (m, {
   sender
 }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (ChappieBot) ───── */
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
 
@@ -37,9 +38,9 @@ export const handler = async (m, {
       isAdmin = false
     }
 
-    if (!isAdmin) return // 🚫 bloqueo silencioso
+    if (!isAdmin) return
   }
-  /* ─────────────────────────────────────────────── */
+  /* ─────────────────────────────────── */
 
   const texto = args.join(' ')
   if (!texto) {
@@ -77,15 +78,36 @@ export const handler = async (m, {
 
     const buffer = Buffer.from(await res.arrayBuffer())
 
+    // 🔥 archivos temporales
+    const input = `./tts_${Date.now()}.mp3`
+    const output = `./tts_${Date.now()}.ogg`
+
+    fs.writeFileSync(input, buffer)
+
+    // 🔥 convertir a OGG OPUS
+    await new Promise((resolve, reject) => {
+      exec(`ffmpeg -i ${input} -c:a libopus -b:a 64k ${output}`, (err) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+
+    const audioBuffer = fs.readFileSync(output)
+
+    // 🔥 enviar audio CORRECTO
     await sock.sendMessage(
       from,
       {
-        audio: buffer,
-        mimetype: 'audio/mpeg',
+        audio: audioBuffer,
+        mimetype: 'audio/ogg; codecs=opus',
         ptt: true
       },
       { quoted: m }
     )
+
+    // limpiar archivos
+    fs.unlinkSync(input)
+    fs.unlinkSync(output)
 
     await sock.sendMessage(from, {
       react: { text: '✅', key: m.key }
@@ -93,9 +115,11 @@ export const handler = async (m, {
 
   } catch (err) {
     console.error('TTS ERROR:', err)
+
     await sock.sendMessage(from, {
       react: { text: '❌', key: m.key }
     })
+
     reply('❌ No pude generar el audio, intenta con otro texto')
   }
 }
