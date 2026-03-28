@@ -129,6 +129,10 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
+        // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
+    const isMuted = await muteWatcher(sock, m)
+    if (isMuted) return
+
     // 👀 LEER MENSAJE GLOBAL
     if (global.autoRead) {
       try {
