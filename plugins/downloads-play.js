@@ -11,8 +11,8 @@ const modoadminPath = './data/modoadmin.json'
 let groupSettings = { enabled: false }
 
 if (fs.existsSync(modoadminPath)) {
-const data = JSON.parse(fs.readFileSync(modoadminPath))
-groupSettings = data[from] || { enabled: false }
+  const data = JSON.parse(fs.readFileSync(modoadminPath))
+  groupSettings = data[from] || { enabled: false }
 }
 
 if (groupSettings.enabled && !isAdmin) return
@@ -20,72 +20,80 @@ if (groupSettings.enabled && !isAdmin) return
 const text = args.join(' ').trim()
 
 if (!text) {
-return reply('🎧 Uso: .play <canción>')
+  return reply('🎧 Uso: .play <canción>')
 }
 
-/* ⚡ REACCIÓN INSTANTÁNEA */
-sock.sendMessage(from,{
-react:{ text:'🎶', key:m.key }
+/* ⚡ REACCIÓN */
+await sock.sendMessage(from,{
+  react:{ text:'🎧', key:m.key }
 })
 
 try {
 
-/* 🔎 BUSCAR VIDEO */
+/* 🔎 BUSCAR */
 const search = await yts(text)
 
 if (!search.videos.length) {
-return reply('❌ No encontré resultados')
+  return reply('❌ No encontré resultados')
 }
 
 const video = search.videos[0]
 
 const { title, url, thumbnail, timestamp, views, author } = video
 
-/* 📊 INFO */
+/* 🎨 DISEÑO NUEVO */
 await sock.sendMessage(from,{
-image:{ url:thumbnail },
-caption:
-`╭─❖ 「 🎧 ${botName} 」 ❖─╮
-│ 🎵 Título: ${title}
-│ 👤 Canal: ${author.name}
-│ ⏱ Duración: ${timestamp}
-│ 👁 Vistas: ${views.toLocaleString()}
-╰────────────────
-
-⬇️ Descargando audio...`
+  image:{ url:thumbnail },
+  caption:
+`╭━━━〔 🎶 ${botName} 〕━━━⬣
+┃
+┃ 🎵 *${title}*
+┃ 👤 ${author.name}
+┃ ⏱ ${timestamp}
+┃ 👁 ${views.toLocaleString()} vistas
+┃
+┃ ⬇️ Descargando...
+╰━━━━━━━━━━━━━━⬣`
 },{ quoted:m })
 
 const file = `./tmp/${Date.now()}.m4a`
 
-/* 🚀 DESCARGA RÁPIDA */
+/* 🚀 DESCARGA MÁS RÁPIDA */
 const ytdlp = spawn('yt-dlp',[
-'-f','bestaudio[ext=m4a]',
-'--no-playlist',
-'--no-warnings',
-'--quiet',
-'-o',file,
-url
+  '-f','bestaudio[abr<=128][ext=m4a]/bestaudio',
+  '--no-playlist',
+  '--quiet',
+  '-o',file,
+  url
 ])
 
 ytdlp.on('close', async(code)=>{
 
-if(code !== 0){
-return reply('❌ Error descargando audio')
-}
+  if(code !== 0){
+    return reply('❌ Error descargando audio')
+  }
 
-/* 🎵 ENVIAR AUDIO RÁPIDO */
-await sock.sendMessage(from,{
-audio:{ url:file },
-mimetype:'audio/mp4',
-fileName:`${title}.m4a`
-},{ quoted:m })
+  try {
 
-fs.unlinkSync(file)
+    /* ⚡ LEER COMO BUFFER (MUCHO MÁS RÁPIDO) */
+    const buffer = fs.readFileSync(file)
 
-/* ✅ REACCIÓN FINAL */
-sock.sendMessage(from,{
-react:{ text:'✅', key:m.key }
-})
+    await sock.sendMessage(from,{
+      audio: buffer,
+      mimetype:'audio/mp4',
+      ptt:false
+    },{ quoted:m })
+
+    fs.unlinkSync(file)
+
+    await sock.sendMessage(from,{
+      react:{ text:'✅', key:m.key }
+    })
+
+  } catch (err) {
+    console.log('SEND AUDIO ERROR:', err)
+    reply('❌ Error enviando audio')
+  }
 
 })
 
