@@ -13,22 +13,25 @@ export const handler = async (m, {
   const owners = global.config.owner?.numbers || []
 
   if (!isGroup) {
-    return reply(msgs.group || '🚫 Este comando solo funciona en grupos')
+    return reply('🚫 Este comando solo funciona en grupos')
   }
 
   if (!isAdmin) {
-    return reply(msgs.admin || '⛔ Solo administradores pueden usar este comando')
+    return reply('⛔ Solo administradores pueden usar este comando')
   }
 
   const metadata = await sock.groupMetadata(from)
 
-  // 🔥 LIMPIEZA GLOBAL (CLAVE)
+  // 🔥 limpiar jid
   const clean = (jid) => jid?.split('@')[0].split(':')[0]
 
-  const groupOwner = clean(metadata.owner)
   const cleanSender = clean(sender)
   const cleanBot = clean(botJid)
   const cleanOwners = owners.map(o => clean(o))
+
+  // 👑 detectar owner real
+  const realOwner = metadata.participants.find(p => p.admin === 'superadmin')
+  const groupOwner = realOwner ? clean(realOwner.id) : null
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const userRaw = ctx?.mentionedJid?.[0] || ctx?.participant
@@ -44,16 +47,30 @@ Ejemplo: .kick @usuario`
 
   const cleanUser = clean(userRaw)
 
-  /* 🔐 PROTECCIONES REALES */
+  /* 🔐 PROTECCIÓN + CASTIGO */
 
-  // 👑 OWNER DEL BOT
+  // 👑 OWNER BOT
   if (cleanOwners.includes(cleanUser)) {
-    return reply('👑 No puedes expulsar al OWNER del bot')
+
+    await sock.sendMessage(from, {
+      text: `🚨 *INTENTO DE EXPULSAR OWNER DEL BOT*\n\n👮 @${cleanSender} será eliminado`,
+      mentions: [sender]
+    })
+
+    await sock.groupParticipantsUpdate(from, [sender], 'remove')
+    return
   }
 
-  // 👑 OWNER DEL GRUPO (FIX AQUÍ)
-  if (cleanUser === groupOwner) {
-    return reply('🛡 No puedes expulsar al creador del grupo')
+  // 👑 OWNER GRUPO
+  if (groupOwner && cleanUser === groupOwner) {
+
+    await sock.sendMessage(from, {
+      text: `🚨 *PROTECCIÓN ACTIVADA*\n\n👑 No puedes expulsar al creador del grupo\n\n💀 @${cleanSender} eliminado por intento`,
+      mentions: [sender]
+    })
+
+    await sock.groupParticipantsUpdate(from, [sender], 'remove')
+    return
   }
 
   // 🤖 BOT
@@ -64,7 +81,7 @@ Ejemplo: .kick @usuario`
   try {
 
     await sock.sendMessage(from, {
-      react: { text: '⚡', key: m.key }
+      react: { text: '🚪', key: m.key }
     })
 
     await sock.groupParticipantsUpdate(from, [userRaw], 'remove')
@@ -83,8 +100,6 @@ Ejemplo: .kick @usuario`
 👮 Moderador:
 ➤ @${cleanSender}
 
-📌 Acción realizada correctamente
-
 ╭───────────────╮
    🤖 ${botName}
 ╰───────────────╯
@@ -96,7 +111,7 @@ Ejemplo: .kick @usuario`
 
   } catch (e) {
     console.log('❌ Error kick:', e)
-    reply(msgs.error || '❌ No pude expulsar al usuario')
+    reply('❌ No pude expulsar al usuario')
   }
 }
 
