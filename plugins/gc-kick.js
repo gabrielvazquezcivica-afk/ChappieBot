@@ -21,12 +21,19 @@ export const handler = async (m, {
   }
 
   const metadata = await sock.groupMetadata(from)
-  const groupOwner = metadata.owner
+
+  // 🔥 LIMPIEZA GLOBAL (CLAVE)
+  const clean = (jid) => jid?.split('@')[0].split(':')[0]
+
+  const groupOwner = clean(metadata.owner)
+  const cleanSender = clean(sender)
+  const cleanBot = clean(botJid)
+  const cleanOwners = owners.map(o => clean(o))
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
-  const user = ctx?.mentionedJid?.[0] || ctx?.participant
+  const userRaw = ctx?.mentionedJid?.[0] || ctx?.participant
 
-  if (!user) {
+  if (!userRaw) {
     return reply(
 `⚠️ Uso incorrecto
 
@@ -35,37 +42,33 @@ Ejemplo: .kick @usuario`
     )
   }
 
-  // 🔥 LIMPIEZA
-  const cleanUser = user.split('@')[0].split(':')[0]
-  const cleanSender = sender.split('@')[0].split(':')[0]
-  const cleanBot = botJid.split('@')[0].split(':')[0]
-  const cleanOwners = owners.map(o => o.split(':')[0])
+  const cleanUser = clean(userRaw)
 
-  /* 🔐 PROTECCIONES */
+  /* 🔐 PROTECCIONES REALES */
 
+  // 👑 OWNER DEL BOT
   if (cleanOwners.includes(cleanUser)) {
     return reply('👑 No puedes expulsar al OWNER del bot')
   }
 
-  if (user === groupOwner) {
+  // 👑 OWNER DEL GRUPO (FIX AQUÍ)
+  if (cleanUser === groupOwner) {
     return reply('🛡 No puedes expulsar al creador del grupo')
   }
 
+  // 🤖 BOT
   if (cleanUser === cleanBot) {
     return reply('⚠️ No puedo expulsarme a mí mismo')
   }
 
   try {
 
-    // ⚡ reacción
     await sock.sendMessage(from, {
       react: { text: '⚡', key: m.key }
     })
 
-    // 👢 expulsión
-    await sock.groupParticipantsUpdate(from, [user], 'remove')
+    await sock.groupParticipantsUpdate(from, [userRaw], 'remove')
 
-    // 💎 MENSAJE NUEVO
     await sock.sendMessage(
       from,
       {
@@ -86,7 +89,7 @@ Ejemplo: .kick @usuario`
    🤖 ${botName}
 ╰───────────────╯
 `.trim(),
-        mentions: [user, sender]
+        mentions: [userRaw, sender]
       },
       { quoted: m }
     )
