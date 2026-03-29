@@ -117,23 +117,44 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
-        /* 🔥 BEFORE REAL (AQUÍ ESTÁ EL FIX) */
-    for (const p of plugins) {
-      const h = p.handler ?? p
+// 📊 CONTADOR GLOBAL (ANTI BUG)
+import fs from 'fs'
 
-      if (typeof h?.before === 'function') {
-        try {
-          await h.before(m, {
-            sock,
-            from,
-            isGroup,
-            sender
-          })
-        } catch (e) {
-          console.log('❌ Error en before:', e)
-        }
-      }
-    }
+const dbPath = './data/msgcount.json'
+
+function loadDB() {
+  if (!fs.existsSync(dbPath)) return {}
+  try { return JSON.parse(fs.readFileSync(dbPath)) }
+  catch { return {} }
+}
+
+function saveDB(data) {
+  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
+}
+
+// 🔥 CONTAR MENSAJES AQUÍ (NO EN BEFORE)
+const db = loadDB()
+
+if (!db[from]) db[from] = {}
+
+const senderID = isGroup ? m.key.participant : from
+
+// SOLO MENSAJES REALES
+if (m.message) {
+  const type = Object.keys(m.message)[0]
+
+  const valid = [
+    'conversation',
+    'extendedTextMessage',
+    'imageMessage',
+    'videoMessage'
+  ]
+
+  if (valid.includes(type)) {
+    db[from][senderID] = (db[from][senderID] || 0) + 1
+    saveDB(db)
+  }
+}
 
         // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
