@@ -1,16 +1,19 @@
 import fs from 'fs'
 import path from 'path'
 
-const dbPath = path.join('./data/activeUsers.json')
+const dbPath = path.join('./data/msgcount.json')
 
+/* 🔥 LIMPIAR A SOLO NÚMERO */
 const getNumber = (jid) => jid?.replace(/\D/g, '')
 
+/* 📂 CARGAR DB */
 function loadDB() {
   if (!fs.existsSync(dbPath)) return {}
   try { return JSON.parse(fs.readFileSync(dbPath)) }
   catch { return {} }
 }
 
+/* 💾 GUARDAR DB */
 function saveDB(data) {
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
 }
@@ -27,26 +30,30 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants
 
-  /* 👻 FANTASMAS = nunca hablaron */
+  /* 👻 MENOS DE 10 MENSAJES */
   const ghosts = participants.filter(p => {
     const num = getNumber(p.id)
-    return !db[from][num] // ❗ nunca habló
+    const count = db[from][num] || 0
+
+    return count < 10 // 🔥 AQUÍ CAMBIAS SI QUIERES
   })
 
   if (!ghosts.length) {
-    return reply('🎉 No hay fantasmas')
+    return reply('🎉 Todos son activos (+10 mensajes)')
   }
 
   await sock.sendMessage(from, {
     react: { text: '👻', key: m.key }
   })
 
-  let text = `╭━━━〔 👻 FANTASMAS REALES 〕━━━⬣\n\n`
+  let text = `╭━━━〔 👻 POCA ACTIVIDAD 〕━━━⬣\n\n`
   const mentions = []
 
   for (const p of ghosts) {
     const num = getNumber(p.id)
-    text += `👻 @${num}\n`
+    const count = db[from][num] || 0
+
+    text += `👻 @${num} → ${count} msj\n`
     mentions.push(p.id)
   }
 
@@ -55,12 +62,10 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   await sock.sendMessage(from, { text, mentions }, { quoted: m })
 }
 
-/* ───── DETECTAR ACTIVIDAD REAL ───── */
+/* ───── CONTADOR REAL ───── */
 export const before = async (m, { isGroup }) => {
 
   if (!isGroup) return
-
-  // ❗ ignorar mensajes falsos/sistema
   if (!m.message) return
 
   const db = loadDB()
@@ -73,8 +78,8 @@ export const before = async (m, { isGroup }) => {
 
   const num = getNumber(sender)
 
-  // 🔥 SOLO MARCAR COMO ACTIVO (no contar)
-  db[from][num] = true
+  // 🔥 SUMAR MENSAJE REAL
+  db[from][num] = (db[from][num] || 0) + 1
 
   saveDB(db)
 }
