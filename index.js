@@ -144,23 +144,28 @@ async function startBot () {
     const pushName = m.pushName || 'Usuario'
 
     /* 📊 CONTADOR REAL (FIX FINAL) */
-    const db = loadDB()
-    if (!db[from]) db[from] = {}
+/* 📊 CONTADOR SEGURO */
+try {
+  const db = loadDB()
+  if (!db[from]) db[from] = {}
 
-    const type = Object.keys(m.message)[0]
+  const type = Object.keys(m.message || {})[0]
 
-    const valid = [
-      'conversation',
-      'extendedTextMessage',
-      'imageMessage',
-      'videoMessage'
-    ]
+  const valid = [
+    'conversation',
+    'extendedTextMessage',
+    'imageMessage',
+    'videoMessage'
+  ]
 
-    if (valid.includes(type)) {
-      db[from][sender] = (db[from][sender] || 0) + 1
-      saveDB(db)
-    }
-
+  if (type && valid.includes(type)) {
+    db[from][sender] = (db[from][sender] || 0) + 1
+    saveDB(db)
+  }
+} catch (e) {
+  console.log('❌ Error contador:', e)
+}
+    
         // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
@@ -180,8 +185,6 @@ async function startBot () {
     let cleanSender = sender
     if (cleanSender) cleanSender = cleanSender.split(':')[0]
     if (isBanned(cleanSender) && !isOwner) return
-
-    await muteWatcher(sock, m)
 
     const text = getText(m)
 
