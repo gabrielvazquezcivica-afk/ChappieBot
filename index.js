@@ -129,6 +129,24 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
+        /* 🔥 BEFORE REAL (AQUÍ ESTÁ EL FIX) */
+    for (const p of plugins) {
+      const h = p.handler ?? p
+
+      if (typeof h?.before === 'function') {
+        try {
+          await h.before(m, {
+            sock,
+            from,
+            isGroup,
+            sender
+          })
+        } catch (e) {
+          console.log('❌ Error en before:', e)
+        }
+      }
+    }
+
         // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
