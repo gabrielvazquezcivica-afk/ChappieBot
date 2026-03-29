@@ -143,6 +143,23 @@ async function startBot () {
     const sender = isGroup ? m.key.participant : from
     const pushName = m.pushName || 'Usuario'
 
+          // 🔥 BEFORE (LO PRIMERO SIEMPRE)
+      for (const p of plugins) {
+        try {
+          if (typeof p.before === 'function') {
+            await p.before(m, {
+              sock,
+              from,
+              sender,
+              isGroup,
+              pushName
+            })
+          }
+        } catch (e) {
+          console.log('❌ Error en before:', e)
+        }
+      }
+
     /* 📊 CONTADOR REAL (FIX FINAL) */
 /* 📊 CONTADOR SEGURO */
 try {
@@ -187,23 +204,6 @@ try {
     if (isBanned(cleanSender) && !isOwner) return
 
     const text = getText(m)
-
-    // 🔥 EJECUTAR BEFORE (FIX GLOBAL)
-for (const p of plugins) {
-  try {
-    if (typeof p.before === 'function') {
-      await p.before(m, {
-        sock,
-        from,
-        sender,
-        isGroup,
-        pushName
-      })
-    }
-  } catch (e) {
-    console.log('❌ Error en before:', e)
-  }
-}
 
     // SALUDO
     global.cooldownHola = global.cooldownHola || {}
