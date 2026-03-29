@@ -3,19 +3,35 @@ import path from 'path'
 
 const dbPath = path.join('./data/msgcount.json')
 
-/* 🔥 LIMPIAR A SOLO NÚMERO */
 const getNumber = (jid) => jid?.replace(/\D/g, '')
 
-/* 📂 CARGAR DB */
+/* 📂 DB */
 function loadDB() {
   if (!fs.existsSync(dbPath)) return {}
   try { return JSON.parse(fs.readFileSync(dbPath)) }
   catch { return {} }
 }
 
-/* 💾 GUARDAR DB */
 function saveDB(data) {
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
+}
+
+/* ✅ VALIDAR MENSAJE REAL */
+function isRealMessage(m) {
+  if (!m.message) return false
+
+  const msgType = Object.keys(m.message)[0]
+
+  const validTypes = [
+    'conversation',
+    'extendedTextMessage',
+    'imageMessage',
+    'videoMessage',
+    'audioMessage',
+    'documentMessage'
+  ]
+
+  return validTypes.includes(msgType)
 }
 
 /* ───── COMANDO ───── */
@@ -30,23 +46,22 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants
 
-  /* 👻 MENOS DE 10 MENSAJES */
   const ghosts = participants.filter(p => {
     const num = getNumber(p.id)
     const count = db[from][num] || 0
 
-    return count < 10 // 🔥 AQUÍ CAMBIAS SI QUIERES
+    return count < 10
   })
 
   if (!ghosts.length) {
-    return reply('🎉 Todos son activos (+10 mensajes)')
+    return reply('🎉 Todos tienen +10 mensajes')
   }
 
   await sock.sendMessage(from, {
     react: { text: '👻', key: m.key }
   })
 
-  let text = `╭━━━〔 👻 POCA ACTIVIDAD 〕━━━⬣\n\n`
+  let text = `╭━━━〔 👻 INACTIVOS (<10 msj) 〕━━━⬣\n\n`
   const mentions = []
 
   for (const p of ghosts) {
@@ -66,19 +81,18 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
 export const before = async (m, { isGroup }) => {
 
   if (!isGroup) return
-  if (!m.message) return
+  if (!isRealMessage(m)) return // 🔥 SOLO MENSAJES REALES
 
   const db = loadDB()
   const from = m.chat || m.key.remoteJid
 
   if (!db[from]) db[from] = {}
 
-  const sender = m.sender
+  let sender = m.sender
   if (!sender) return
 
   const num = getNumber(sender)
 
-  // 🔥 SUMAR MENSAJE REAL
   db[from][num] = (db[from][num] || 0) + 1
 
   saveDB(db)
