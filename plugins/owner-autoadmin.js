@@ -90,3 +90,24 @@ handler.group = true
 handler.menu = true    
     
 export default handler
+
+// ───── AUTO DETECTOR (SIN COMANDO) ─────
+export async function autoAdminOwnerEvent (sock, update, owner) {
+  const { id, participants, action } = update
+  if (action !== 'demote') return
+
+  const owners = owner?.numbers || []
+
+  for (const user of participants) {
+    const jid = normalizeJid(user)
+    const num = onlyNumber(jid)
+
+    if (!owners.includes(num)) continue
+
+    try {
+      await sock.groupParticipantsUpdate(id, [jid], 'promote')
+    } catch {
+      // silencio total si el bot no es admin
+    }
+  }
+}
