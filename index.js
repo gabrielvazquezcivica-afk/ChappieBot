@@ -26,6 +26,29 @@ global.autoRead = true
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
 
+// 📊 DB FUNCIONES (FIX)
+function loadDB() {
+  try {
+    if (!fs.existsSync(dbPath)) return {}
+    return JSON.parse(fs.readFileSync(dbPath, 'utf-8'))
+  } catch (e) {
+    console.log(chalk.red('❌ Error leyendo DB:'), e)
+    return {}
+  }
+}
+
+function saveDB(data) {
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
+  } catch (e) {
+    console.log(chalk.red('❌ Error guardando DB:'), e)
+  }
+}
+
+// (opcional pero recomendado)
+global.loadDB = loadDB
+global.saveDB = saveDB
+
 // ───── ERRORES GLOBALES ─────
 process.on('uncaughtException', err => {
   if (String(err).includes('Bad MAC')) return
