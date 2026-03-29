@@ -188,6 +188,23 @@ try {
 
     const text = getText(m)
 
+    // 🔥 EJECUTAR BEFORE (FIX GLOBAL)
+for (const p of plugins) {
+  try {
+    if (typeof p.before === 'function') {
+      await p.before(m, {
+        sock,
+        from,
+        sender,
+        isGroup,
+        pushName
+      })
+    }
+  } catch (e) {
+    console.log('❌ Error en before:', e)
+  }
+}
+
     // SALUDO
     global.cooldownHola = global.cooldownHola || {}
 
