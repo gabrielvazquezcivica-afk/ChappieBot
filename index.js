@@ -82,18 +82,6 @@ async function startBot () {
 
   const sock = await connectBot()
 
-  // BEFORE
-  for (const p of plugins) {
-    const h = p.handler ?? p
-    if (typeof h?.before === 'function') {
-      try {
-        await h.before(null, { sock })
-      } catch (e) {
-        console.log(chalk.red('❌ Error before plugin:'), e)
-      }
-    }
-  }
-
   // EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
