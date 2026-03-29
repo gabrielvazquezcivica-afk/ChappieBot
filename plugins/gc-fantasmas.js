@@ -3,6 +3,9 @@ import path from 'path'
 
 const messagesPath = path.join('./data/messages.json')
 
+/* 🔧 LIMPIAR JID (quita :1) */
+const cleanJid = (jid) => jid?.split(':')[0]
+
 function loadMessages() {
   if (!fs.existsSync(messagesPath)) return {}
   try { return JSON.parse(fs.readFileSync(messagesPath)) } 
@@ -16,7 +19,7 @@ function saveMessages(data) {
 export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
 
   if (!isGroup) return reply('⚠️ Solo funciona en grupos')
-  if (!isAdmin) return reply('⚠️ Solo admins')
+  if (!isAdmin) return reply('⚠️ Solo administradores')
 
   const msgsData = loadMessages()
   if (!msgsData[from]) msgsData[from] = {}
@@ -24,32 +27,33 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants
 
-  // 👻 DETECTAR FANTASMAS REALES
+  /* 👻 SOLO FANTASMAS (0 MENSAJES) */
   const ghosts = participants.filter(p => {
-    const count = msgsData[from][p.id] || 0
+    const id = cleanJid(p.id)
+    const count = msgsData[from][id] || 0
 
-    // ❌ ignorar bot
-    if (p.id.includes('status@broadcast')) return false
+    // ignorar sistema/bot
+    if (id.includes('status@broadcast')) return false
 
-    return count < 10 // ✅ incluye los de 0 mensajes
+    return count === 0
   })
 
   if (!ghosts.length) {
     return reply('🎉 No hay fantasmas en este grupo')
   }
 
+  /* ⚡ REACCIÓN */
   await sock.sendMessage(from, {
     react: { text: '👻', key: m.key }
   })
 
-  let text = `╭━━━〔 👻 FANTASMAS 〕━━━⬣\n\n`
+  /* 📢 MENSAJE */
+  let text = `╭━━━〔 👻 FANTASMAS DETECTADOS 〕━━━⬣\n\n`
   const mentions = []
 
   for (const p of ghosts) {
     const number = p.id.split('@')[0]
-    const count = msgsData[from][p.id] || 0
-
-    text += `👻 @${number} ➤ ${count} mensajes\n`
+    text += `👻 @${number}\n`
     mentions.push(p.id)
   }
 
@@ -58,7 +62,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   await sock.sendMessage(from, { text, mentions }, { quoted: m })
 }
 
-/* ───── CONTADOR FIX ───── */
+/* ───── 📊 CONTADOR DE MENSAJES ───── */
 export const before = async (m, { isGroup }) => {
 
   if (!isGroup) return
@@ -68,10 +72,10 @@ export const before = async (m, { isGroup }) => {
 
   if (!msgsData[from]) msgsData[from] = {}
 
-  // 🔥 FIX REAL DEL SENDER
-  const sender = m.key.participant || m.key.remoteJid
-
+  let sender = m.key.participant || m.key.remoteJid
   if (!sender) return
+
+  sender = cleanJid(sender) // 🔥 CLAVE
 
   msgsData[from][sender] = (msgsData[from][sender] || 0) + 1
 
