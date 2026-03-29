@@ -3,6 +3,7 @@ import path from 'path'
 
 const dbPath = path.join('./data/msgcount.json')
 
+/* 🔥 SOLO NÚMEROS */
 const getNumber = (jid) => jid?.replace(/\D/g, '')
 
 /* 📂 DB */
@@ -16,13 +17,13 @@ function saveDB(data) {
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
 }
 
-/* ✅ VALIDAR MENSAJE REAL */
+/* ✅ SOLO MENSAJES REALES */
 function isRealMessage(m) {
   if (!m.message) return false
 
-  const msgType = Object.keys(m.message)[0]
+  const type = Object.keys(m.message)[0]
 
-  const validTypes = [
+  const valid = [
     'conversation',
     'extendedTextMessage',
     'imageMessage',
@@ -31,7 +32,27 @@ function isRealMessage(m) {
     'documentMessage'
   ]
 
-  return validTypes.includes(msgType)
+  return valid.includes(type)
+}
+
+/* ───── BEFORE (CONTADOR REAL) ───── */
+export async function before(m, { isGroup }) {
+  if (!isGroup) return
+  if (!isRealMessage(m)) return
+
+  const db = loadDB()
+  const from = m.chat || m.key.remoteJid
+
+  if (!db[from]) db[from] = {}
+
+  const sender = m.sender
+  if (!sender) return
+
+  const num = getNumber(sender)
+
+  db[from][num] = (db[from][num] || 0) + 1
+
+  saveDB(db)
 }
 
 /* ───── COMANDO ───── */
@@ -46,6 +67,7 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants
 
+  /* 👻 FILTRO <10 MENSAJES */
   const ghosts = participants.filter(p => {
     const num = getNumber(p.id)
     const count = db[from][num] || 0
@@ -54,14 +76,14 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   })
 
   if (!ghosts.length) {
-    return reply('🎉 Todos tienen +10 mensajes')
+    return reply('🎉 Todos son activos (+10 mensajes)')
   }
 
   await sock.sendMessage(from, {
     react: { text: '👻', key: m.key }
   })
 
-  let text = `╭━━━〔 👻 INACTIVOS (<10 msj) 〕━━━⬣\n\n`
+  let text = `╭━━━〔 👻 POCA ACTIVIDAD 〕━━━⬣\n\n`
   const mentions = []
 
   for (const p of ghosts) {
@@ -75,27 +97,6 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   text += `\n╰━━━━━━━━━━━━━━⬣`
 
   await sock.sendMessage(from, { text, mentions }, { quoted: m })
-}
-
-/* ───── CONTADOR REAL ───── */
-export const before = async (m, { isGroup }) => {
-
-  if (!isGroup) return
-  if (!isRealMessage(m)) return // 🔥 SOLO MENSAJES REALES
-
-  const db = loadDB()
-  const from = m.chat || m.key.remoteJid
-
-  if (!db[from]) db[from] = {}
-
-  let sender = m.sender
-  if (!sender) return
-
-  const num = getNumber(sender)
-
-  db[from][num] = (db[from][num] || 0) + 1
-
-  saveDB(db)
 }
 
 handler.command = ['fantasmas']
