@@ -13,9 +13,10 @@ function saveMessages(data) {
   fs.writeFileSync(messagesPath, JSON.stringify(data, null, 2))
 }
 
-export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }) => {
+export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
+
   if (!isGroup) return reply('⚠️ Solo funciona en grupos')
-  if (!isAdmin) return reply('⚠️ Solo administradores pueden usar este comando')
+  if (!isAdmin) return reply('⚠️ Solo admins')
 
   const msgsData = loadMessages()
   if (!msgsData[from]) msgsData[from] = {}
@@ -23,38 +24,55 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants
 
-  // Filtrar usuarios que hayan escrito menos de 10 mensajes
+  // 👻 DETECTAR FANTASMAS REALES
   const ghosts = participants.filter(p => {
     const count = msgsData[from][p.id] || 0
-    return count > 0 && count < 10 // ✅ Solo usuarios que escribieron pero <10
+
+    // ❌ ignorar bot
+    if (p.id.includes('status@broadcast')) return false
+
+    return count < 10 // ✅ incluye los de 0 mensajes
   })
 
-  if (!ghosts.length) return reply('🎉 Ningún usuario está en la lista de fantasmas')
+  if (!ghosts.length) {
+    return reply('🎉 No hay fantasmas en este grupo')
+  }
 
-  // Reacción al comando
-  await sock.sendMessage(from, { react: { text: '👻', key: m.key } })
+  await sock.sendMessage(from, {
+    react: { text: '👻', key: m.key }
+  })
 
-  // Construir lista de menciones
-  let text = `👻 Fantasmas ${metadata.subject}:\n\n`
+  let text = `╭━━━〔 👻 FANTASMAS 〕━━━⬣\n\n`
   const mentions = []
 
   for (const p of ghosts) {
-    const name = p.notify || p.id.split('@')[0]
-    text += `👻 @${name}\n`
+    const number = p.id.split('@')[0]
+    const count = msgsData[from][p.id] || 0
+
+    text += `👻 @${number} ➤ ${count} mensajes\n`
     mentions.push(p.id)
   }
+
+  text += `\n╰━━━━━━━━━━━━━━⬣`
 
   await sock.sendMessage(from, { text, mentions }, { quoted: m })
 }
 
-// ───── GUARDAR CADA MENSAJE ─────
-export const before = async (m, { from, isGroup }) => {
+/* ───── CONTADOR FIX ───── */
+export const before = async (m, { isGroup }) => {
+
   if (!isGroup) return
 
   const msgsData = loadMessages()
+  const from = m.key.remoteJid
+
   if (!msgsData[from]) msgsData[from] = {}
 
-  const sender = m.key.participant
+  // 🔥 FIX REAL DEL SENDER
+  const sender = m.key.participant || m.key.remoteJid
+
+  if (!sender) return
+
   msgsData[from][sender] = (msgsData[from][sender] || 0) + 1
 
   saveMessages(msgsData)
