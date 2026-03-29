@@ -6,9 +6,6 @@ function normalizeJid(u) {
 function onlyNumber(jid = '') {    
   return normalizeJid(jid)?.replace(/[^0-9]/g, '')    
 }    
-
-// 🔥 CONTROL PARA NO DUPLICAR EVENTO
-let started = false
     
 // ───── COMANDO AUTOADMIN ─────    
 export const handler = async (m, {    
@@ -84,39 +81,7 @@ export const handler = async (m, {
     
   }    
 }    
-
-// ───── 🔥 AUTO-DETECT (NUEVO) ─────
-handler.before = async (m, { sock }) => {
-  if (started) return
-  started = true
-
-  const owners = global.config.owner?.numbers || []
-
-  sock.ev.on('group-participants.update', async update => {
-    try {
-      const { id, participants, action } = update
-
-      if (!id?.endsWith('@g.us')) return
-      if (action !== 'demote') return
-
-      for (const user of participants) {
-        const jid = normalizeJid(user)
-        const num = onlyNumber(jid)
-
-        // 👑 SI ES OWNER → VOLVER A DAR ADMIN
-        if (owners.includes(num)) {
-          try {
-            await sock.groupParticipantsUpdate(id, [jid], 'promote')
-          } catch {}
-        }
-      }
-
-    } catch (e) {
-      console.log('❌ Error auto-admin detect:', e)
-    }
-  })
-}
-
+    
 handler.command = ['autoadmin']    
 handler.tags = ['owner']    
 handler.help = ['autoadmin']    
