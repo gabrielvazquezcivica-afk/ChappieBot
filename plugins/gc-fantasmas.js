@@ -1,19 +1,18 @@
 import fs from 'fs'
 import path from 'path'
 
-const messagesPath = path.join('./data/messages.json')
+const dbPath = path.join('./data/activeUsers.json')
 
-/* 🔥 SOLO NÚMERO */
 const getNumber = (jid) => jid?.replace(/\D/g, '')
 
-function loadMessages() {
-  if (!fs.existsSync(messagesPath)) return {}
-  try { return JSON.parse(fs.readFileSync(messagesPath)) } 
+function loadDB() {
+  if (!fs.existsSync(dbPath)) return {}
+  try { return JSON.parse(fs.readFileSync(dbPath)) }
   catch { return {} }
 }
 
-function saveMessages(data) {
-  fs.writeFileSync(messagesPath, JSON.stringify(data, null, 2))
+function saveDB(data) {
+  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
 }
 
 /* ───── COMANDO ───── */
@@ -22,19 +21,16 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   if (!isGroup) return reply('⚠️ Solo en grupos')
   if (!isAdmin) return reply('⚠️ Solo admins')
 
-  const msgsData = loadMessages()
-  if (!msgsData[from]) msgsData[from] = {}
+  const db = loadDB()
+  if (!db[from]) db[from] = {}
 
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants
 
-  /* 👻 FILTRO REAL */
+  /* 👻 FANTASMAS = nunca hablaron */
   const ghosts = participants.filter(p => {
-
     const num = getNumber(p.id)
-    const count = msgsData[from][num] || 0
-
-    return count === 0
+    return !db[from][num] // ❗ nunca habló
   })
 
   if (!ghosts.length) {
@@ -50,7 +46,6 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
 
   for (const p of ghosts) {
     const num = getNumber(p.id)
-
     text += `👻 @${num}\n`
     mentions.push(p.id)
   }
@@ -60,24 +55,28 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, reply }) => {
   await sock.sendMessage(from, { text, mentions }, { quoted: m })
 }
 
-/* ───── CONTADOR REAL ───── */
+/* ───── DETECTAR ACTIVIDAD REAL ───── */
 export const before = async (m, { isGroup }) => {
 
   if (!isGroup) return
 
-  const msgsData = loadMessages()
+  // ❗ ignorar mensajes falsos/sistema
+  if (!m.message) return
+
+  const db = loadDB()
   const from = m.chat || m.key.remoteJid
 
-  if (!msgsData[from]) msgsData[from] = {}
+  if (!db[from]) db[from] = {}
 
-  let sender = m.sender
+  const sender = m.sender
   if (!sender) return
 
   const num = getNumber(sender)
 
-  msgsData[from][num] = (msgsData[from][num] || 0) + 1
+  // 🔥 SOLO MARCAR COMO ACTIVO (no contar)
+  db[from][num] = true
 
-  saveMessages(msgsData)
+  saveDB(db)
 }
 
 handler.command = ['fantasmas']
