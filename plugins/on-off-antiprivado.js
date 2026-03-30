@@ -17,7 +17,8 @@ function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
-// evitar spam
+// 🔥 CONTROL PARA NO DUPLICAR EVENTO
+let initialized = false
 const warned = new Set()
 
 // ───── COMANDO ─────
@@ -65,53 +66,60 @@ export const handler = async (m, {
   }, { quoted: m })
 }
 
-// ───── DETECTOR REAL ─────
+// ───── EVENTO GLOBAL REAL ─────
 handler.before = async (m, { sock }) => {
 
-  // 🔥 detectar mensaje privado correctamente
-  const from = m.key.remoteJid
-  if (!from) return
+  if (initialized) return
+  initialized = true
 
-  const isPrivate = from.endsWith('@s.whatsapp.net')
-  if (!isPrivate) return
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    try {
+      const msg = messages[0]
+      if (!msg?.message) return
 
-  const user = from
-  const number = user.split('@')[0].split(':')[0]
+      const jid = msg.key.remoteJid
+      if (!jid) return
 
-  const data = loadData()
+      // 🔥 SOLO PRIVADOS
+      if (!jid.endsWith('@s.whatsapp.net')) return
 
-  // 🔥 AQUÍ ESTABA TU ERROR
-  // antes: Object.values(data)
-  // ahora: verificar si EXISTE AL MENOS UN GRUPO ACTIVADO
-  const active = Object.keys(data).some(g => data[g]?.enabled)
+      const user = jid.split(':')[0]
+      const number = user.split('@')[0]
 
-  if (!active) return
+      const data = loadData()
+      const active = Object.keys(data).some(g => data[g]?.enabled)
 
-  // 🚫 no bloquear owner
-  const ownerNumbers = global.config.owner?.numbers || []
-  if (ownerNumbers.includes(number)) return
+      if (!active) return
 
-  // ⚠️ evitar repetir
-  if (warned.has(user)) return
-  warned.add(user)
+      // 🚫 no bloquear owner
+      const ownerNumbers = global.config.owner?.numbers || []
+      if (ownerNumbers.includes(number)) return
 
-  // 📩 MENSAJE
-  await sock.sendMessage(user, {
-    text: `⚠️ ANTI-PRIVADO ACTIVADO
+      if (warned.has(user)) return
+      warned.add(user)
+
+      // 📩 MENSAJE
+      await sock.sendMessage(user, {
+        text: `⚠️ ANTI-PRIVADO ACTIVADO
 
 No puedes hablar conmigo por privado.
 Serás bloqueado en 5 segundos.`
-  })
+      })
 
-  // ⏳ BLOQUEO
-  setTimeout(async () => {
-    try {
-      await sock.updateBlockStatus(user, 'block')
+      // ⏳ BLOQUEO
+      setTimeout(async () => {
+        try {
+          await sock.updateBlockStatus(user, 'block')
+        } catch (e) {
+          console.log('❌ Error bloqueando:', e)
+        }
+        warned.delete(user)
+      }, 5000)
+
     } catch (e) {
-      console.log('❌ Error bloqueando:', e)
+      console.log('❌ AntiPrivado:', e)
     }
-    warned.delete(user)
-  }, 5000)
+  })
 }
 
 // ───── CONFIG ─────
