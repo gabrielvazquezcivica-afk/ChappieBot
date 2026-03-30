@@ -17,10 +17,6 @@ function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
-function cleanJid(jid = '') {
-  return jid.split(':')[0]
-}
-
 // evitar spam
 const warned = new Set()
 
@@ -34,115 +30,88 @@ export const handler = async (m, {
 }) => {
 
   if (!isGroup) {
-    return sock.sendMessage(from, {
-      text: '⚠️ Solo en grupos'
-    }, { quoted: m })
+    return sock.sendMessage(from, { text: '⚠️ Solo en grupos' }, { quoted: m })
   }
 
   if (!isOwner) {
-    return sock.sendMessage(from, {
-      text: '⚠️ Solo el owner'
-    }, { quoted: m })
+    return sock.sendMessage(from, { text: '⚠️ Solo el owner' }, { quoted: m })
   }
 
   if (!args[0]) {
-    return sock.sendMessage(from, {
-      text: '⚙️ Uso: .antiprivado on/off'
-    }, { quoted: m })
+    return sock.sendMessage(from, { text: 'Uso: .antiprivado on/off' }, { quoted: m })
   }
 
   const state = args[0].toLowerCase()
   if (!['on','off'].includes(state)) {
-    return sock.sendMessage(from, {
-      text: '⚙️ Uso correcto: on / off'
-    }, { quoted: m })
+    return sock.sendMessage(from, { text: 'Uso: on/off' }, { quoted: m })
   }
 
   const data = loadData()
   const current = data[from]?.enabled || false
 
-  // 🔥 AVISO SI YA ESTÁ IGUAL
   if (state === 'on' && current) {
-    return sock.sendMessage(from, {
-      text: '⚠️ El Anti-Privado ya está *ACTIVADO*'
-    }, { quoted: m })
+    return sock.sendMessage(from, { text: '⚠️ Ya está ACTIVADO' }, { quoted: m })
   }
 
   if (state === 'off' && !current) {
-    return sock.sendMessage(from, {
-      text: '⚠️ El Anti-Privado ya está *DESACTIVADO*'
-    }, { quoted: m })
+    return sock.sendMessage(from, { text: '⚠️ Ya está DESACTIVADO' }, { quoted: m })
   }
 
-  // guardar estado
   data[from] = { enabled: state === 'on' }
   saveData(data)
 
-  await sock.sendMessage(from, {
-    text: `🔒 Anti-Privado: *${state.toUpperCase()}*`
+  sock.sendMessage(from, {
+    text: `🔒 Anti-Privado: ${state.toUpperCase()}`
   }, { quoted: m })
 }
 
-// ───── DETECTOR ─────
+// ───── DETECTOR REAL ─────
 handler.before = async (m, { sock }) => {
 
-  let from = m.key.remoteJid
+  // 🔥 detectar mensaje privado correctamente
+  const from = m.key.remoteJid
   if (!from) return
 
-  // ❌ ignorar grupos
-  if (from.endsWith('@g.us')) return
+  const isPrivate = from.endsWith('@s.whatsapp.net')
+  if (!isPrivate) return
 
-  // ❌ ignorar status
-  if (from === 'status@broadcast') return
-
-  // ✅ solo usuarios reales
-  if (!from.endsWith('@s.whatsapp.net')) return
-
-  const user = cleanJid(from)
-  const number = user.split('@')[0]
+  const user = from
+  const number = user.split('@')[0].split(':')[0]
 
   const data = loadData()
-  const active = Object.values(data).some(cfg => cfg.enabled)
+
+  // 🔥 AQUÍ ESTABA TU ERROR
+  // antes: Object.values(data)
+  // ahora: verificar si EXISTE AL MENOS UN GRUPO ACTIVADO
+  const active = Object.keys(data).some(g => data[g]?.enabled)
 
   if (!active) return
 
-  // 🚫 NO bloquear owners
+  // 🚫 no bloquear owner
   const ownerNumbers = global.config.owner?.numbers || []
   if (ownerNumbers.includes(number)) return
 
-  // ⚠️ evitar spam
+  // ⚠️ evitar repetir
   if (warned.has(user)) return
   warned.add(user)
 
-  // 📩 MENSAJE CON QUOTED
+  // 📩 MENSAJE
   await sock.sendMessage(user, {
-    text: `⚠️ *ANTI-PRIVADO ACTIVADO*
+    text: `⚠️ ANTI-PRIVADO ACTIVADO
 
-🚫 No puedes hablar conmigo por privado
-📌 Usa los comandos en grupos
-
-⏳ Serás bloqueado en 5 segundos...`
+No puedes hablar conmigo por privado.
+Serás bloqueado en 5 segundos.`
   })
 
-  // ⏳ BLOQUEO SEGURO
+  // ⏳ BLOQUEO
   setTimeout(async () => {
     try {
-
-      const exists = await sock.onWhatsApp(user)
-      if (!exists || !exists[0]?.exists) {
-        warned.delete(user)
-        return
-      }
-
       await sock.updateBlockStatus(user, 'block')
-
-      warned.delete(user)
-
     } catch (e) {
       console.log('❌ Error bloqueando:', e)
-      warned.delete(user)
     }
-  }, 6000)
+    warned.delete(user)
+  }, 5000)
 }
 
 // ───── CONFIG ─────
