@@ -17,13 +17,11 @@ function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
-// 🔥 CONTROL
-let started = false
+// evitar spam
 const warned = new Set()
 
 // ───── COMANDO ─────
 export const handler = async (m, {
-  sock,
   from,
   isGroup,
   isOwner,
@@ -46,58 +44,47 @@ export const handler = async (m, {
   reply(`🔒 Anti-privado: *${state.toUpperCase()}*`)
 }
 
-// ───── DETECTOR ─────
+// ───── DETECTOR REAL (FIX) ─────
 handler.before = async (m, { sock }) => {
-  if (started) return
-  started = true
 
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    try {
-      const msg = messages[0]
-      if (!msg?.message) return
+  const from = m.key.remoteJid
+  if (!from || from.endsWith('@g.us')) return // SOLO PRIVADOS
 
-      const from = msg.key.remoteJid
-      if (!from || from.endsWith('@g.us')) return
+  const user = from
+  const number = user.split('@')[0].split(':')[0]
 
-      const user = msg.key.participant || from
-      const number = user.split('@')[0].split(':')[0]
+  const data = loadData()
+  const active = Object.values(data).some(cfg => cfg.enabled)
 
-      const data = loadData()
-      const active = Object.values(data).some(cfg => cfg.enabled)
+  if (!active) return
 
-      if (!active) return
+  // 🚫 NO bloquear owners
+  const ownerNumbers = global.config.owner?.numbers || []
+  if (ownerNumbers.includes(number)) return
 
-      // 🚫 no bloquear owners
-      const ownerNumbers = global.config.owner?.numbers || []
-      if (ownerNumbers.includes(number)) return
+  // ⚠️ evitar repetir
+  if (warned.has(user)) return
+  warned.add(user)
 
-      // ⚠️ evitar repetir advertencia
-      if (warned.has(user)) return
-
-      warned.add(user)
-
-      // 📩 MENSAJE ANTES DE BLOQUEAR
-      await sock.sendMessage(user, {
-        text: `⚠️ *ANTI-PRIVADO ACTIVADO*
+  // 📩 MENSAJE
+  await sock.sendMessage(user, {
+    text: `⚠️ *ANTI-PRIVADO ACTIVADO*
 
 🚫 No puedes hablar conmigo por privado
 📌 Usa los comandos en grupos
 
 ⏳ Serás bloqueado en 5 segundos...`
-      })
-
-      // ⏳ ESPERA Y BLOQUEO
-      setTimeout(async () => {
-        try {
-          await sock.updateBlockStatus(user, 'block')
-          warned.delete(user)
-        } catch {}
-      }, 5000)
-
-    } catch (e) {
-      console.log('❌ AntiPrivado error:', e)
-    }
   })
+
+  // ⏳ BLOQUEO
+  setTimeout(async () => {
+    try {
+      await sock.updateBlockStatus(user, 'block')
+      warned.delete(user)
+    } catch (e) {
+      console.log('❌ Error bloqueando:', e)
+    }
+  }, 5000)
 }
 
 // ───── CONFIG ─────
