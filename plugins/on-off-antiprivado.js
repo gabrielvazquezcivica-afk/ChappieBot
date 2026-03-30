@@ -17,41 +17,89 @@ function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
+function cleanJid(jid = '') {
+  return jid.split(':')[0]
+}
+
 // evitar spam
 const warned = new Set()
 
 // ───── COMANDO ─────
 export const handler = async (m, {
+  sock,
   from,
   isGroup,
   isOwner,
-  args,
-  reply
+  args
 }) => {
 
-  if (!isGroup) return reply('⚠️ Solo en grupos')
-  if (!isOwner) return reply('⚠️ Solo el owner')
+  if (!isGroup) {
+    return sock.sendMessage(from, {
+      text: '⚠️ Solo en grupos'
+    }, { quoted: m })
+  }
 
-  if (!args[0]) return reply('⚙️ Uso: .antiprivado on/off')
+  if (!isOwner) {
+    return sock.sendMessage(from, {
+      text: '⚠️ Solo el owner'
+    }, { quoted: m })
+  }
+
+  if (!args[0]) {
+    return sock.sendMessage(from, {
+      text: '⚙️ Uso: .antiprivado on/off'
+    }, { quoted: m })
+  }
 
   const state = args[0].toLowerCase()
-  if (!['on','off'].includes(state)) return reply('⚙️ Uso: on/off')
+  if (!['on','off'].includes(state)) {
+    return sock.sendMessage(from, {
+      text: '⚙️ Uso correcto: on / off'
+    }, { quoted: m })
+  }
 
   const data = loadData()
+  const current = data[from]?.enabled || false
+
+  // 🔥 AVISO SI YA ESTÁ IGUAL
+  if (state === 'on' && current) {
+    return sock.sendMessage(from, {
+      text: '⚠️ El Anti-Privado ya está *ACTIVADO*'
+    }, { quoted: m })
+  }
+
+  if (state === 'off' && !current) {
+    return sock.sendMessage(from, {
+      text: '⚠️ El Anti-Privado ya está *DESACTIVADO*'
+    }, { quoted: m })
+  }
+
+  // guardar estado
   data[from] = { enabled: state === 'on' }
   saveData(data)
 
-  reply(`🔒 Anti-privado: *${state.toUpperCase()}*`)
+  await sock.sendMessage(from, {
+    text: `🔒 Anti-Privado: *${state.toUpperCase()}*`
+  }, { quoted: m })
 }
 
-// ───── DETECTOR REAL (FIX) ─────
+// ───── DETECTOR ─────
 handler.before = async (m, { sock }) => {
 
-  const from = m.key.remoteJid
-  if (!from || from.endsWith('@g.us')) return // SOLO PRIVADOS
+  let from = m.key.remoteJid
+  if (!from) return
 
-  const user = from
-  const number = user.split('@')[0].split(':')[0]
+  // ❌ ignorar grupos
+  if (from.endsWith('@g.us')) return
+
+  // ❌ ignorar status
+  if (from === 'status@broadcast') return
+
+  // ✅ solo usuarios reales
+  if (!from.endsWith('@s.whatsapp.net')) return
+
+  const user = cleanJid(from)
+  const number = user.split('@')[0]
 
   const data = loadData()
   const active = Object.values(data).some(cfg => cfg.enabled)
@@ -62,11 +110,11 @@ handler.before = async (m, { sock }) => {
   const ownerNumbers = global.config.owner?.numbers || []
   if (ownerNumbers.includes(number)) return
 
-  // ⚠️ evitar repetir
+  // ⚠️ evitar spam
   if (warned.has(user)) return
   warned.add(user)
 
-  // 📩 MENSAJE
+  // 📩 MENSAJE CON QUOTED
   await sock.sendMessage(user, {
     text: `⚠️ *ANTI-PRIVADO ACTIVADO*
 
@@ -76,15 +124,25 @@ handler.before = async (m, { sock }) => {
 ⏳ Serás bloqueado en 5 segundos...`
   })
 
-  // ⏳ BLOQUEO
+  // ⏳ BLOQUEO SEGURO
   setTimeout(async () => {
     try {
+
+      const exists = await sock.onWhatsApp(user)
+      if (!exists || !exists[0]?.exists) {
+        warned.delete(user)
+        return
+      }
+
       await sock.updateBlockStatus(user, 'block')
+
       warned.delete(user)
+
     } catch (e) {
       console.log('❌ Error bloqueando:', e)
+      warned.delete(user)
     }
-  }, 5000)
+  }, 6000)
 }
 
 // ───── CONFIG ─────
