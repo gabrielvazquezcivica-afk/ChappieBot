@@ -140,7 +140,12 @@ async function startBot () {
     if (!from) return
 
     const isGroup = from.endsWith('@g.us')
-    const sender = isGroup ? m.key.participant : from
+
+    
+    // 🔥 FIX ADMIN (IMPORTANTE)
+    let sender = isGroup ? m.key.participant : from
+    if (sender) sender = sender.split(':')[0]
+    
     const pushName = m.pushName || 'Usuario'
 
           // 🔥 BEFORE (LO PRIMERO SIEMPRE)
@@ -245,8 +250,8 @@ Usa *${global.prefix}menu* para ver mis comandos.`
           const metadata = await sock.groupMetadata(from)
           global.adminCache[from] = {
             admins: metadata.participants
-              .filter(p => p.admin)
-              .map(p => p.id),
+  .filter(p => p.admin)
+  .map(p => p.id.split(':')[0]),
             name: metadata.subject
           }
         }
