@@ -76,7 +76,9 @@ export const handler = async (m, { sock, sender, from }) => {
 
   const reason = text.replace(/^\.?afk\s*/i, '') || 'Sin razón'
 
-  afkDB[sender] = {
+  if (!afkDB[from]) afkDB[from] = {}
+
+  afkDB[from][sender] = {
     reason,
     time: Date.now()
   }
@@ -88,11 +90,11 @@ export const handler = async (m, { sock, sender, from }) => {
   })
 
   await sock.sendMessage(from, {
-    text: `😴 *AFK activado*\n📌 Razón: ${reason}`
+    text: `😴 *AFK activado (solo en este grupo)*\n📌 Razón: ${reason}`
   }, { quoted: await sistema(sock, from, 'AFK 💤') })
 }
 
-// ───── BEFORE (FIX REAL PARA TU INDEX) ─────
+// ───── BEFORE ─────
 handler.before = async (m, ctx) => {
 
   const { sock, sender, from } = ctx
@@ -100,12 +102,14 @@ handler.before = async (m, ctx) => {
   try {
     if (!sender || !from) return false
 
-    // 👋 QUITAR AFK
-    if (afkDB[sender]) {
+    if (!afkDB[from]) return false
 
-      const tiempo = msToTime(Date.now() - afkDB[sender].time)
+    // 👋 QUITAR AFK SOLO EN ESTE GRUPO
+    if (afkDB[from][sender]) {
 
-      delete afkDB[sender]
+      const tiempo = msToTime(Date.now() - afkDB[from][sender].time)
+
+      delete afkDB[from][sender]
       saveAFK()
 
       await sock.sendMessage(from, {
@@ -113,13 +117,13 @@ handler.before = async (m, ctx) => {
       })
 
       await sock.sendMessage(from, {
-        text: `👋 *Ya no estás AFK*\n⏱️ Tiempo: ${tiempo}`
+        text: `👋 *Ya no estás AFK en este grupo*\n⏱️ Tiempo: ${tiempo}`
       }, { quoted: await sistema(sock, from, 'AFK OFF 👋') })
 
       return true
     }
 
-    // 🔥 DETECTAR MENCIONES + REPLY (BIEN HECHO)
+    // 🔥 MENCIONES
     let mentioned = []
 
     if (m.mentionedJid) mentioned.push(...m.mentionedJid)
@@ -133,12 +137,13 @@ handler.before = async (m, ctx) => {
     mentioned = [...new Set(mentioned)]
 
     for (let user of mentioned) {
-      if (afkDB[user]) {
 
-        const tiempo = msToTime(Date.now() - afkDB[user].time)
+      if (afkDB[from][user]) {
+
+        const tiempo = msToTime(Date.now() - afkDB[from][user].time)
 
         await sock.sendMessage(from, {
-          text: `😴 *Usuario AFK*\n📌 Razón: ${afkDB[user].reason}\n⏱️ Tiempo: ${tiempo}`
+          text: `😴 *Usuario AFK (en este grupo)*\n📌 Razón: ${afkDB[from][user].reason}\n⏱️ Tiempo: ${tiempo}`
         }, { quoted: await sistema(sock, from, 'Usuario AFK 💤') })
       }
     }
