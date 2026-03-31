@@ -19,22 +19,17 @@ const saveAFK = () => {
   fs.writeFileSync(afkPath, JSON.stringify(afkDB, null, 2))
 }
 
-// ───── ANTI SPAM ─────
-const cooldown = new Map()
-
-// ───── FORMATO TIEMPO PRO ─────
+// ───── TIEMPO PRO ─────
 const msToTime = (ms) => {
   let s = Math.floor(ms / 1000)
   let m = Math.floor(s / 60)
   let h = Math.floor(m / 60)
-
   s %= 60
   m %= 60
-
   return `${h ? h + 'h ' : ''}${m ? m + 'm ' : ''}${s}s`
 }
 
-// ───── QUOTED PRO ─────
+// ───── QUOTED PRO FIXED ─────
 const sistema = async (sock, from, titulo = 'ChappieBot 🏜️') => {
   let nombreGrupo = 'Chat'
   let thumbnail = null
@@ -72,9 +67,17 @@ const sistema = async (sock, from, titulo = 'ChappieBot 🏜️') => {
 }
 
 // ───── COMANDO AFK ─────
-export const handler = async (m, { sock, text, sender, from }) => {
+export const handler = async (m, { sock, from, sender }) => {
 
-  const reason = text || 'Sin razón'
+  // 🔥 FIX: detectar texto REAL
+  const text =
+    m.text ||
+    m.body ||
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+
+  const reason = text.replace(/^\.?afk\s*/i, '') || 'Sin razón'
 
   afkDB[sender] = {
     reason,
@@ -88,22 +91,23 @@ export const handler = async (m, { sock, text, sender, from }) => {
   })
 
   await sock.sendMessage(from, {
-    text: `😴 *Modo AFK activado*\n📌 Razón: ${reason}`
+    text: `😴 *AFK activado*\n📌 Razón: ${reason}`
   }, { quoted: await sistema(sock, from, 'AFK 💤') })
 }
 
 
-// ───── DETECCIÓN GLOBAL ─────
+// ───── BEFORE GLOBAL ─────
 handler.before = async (m, { sock }) => {
 
   const sender = m.sender
   const from = m.chat
 
+  if (!sender || !from) return
+
   // 👋 QUITAR AFK
   if (afkDB[sender]) {
 
-    const time = Date.now() - afkDB[sender].time
-    const tiempo = msToTime(time)
+    const tiempo = msToTime(Date.now() - afkDB[sender].time)
 
     delete afkDB[sender]
     saveAFK()
@@ -113,35 +117,28 @@ handler.before = async (m, { sock }) => {
     })
 
     await sock.sendMessage(from, {
-      text: `👋 *Volviste del AFK*\n⏱️ Tiempo: ${tiempo}`
-    }, { quoted: await sistema(sock, from, 'AFK OFF 👋') })
+      text: `👋 *Ya no estás AFK*\n⏱️ Tiempo: ${tiempo}`
+    }, { quoted: await sistema(sock, from, 'AFK OFF') })
 
-    return false
+    return
   }
 
-  // 🔍 MENCIONES
-  let mentioned = m.mentionedJid || []
+  // 🔥 FIX: detectar menciones REAL
+  let mentioned =
+    m.mentionedJid ||
+    m.message?.extendedTextMessage?.contextInfo?.mentionedJid ||
+    []
 
   for (let user of mentioned) {
-
     if (afkDB[user]) {
 
-      // ⛔ anti spam (5s)
-      const key = `${from}-${user}`
-      if (cooldown.has(key) && Date.now() - cooldown.get(key) < 5000) continue
-
-      cooldown.set(key, Date.now())
-
-      const time = Date.now() - afkDB[user].time
-      const tiempo = msToTime(time)
+      const tiempo = msToTime(Date.now() - afkDB[user].time)
 
       await sock.sendMessage(from, {
         text: `😴 *Usuario AFK*\n📌 Razón: ${afkDB[user].reason}\n⏱️ Tiempo: ${tiempo}`
-      }, { quoted: await sistema(sock, from, 'Usuario AFK 💤') })
+      }, { quoted: await sistema(sock, from, 'AFK 💤') })
     }
   }
-
-  return false
 }
 
 
