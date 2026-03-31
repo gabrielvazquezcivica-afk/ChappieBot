@@ -1,9 +1,73 @@
 import fs from 'fs'
-import { igdl } from 'ruhend-scraper'
+import fetch from 'node-fetch'
 
-export const handler = async (m, { sock, from, args, reply, sender, isGroup }) => {
+// ───── DB ─────
+const afkPath = './data/afk.json'
+let afkDB = {}
 
-  /* ───── 🔒 MODO ADMIN (data/modoadmin.json) ───── */
+if (!fs.existsSync(afkPath)) {
+  fs.writeFileSync(afkPath, JSON.stringify({}))
+}
+
+try {
+  afkDB = JSON.parse(fs.readFileSync(afkPath))
+} catch {
+  afkDB = {}
+}
+
+const saveAFK = () => {
+  fs.writeFileSync(afkPath, JSON.stringify(afkDB, null, 2))
+}
+
+// ───── TIEMPO ─────
+const msToTime = (ms) => {
+  let s = Math.floor(ms / 1000)
+  let m = Math.floor(s / 60)
+  let h = Math.floor(m / 60)
+  s %= 60
+  m %= 60
+  return `${h ? h + 'h ' : ''}${m ? m + 'm ' : ''}${s}s`
+}
+
+// ───── QUOTED PRO ─────
+const sistema = async (sock, from, titulo = 'ChappieBot 🏜️') => {
+  let nombreGrupo = 'Chat'
+  let thumbnail = null
+
+  try {
+    if (from.endsWith('@g.us')) {
+      const metadata = await sock.groupMetadata(from)
+      nombreGrupo = metadata.subject || 'Grupo'
+
+      try {
+        const pp = await sock.profilePictureUrl(from, 'image')
+        const res = await fetch(pp)
+        const buffer = await res.arrayBuffer()
+        thumbnail = Buffer.from(buffer)
+      } catch {}
+    }
+  } catch {}
+
+  return {
+    key: {
+      fromMe: false,
+      participant: '0@s.whatsapp.net',
+      remoteJid: 'status@broadcast'
+    },
+    message: {
+      extendedTextMessage: {
+        text: titulo,
+        title: 'ChappieBot',
+        description: nombreGrupo,
+        jpegThumbnail: thumbnail,
+        previewType: 0
+      }
+    }
+  }
+}
+
+// ───── 🔒 MODO ADMIN FUNCION ─────
+const checkModoAdmin = async (sock, from, sender, isGroup) => {
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
 
@@ -27,56 +91,111 @@ export const handler = async (m, { sock, from, args, reply, sender, isGroup }) =
     } catch {
       isAdmin = false
     }
-    if (!isAdmin) return // 🚫 bloqueo silencioso
+    if (!isAdmin) return false
   }
-  /* ─────────────────────────────────────────────── */
 
-  // ❌ Sin link
-  if (!args[0]) return reply('🤍 Ingresa el link del video de Instagram')
+  return true
+}
+
+// ───── COMANDO AFK ─────
+export const handler = async (m, { sock, sender, from, isGroup }) => {
+
+  // 🔒 MODO ADMIN
+  if (!(await checkModoAdmin(sock, from, sender, isGroup))) return
+
+  const text =
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+
+  const reason = text.replace(/^\.?afk\s*/i, '') || 'Sin razón'
+
+  if (!afkDB[from]) afkDB[from] = {}
+
+  afkDB[from][sender] = {
+    reason,
+    time: Date.now()
+  }
+
+  saveAFK()
+
+  await sock.sendMessage(from, {
+    react: { text: '😴', key: m.key }
+  })
+
+  await sock.sendMessage(from, {
+    text: `😴 *AFK activado*\n📌 Razón: ${reason}`
+  }, { quoted: await sistema(sock, from, 'AFK 💤') })
+}
+
+// ───── BEFORE ─────
+handler.before = async (m, ctx) => {
+
+  const { sock, sender, from, isGroup } = ctx
 
   try {
-    // 🕑 Reacción cargando
-    await sock.sendMessage(from, {
-      react: { text: '🕑', key: m.key }
-    })
+    if (!sender || !from) return false
 
-    const res = await igdl(args[0])
-    const data = res.data
+    // 🔒 MODO ADMIN
+    if (!(await checkModoAdmin(sock, from, sender, isGroup))) return false
 
-    if (!data || !data.length) throw new Error('Sin resultados')
+    if (!afkDB[from]) return false
 
-    for (const media of data) {
-      // ⏱️ Espera para no spamear
-      await new Promise(r => setTimeout(r, 2000))
+    // 👋 QUITAR AFK
+    if (afkDB[from][sender]) {
 
-      // ✅ Reacción éxito
+      const tiempo = msToTime(Date.now() - afkDB[from][sender].time)
+
+      delete afkDB[from][sender]
+      saveAFK()
+
       await sock.sendMessage(from, {
-        react: { text: '✅', key: m.key }
+        react: { text: '👋', key: m.key }
       })
 
-      await sock.sendMessage(
-        from,
-        {
-          video: { url: media.url },
-          caption: '📥 Video descargado desde Instagram\n🤖 ChappieBot'
-        },
-        { quoted: m }
-      )
+      await sock.sendMessage(from, {
+        text: `👋 *Ya no estás AFK en este grupo*\n⏱️ Tiempo: ${tiempo}`
+      }, { quoted: await sistema(sock, from, 'AFK OFF 👋') })
+
+      return true
+    }
+
+    // 🔍 MENCIONES + REPLY
+    let mentioned = []
+
+    if (m.mentionedJid) mentioned.push(...m.mentionedJid)
+
+    const ctxMsg = m.message?.extendedTextMessage?.contextInfo
+
+    if (ctxMsg?.mentionedJid) mentioned.push(...ctxMsg.mentionedJid)
+
+    if (ctxMsg?.participant) mentioned.push(ctxMsg.participant)
+
+    mentioned = [...new Set(mentioned)]
+
+    for (let user of mentioned) {
+
+      if (afkDB[from][user]) {
+
+        const tiempo = msToTime(Date.now() - afkDB[from][user].time)
+
+        await sock.sendMessage(from, {
+          text: `😴 *Usuario AFK*\n📌 Razón: ${afkDB[from][user].reason}\n⏱️ Tiempo: ${tiempo}`
+        }, { quoted: await sistema(sock, from, 'Usuario AFK 💤') })
+      }
     }
 
   } catch (e) {
-    // ❌ Error
-    await sock.sendMessage(from, {
-      react: { text: '❌', key: m.key }
-    })
-    reply('❌ Error al descargar el video')
+    console.log('AFK error:', e)
   }
+
+  return false
 }
 
-handler.command = ['ig']
-handler.tags = ['descargas']
-handler.help = ['ig <link>']
-handler.group = false
+// ───── CONFIG ─────
+handler.command = ['afk']
+handler.tags = ['tools']
+handler.help = ['afk <razón>']
 handler.menu = true
 
 export default handler
