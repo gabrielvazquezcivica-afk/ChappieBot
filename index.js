@@ -244,22 +244,22 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     // ADMIN + CACHE
     let isAdmin = false
-    if (isGroup && sender) {
-      try {
-        if (!global.adminCache[from]) {
-          const metadata = await sock.groupMetadata(from)
-          global.adminCache[from] = {
-            admins: metadata.participants
-  .filter(p => p.admin)
-  .map(p => p.id.split(':')[0]),
-            name: metadata.subject
-          }
-        }
-        isAdmin = global.adminCache[from].admins.includes(sender)
-      } catch {
-        isAdmin = false
+
+if (isGroup && sender) {
+  try {
+    const metadata = await sock.groupMetadata(from)
+
+    const admins = metadata.participants
+      .filter(p => p.admin)
+      .map(p => p.id.split(':')[0])
+
+    const cleanSender = sender.split(':')[0]
+
+    isAdmin = admins.includes(cleanSender)
+  } catch (e) {
+    isAdmin = false
+  }
       }
-    }
 
     // OWNER
     const ownerNumbers = global.config.owner?.numbers || []
