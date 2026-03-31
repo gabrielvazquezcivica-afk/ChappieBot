@@ -11,30 +11,38 @@ export const handler = async (m, { sock, from, args }) => {
 
   try {
 
-    // 🔥 API NUEVA (estable)
-    const res = await fetch(`https://api.dorratz.com/v2/pinterest?q=${encodeURIComponent(text)}`)
-    const json = await res.json()
+    // 🔥 obtener token
+    const res = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(text)}&iax=images&ia=images`)
+    const html = await res.text()
 
-    if (!json || !json.data || json.data.length === 0) {
+    const token = html.match(/vqd='(.*?)'/)?.[1]
+    if (!token) throw 'No token'
+
+    // 🔥 obtener imágenes
+    const imgRes = await fetch(`https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(text)}&vqd=${token}&f=,,,&p=1`)
+    const data = await imgRes.json()
+
+    if (!data?.results?.length) {
       return sock.sendMessage(from, {
         text: '❌ No encontré resultados'
       }, { quoted: m })
     }
 
-    const results = json.data.slice(0, 5)
+    const results = data.results.slice(0, 5)
 
     for (let img of results) {
       await sock.sendMessage(from, {
-        image: { url: img },
+        image: { url: img.image },
         caption: `📌 Resultado: ${text}`
       }, { quoted: m })
     }
 
   } catch (e) {
-    console.log('❌ Pinterest error:', e)
+
+    console.log('❌ Error:', e)
 
     sock.sendMessage(from, {
-      text: '❌ Error con Pinterest (API caída)'
+      text: '❌ Error buscando imágenes'
     }, { quoted: m })
   }
 }
