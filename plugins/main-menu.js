@@ -27,7 +27,7 @@ export const handler = async (m, {
     juegos: '🎠',    
     ff: '🕹️',    
     registro: '📚',    
-    ia: '🖥️',
+    buscador: '🔍',
     rpg: '💰',    
     tools: '🧰',    
     stickers: '🖼️',    
@@ -47,7 +47,7 @@ export const handler = async (m, {
     juegos: '🎯',
     ff: '🚀',
     registro: '📝',
-    ia: '💻',
+    buscador: '🔎',
     rpg: '💎',
     tools: '🔧',
     stickers: '🖌️',
@@ -92,7 +92,7 @@ export const handler = async (m, {
     'owner',    
     'nsfw',
     'xvideos',
-    'ia'
+    'buscador'
   ]    
     
   // 🧠 Construir menú    
