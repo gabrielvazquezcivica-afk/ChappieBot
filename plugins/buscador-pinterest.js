@@ -1,10 +1,12 @@
 import fetch from 'node-fetch'
 
-export const handler = async (m, {
-  sock,
-  text,
-  from
-}) => {
+export const handler = async (m, { sock, from, args }) => {
+
+  // 🔥 obtener texto correctamente
+  const text = args.join(' ') || 
+    m.text || 
+    m.message?.conversation || 
+    m.message?.extendedTextMessage?.text || ''
 
   if (!text) {
     return sock.sendMessage(from, {
@@ -14,36 +16,29 @@ export const handler = async (m, {
 
   try {
 
-    // 🔥 API (rápida y gratis)
     const res = await fetch(`https://api.nekosapi.com/v3/images/pinterest?query=${encodeURIComponent(text)}`)
     const json = await res.json()
 
-    if (!json || !json.items || json.items.length === 0) {
+    if (!json?.items?.length) {
       return sock.sendMessage(from, {
         text: '❌ No encontré resultados'
       }, { quoted: m })
     }
 
-    // 🎯 limitar cantidad
     const results = json.items.slice(0, 5)
 
     for (let img of results) {
-
       await sock.sendMessage(from, {
         image: { url: img.image_url || img.url },
         caption: `📌 Resultado de: *${text}*`
       }, { quoted: m })
-
     }
 
   } catch (e) {
-
     console.log(e)
-
     sock.sendMessage(from, {
       text: '❌ Error buscando imágenes'
     }, { quoted: m })
-
   }
 }
 
