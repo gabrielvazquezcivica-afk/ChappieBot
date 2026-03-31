@@ -70,8 +70,6 @@ const sistema = async (sock, from, titulo = 'ChappieBot 🏜️') => {
 export const handler = async (m, { sock, sender, from }) => {
 
   const text =
-    m.text ||
-    m.body ||
     m.message?.conversation ||
     m.message?.extendedTextMessage?.text ||
     ''
@@ -94,13 +92,12 @@ export const handler = async (m, { sock, sender, from }) => {
   }, { quoted: await sistema(sock, from, 'AFK 💤') })
 }
 
-// ───── BEFORE GLOBAL (FIX TOTAL) ─────
-handler.before = async (m, { sock }) => {
+// ───── BEFORE (FIX REAL PARA TU INDEX) ─────
+handler.before = async (m, ctx) => {
+
+  const { sock, sender, from } = ctx
 
   try {
-    const sender = m.sender
-    const from = m.chat
-
     if (!sender || !from) return false
 
     // 👋 QUITAR AFK
@@ -122,22 +119,20 @@ handler.before = async (m, { sock }) => {
       return true
     }
 
-    // 🔥 DETECCIÓN FULL (mención + reply)
+    // 🔥 DETECTAR MENCIONES + REPLY (BIEN HECHO)
     let mentioned = []
 
     if (m.mentionedJid) mentioned.push(...m.mentionedJid)
 
-    const ctx = m.message?.extendedTextMessage?.contextInfo
+    const ctxMsg = m.message?.extendedTextMessage?.contextInfo
 
-    if (ctx?.mentionedJid) mentioned.push(...ctx.mentionedJid)
+    if (ctxMsg?.mentionedJid) mentioned.push(...ctxMsg.mentionedJid)
 
-    if (ctx?.participant) mentioned.push(ctx.participant)
+    if (ctxMsg?.participant) mentioned.push(ctxMsg.participant)
 
-    // quitar duplicados
     mentioned = [...new Set(mentioned)]
 
     for (let user of mentioned) {
-
       if (afkDB[user]) {
 
         const tiempo = msToTime(Date.now() - afkDB[user].time)
