@@ -29,7 +29,7 @@ const msToTime = (ms) => {
   return `${h ? h + 'h ' : ''}${m ? m + 'm ' : ''}${s}s`
 }
 
-// ───── QUOTED PRO FIXED ─────
+// ───── QUOTED PRO ─────
 const sistema = async (sock, from, titulo = 'ChappieBot 🏜️') => {
   let nombreGrupo = 'Chat'
   let thumbnail = null
@@ -67,9 +67,8 @@ const sistema = async (sock, from, titulo = 'ChappieBot 🏜️') => {
 }
 
 // ───── COMANDO AFK ─────
-export const handler = async (m, { sock, from, sender }) => {
+export const handler = async (m, { sock, sender, from }) => {
 
-  // 🔥 FIX: detectar texto REAL
   const text =
     m.text ||
     m.body ||
@@ -95,52 +94,66 @@ export const handler = async (m, { sock, from, sender }) => {
   }, { quoted: await sistema(sock, from, 'AFK 💤') })
 }
 
-
-// ───── BEFORE GLOBAL ─────
+// ───── BEFORE GLOBAL (FIX TOTAL) ─────
 handler.before = async (m, { sock }) => {
 
-  const sender = m.sender
-  const from = m.chat
+  try {
+    const sender = m.sender
+    const from = m.chat
 
-  if (!sender || !from) return
+    if (!sender || !from) return false
 
-  // 👋 QUITAR AFK
-  if (afkDB[sender]) {
+    // 👋 QUITAR AFK
+    if (afkDB[sender]) {
 
-    const tiempo = msToTime(Date.now() - afkDB[sender].time)
+      const tiempo = msToTime(Date.now() - afkDB[sender].time)
 
-    delete afkDB[sender]
-    saveAFK()
-
-    await sock.sendMessage(from, {
-      react: { text: '👋', key: m.key }
-    })
-
-    await sock.sendMessage(from, {
-      text: `👋 *Ya no estás AFK*\n⏱️ Tiempo: ${tiempo}`
-    }, { quoted: await sistema(sock, from, 'AFK OFF') })
-
-    return
-  }
-
-  // 🔥 FIX: detectar menciones REAL
-  let mentioned =
-    m.mentionedJid ||
-    m.message?.extendedTextMessage?.contextInfo?.mentionedJid ||
-    []
-
-  for (let user of mentioned) {
-    if (afkDB[user]) {
-
-      const tiempo = msToTime(Date.now() - afkDB[user].time)
+      delete afkDB[sender]
+      saveAFK()
 
       await sock.sendMessage(from, {
-        text: `😴 *Usuario AFK*\n📌 Razón: ${afkDB[user].reason}\n⏱️ Tiempo: ${tiempo}`
-      }, { quoted: await sistema(sock, from, 'AFK 💤') })
-    }
-  }
-}
+        react: { text: '👋', key: m.key }
+      })
 
+      await sock.sendMessage(from, {
+        text: `👋 *Ya no estás AFK*\n⏱️ Tiempo: ${tiempo}`
+      }, { quoted: await sistema(sock, from, 'AFK OFF 👋') })
+
+      return true
+    }
+
+    // 🔥 DETECCIÓN FULL (mención + reply)
+    let mentioned = []
+
+    if (m.mentionedJid) mentioned.push(...m.mentionedJid)
+
+    const ctx = m.message?.extendedTextMessage?.contextInfo
+
+    if (ctx?.mentionedJid) mentioned.push(...ctx.mentionedJid)
+
+    if (ctx?.participant) mentioned.push(ctx.participant)
+
+    // quitar duplicados
+    mentioned = [...new Set(mentioned)]
+
+    for (let user of mentioned) {
+
+      if (afkDB[user]) {
+
+        const tiempo = msToTime(Date.now() - afkDB[user].time)
+
+        await sock.sendMessage(from, {
+          text: `😴 *Usuario AFK*\n📌 Razón: ${afkDB[user].reason}\n⏱️ Tiempo: ${tiempo}`
+        }, { quoted: await sistema(sock, from, 'Usuario AFK 💤') })
+      }
+    }
+
+  } catch (e) {
+    console.log('AFK error:', e)
+  }
+
+  return false
+}
 
 // ───── CONFIG ─────
 handler.command = ['afk']
