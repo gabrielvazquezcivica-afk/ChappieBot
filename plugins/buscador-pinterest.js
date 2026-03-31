@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 import fs from 'fs'
 
-// ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
+// ───── QUOTED SISTEMA ─────
 const sistema = (titulo = 'ChappieBot 🏜️') => ({
   key: {
     fromMe: false,
@@ -18,19 +18,13 @@ const sistema = (titulo = 'ChappieBot 🏜️') => ({
     }
   }
 })
-// ─────────────────────────────────────
+// ─────────────────────────
 
 
 // ───── HANDLER ─────
-export const handler = async (m, {
-  sock,
-  text,
-  from,
-  sender,
-  isGroup
-}) => {
+export const handler = async (m, { sock, text, from, sender, isGroup }) => {
 
-  /* ───── 🔒 MODO ADMIN SILENCIOSO (CHAPPIEBOT) ───── */
+  /* ───── 🔒 MODO ADMIN SILENCIOSO ───── */
   let groupSettings = { enabled: false }
   const modoadminPath = './data/modoadmin.json'
   if (fs.existsSync(modoadminPath)) {
@@ -49,11 +43,9 @@ export const handler = async (m, {
     } catch {}
     if (!isAdmin) return
   }
-  /* ───────────────────────────────────────────── */
+  /* ───────────────────────────────── */
 
-
-  // 🔍 detectar texto correctamente
-  const query = text || m.text || m.body || m.message?.conversation || ''
+  const query = text || m.text || m.body || ''
 
   if (!query) {
     return sock.sendMessage(from, {
@@ -63,46 +55,48 @@ export const handler = async (m, {
 
   try {
 
-    // ⚡ reacción de carga
     await sock.sendMessage(from, {
       react: { text: '⚡', key: m.key }
     })
 
     const res = await fetch(`https://api.nekosapi.com/v3/images/search?query=${encodeURIComponent(query)}`)
-    const json = await res.json()
+
+    const raw = await res.text()
+
+    // 💥 detectar si devolvió HTML
+    if (raw.startsWith('<')) {
+      throw new Error('API devolvió HTML (bloqueado)')
+    }
+
+    const json = JSON.parse(raw)
 
     const img = json.items?.[0]?.url
 
-    if (!img) {
-      await sock.sendMessage(from, {
-        react: { text: '❌', key: m.key }
-      })
-      return sock.sendMessage(from, {
-        text: '❌ No encontré resultados'
-      }, { quoted: sistema('Pinterest ❌') })
-    }
+    if (!img) throw new Error('Sin resultados')
 
-    // 📌 enviar imagen
     await sock.sendMessage(from, {
       image: { url: img },
       caption: `📌 Resultado de: ${query}`
     }, { quoted: sistema('Pinterest 📌') })
 
-    // ✅ reacción final
     await sock.sendMessage(from, {
       react: { text: '📌', key: m.key }
     })
 
   } catch (e) {
-    console.log(e)
+    console.log('❌ Error Pinterest:', e.message)
 
     await sock.sendMessage(from, {
       react: { text: '❌', key: m.key }
     })
 
-    sock.sendMessage(from, {
-      text: '❌ Error al buscar'
-    }, { quoted: sistema('Error ❌') })
+    // 🔥 FALLBACK (imagen random segura)
+    const fallback = `https://source.unsplash.com/600x400/?${encodeURIComponent(query)}`
+
+    await sock.sendMessage(from, {
+      image: { url: fallback },
+      caption: `⚠️ API falló, resultado alternativo:\n${query}`
+    }, { quoted: sistema('Pinterest Fallback ⚠️') })
   }
 }
 
