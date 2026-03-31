@@ -1,5 +1,4 @@
 import fetch from 'node-fetch'
-import * as cheerio from 'cheerio'
 import fs from 'fs'
 
 // ───── QUOTED SISTEMA (CHAPPIEBOT) ─────
@@ -53,7 +52,10 @@ export const handler = async (m, {
   /* ───────────────────────────────────────────── */
 
 
-  if (!text) {
+  // 🔍 detectar texto correctamente
+  const query = text || m.text || m.body || m.message?.conversation || ''
+
+  if (!query) {
     return sock.sendMessage(from, {
       text: '⚡ Usa: .pinterest gatos'
     }, { quoted: sistema('Pinterest 🔍') })
@@ -61,40 +63,46 @@ export const handler = async (m, {
 
   try {
 
-    const url = `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(text)}`
-    const res = await fetch(url)
-    const html = await res.text()
-
-    const $ = cheerio.load(html)
-    const results = []
-
-    $('img').each((i, el) => {
-      const src = $(el).attr('src')
-      if (src && src.includes('pinimg.com')) {
-        results.push(src)
-      }
+    // ⚡ reacción de carga
+    await sock.sendMessage(from, {
+      react: { text: '⚡', key: m.key }
     })
 
-    const unique = [...new Set(results)]
+    const res = await fetch(`https://api.nekosapi.com/v3/images/search?query=${encodeURIComponent(query)}`)
+    const json = await res.json()
 
-    if (unique.length === 0) {
+    const img = json.items?.[0]?.url
+
+    if (!img) {
+      await sock.sendMessage(from, {
+        react: { text: '❌', key: m.key }
+      })
       return sock.sendMessage(from, {
         text: '❌ No encontré resultados'
       }, { quoted: sistema('Pinterest ❌') })
     }
 
-    const random = unique[Math.floor(Math.random() * unique.length)]
-
+    // 📌 enviar imagen
     await sock.sendMessage(from, {
-      image: { url: random },
-      caption: `📌 Resultado de: ${text}`
+      image: { url: img },
+      caption: `📌 Resultado de: ${query}`
     }, { quoted: sistema('Pinterest 📌') })
+
+    // ✅ reacción final
+    await sock.sendMessage(from, {
+      react: { text: '📌', key: m.key }
+    })
 
   } catch (e) {
     console.log(e)
+
+    await sock.sendMessage(from, {
+      react: { text: '❌', key: m.key }
+    })
+
     sock.sendMessage(from, {
-      text: '❌ Error al buscar en Pinterest'
-    }, { quoted: sistema('Pinterest Error') })
+      text: '❌ Error al buscar'
+    }, { quoted: sistema('Error ❌') })
   }
 }
 
@@ -103,7 +111,6 @@ export const handler = async (m, {
 handler.command = ['pinterest']
 handler.tags = ['buscador']
 handler.help = ['pinterest <texto>']
-handler.group = false
 handler.menu = true
 
 export default handler
