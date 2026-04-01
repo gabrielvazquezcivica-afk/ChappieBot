@@ -6,14 +6,11 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   const msgs = global.config?.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
-  // ❌ SOLO GRUPOS
   if (!isGroup) return reply(msgs.group || '⚠️ ESTE COMANDO SOLO FUNCIONA EN GRUPOS')
 
-  // 📊 INFO GRUPO
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants || []
 
-  // 🔐 ADMINS
   const admins = participants
     .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
     .map(p => p.id)
@@ -22,14 +19,12 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     return reply(msgs.admin || '⚠️ ESTE COMANDO ES SOLO PARA ADMINISTRADORES')
   }
 
-  // 🔥 REACCIÓN
   await sock.sendMessage(from, {
     react: { text: '🗣️', key: m.key }
   })
 
-  const emoji = '🗣️'
+  const emoji = '🚀'
 
-  // 🧠 PANEL
   let text = `╭━━━〔 ${emoji} TODOS 〕━━━⬣
 ┃ 👑 ${botName}
 ┃ 🏷️ ${metadata.subject}
@@ -49,47 +44,29 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   text += `╰━━━━━━━━━━━━⬣`
 
-  // 📩 MENSAJE
   await sock.sendMessage(
     from,
     { text, mentions },
     { quoted: m }
   )
 
-  // 🔊 AUDIO DESPUÉS (FIX REAL CON FFMPEG)
+  // 🔊 AUDIO FIX (RÁPIDO + ESTABLE)
   try {
     const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
     const buffer = Buffer.from(await res.arrayBuffer())
 
-    const input = `./audio_${Date.now()}.ogg`
-    const output = `./audio_${Date.now()}_fix.ogg`
-
-    fs.writeFileSync(input, buffer)
-
-    await new Promise((resolve, reject) => {
-      exec(`ffmpeg -i ${input} -c:a libopus -b:a 64k ${output}`, (err) => {
-        if (err) reject(err)
-        else resolve()
-      })
-    })
-
-    const finalAudio = fs.readFileSync(output)
-
     await sock.sendMessage(from, {
-      audio: finalAudio,
+      audio: buffer,
       mimetype: 'audio/ogg; codecs=opus',
-      ptt: true
+      ptt: true,
+      fileName: 'chappie.ogg'
     }, { quoted: m })
-
-    fs.unlinkSync(input)
-    fs.unlinkSync(output)
 
   } catch (e) {
     console.log('❌ Error audio:', e)
   }
 }
 
-// ⚙️ CONFIG
 handler.command = ['todos']
 handler.tags = ['group']
 handler.menu = true
