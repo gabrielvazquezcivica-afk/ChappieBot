@@ -1,4 +1,6 @@
 import fetch from 'node-fetch'
+import fs from 'fs'
+import { exec } from 'child_process'
 
 export const handler = async (m, { sock, from, isGroup, reply }) => {
   const msgs = global.config?.messages || {}
@@ -54,22 +56,40 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     { quoted: m }
   )
 
-  // 🔊 AUDIO
+  // 🔊 AUDIO DESPUÉS (FIX REAL CON FFMPEG)
   try {
     const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
-    const buffer = await res.buffer()
+    const buffer = Buffer.from(await res.arrayBuffer())
+
+    const input = `./audio_${Date.now()}.ogg`
+    const output = `./audio_${Date.now()}_fix.ogg`
+
+    fs.writeFileSync(input, buffer)
+
+    await new Promise((resolve, reject) => {
+      exec(`ffmpeg -i ${input} -c:a libopus -b:a 64k ${output}`, (err) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+
+    const finalAudio = fs.readFileSync(output)
 
     await sock.sendMessage(from, {
-      audio: buffer,
+      audio: finalAudio,
       mimetype: 'audio/ogg; codecs=opus',
       ptt: true
     }, { quoted: m })
+
+    fs.unlinkSync(input)
+    fs.unlinkSync(output)
 
   } catch (e) {
     console.log('❌ Error audio:', e)
   }
 }
 
+// ⚙️ CONFIG
 handler.command = ['todos']
 handler.tags = ['group']
 handler.menu = true
