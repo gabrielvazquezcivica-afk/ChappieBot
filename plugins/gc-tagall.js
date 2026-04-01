@@ -56,36 +56,38 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     { quoted: m }
   )
 
-  // 🔊 AUDIO FIX (FFMPEG + NO SE ROMPE)
+  // 🔊 AUDIO MP3 (PLAYER COMO TU IMAGEN)
   try {
     const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
     const buffer = Buffer.from(await res.arrayBuffer())
 
     const input = `./audio_${Date.now()}.ogg`
-    const output = `./audio_${Date.now()}_fix.ogg`
+    const output = `./audio_${Date.now()}`
 
     fs.writeFileSync(input, buffer)
 
+    // 🔥 convertir a MP3
     await new Promise((resolve, reject) => {
-      exec(`ffmpeg -y -i ${input} -c:a libopus -b:a 64k ${output}`, (err) => {
+      exec(`ffmpeg -y -i ${input} -vn -ar 44100 -ac 2 -b:a 128k ${output}.mp3`, (err) => {
         if (err) reject(err)
         else resolve()
       })
     })
 
-    const finalAudio = fs.readFileSync(output)
+    const finalAudio = fs.readFileSync(`${output}.mp3`)
 
+    // 🚀 enviar como audio normal (NO ptt)
     await sock.sendMessage(from, {
       audio: finalAudio,
-      mimetype: 'audio/ogg; codecs=opus',
-      ptt: true
+      mimetype: 'audio/mpeg',
+      fileName: 'ChappieBot.mp3'
     }, { quoted: m })
 
-    // ⏳ BORRAR DESPUÉS (CLAVE)
+    // ⏳ borrar después
     setTimeout(() => {
       try {
         fs.unlinkSync(input)
-        fs.unlinkSync(output)
+        fs.unlinkSync(`${output}.mp3`)
       } catch {}
     }, 10000)
 
