@@ -19,11 +19,12 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
     return reply(msgs.admin || '⚠️ ESTE COMANDO ES SOLO PARA ADMINISTRADORES')
   }
 
+  // 🔥 REACCIÓN
   await sock.sendMessage(from, {
     react: { text: '🗣️', key: m.key }
   })
 
-  const emoji = '🚀'
+  const emoji = '🗣️'
 
   let text = `╭━━━〔 ${emoji} TODOS 〕━━━⬣
 ┃ 👑 ${botName}
@@ -44,22 +45,46 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   text += `╰━━━━━━━━━━━━⬣`
 
-  await sock.sendMessage(
-    from,
-    { text, mentions },
-    { quoted: m }
-  )
+  await sock.sendMessage(from, { text, mentions }, { quoted: m })
 
-  // 🔊 AUDIO FIX (RÁPIDO + ESTABLE)
+  // 🔊 AUDIO CON CACHE
   try {
-    const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
-    const buffer = Buffer.from(await res.arrayBuffer())
+    const cachePath = './media/todos.ogg'
+
+    // 📁 Crear carpeta si no existe
+    if (!fs.existsSync('./media')) {
+      fs.mkdirSync('./media')
+    }
+
+    // 🔥 SI NO EXISTE → LO CREA
+    if (!fs.existsSync(cachePath)) {
+      console.log('🎧 Creando audio cache...')
+
+      const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
+      const buffer = Buffer.from(await res.arrayBuffer())
+
+      const tempInput = './media/temp.ogg'
+
+      fs.writeFileSync(tempInput, buffer)
+
+      await new Promise((resolve, reject) => {
+        exec(`ffmpeg -y -i ${tempInput} -c:a libopus -b:a 64k ${cachePath}`, (err) => {
+          if (err) reject(err)
+          else resolve()
+        })
+      })
+
+      fs.unlinkSync(tempInput)
+      console.log('✅ Audio cache listo')
+    }
+
+    // 🚀 ENVÍO INSTANTÁNEO
+    const audioBuffer = fs.readFileSync(cachePath)
 
     await sock.sendMessage(from, {
-      audio: buffer,
+      audio: audioBuffer,
       mimetype: 'audio/ogg; codecs=opus',
-      ptt: true,
-      fileName: 'chappie.ogg'
+      ptt: true
     }, { quoted: m })
 
   } catch (e) {
