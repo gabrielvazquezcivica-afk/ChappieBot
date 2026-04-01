@@ -6,11 +6,14 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
   const msgs = global.config?.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
 
+  // ❌ SOLO GRUPOS
   if (!isGroup) return reply(msgs.group || '⚠️ ESTE COMANDO SOLO FUNCIONA EN GRUPOS')
 
+  // 📊 INFO GRUPO
   const metadata = await sock.groupMetadata(from)
   const participants = metadata.participants || []
 
+  // 🔐 ADMINS
   const admins = participants
     .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
     .map(p => p.id)
@@ -26,6 +29,7 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   const emoji = '🗣️'
 
+  // 🧠 PANEL
   let text = `╭━━━〔 ${emoji} TODOS 〕━━━⬣
 ┃ 👑 ${botName}
 ┃ 🏷️ ${metadata.subject}
@@ -45,53 +49,52 @@ export const handler = async (m, { sock, from, isGroup, reply }) => {
 
   text += `╰━━━━━━━━━━━━⬣`
 
-  await sock.sendMessage(from, { text, mentions }, { quoted: m })
+  // 📩 MENSAJE
+  await sock.sendMessage(
+    from,
+    { text, mentions },
+    { quoted: m }
+  )
 
-  // 🔊 AUDIO CON CACHE
+  // 🔊 AUDIO FIX (FFMPEG + NO SE ROMPE)
   try {
-    const cachePath = './media/todos.ogg'
+    const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
+    const buffer = Buffer.from(await res.arrayBuffer())
 
-    // 📁 Crear carpeta si no existe
-    if (!fs.existsSync('./media')) {
-      fs.mkdirSync('./media')
-    }
+    const input = `./audio_${Date.now()}.ogg`
+    const output = `./audio_${Date.now()}_fix.ogg`
 
-    // 🔥 SI NO EXISTE → LO CREA
-    if (!fs.existsSync(cachePath)) {
-      console.log('🎧 Creando audio cache...')
+    fs.writeFileSync(input, buffer)
 
-      const res = await fetch('https://files.catbox.moe/y0jgrt.ogg')
-      const buffer = Buffer.from(await res.arrayBuffer())
-
-      const tempInput = './media/temp.ogg'
-
-      fs.writeFileSync(tempInput, buffer)
-
-      await new Promise((resolve, reject) => {
-        exec(`ffmpeg -y -i ${tempInput} -c:a libopus -b:a 64k ${cachePath}`, (err) => {
-          if (err) reject(err)
-          else resolve()
-        })
+    await new Promise((resolve, reject) => {
+      exec(`ffmpeg -y -i ${input} -c:a libopus -b:a 64k ${output}`, (err) => {
+        if (err) reject(err)
+        else resolve()
       })
+    })
 
-      fs.unlinkSync(tempInput)
-      console.log('✅ Audio cache listo')
-    }
-
-    // 🚀 ENVÍO INSTANTÁNEO
-    const audioBuffer = fs.readFileSync(cachePath)
+    const finalAudio = fs.readFileSync(output)
 
     await sock.sendMessage(from, {
-      audio: audioBuffer,
+      audio: finalAudio,
       mimetype: 'audio/ogg; codecs=opus',
       ptt: true
     }, { quoted: m })
+
+    // ⏳ BORRAR DESPUÉS (CLAVE)
+    setTimeout(() => {
+      try {
+        fs.unlinkSync(input)
+        fs.unlinkSync(output)
+      } catch {}
+    }, 10000)
 
   } catch (e) {
     console.log('❌ Error audio:', e)
   }
 }
 
+// ⚙️ CONFIG
 handler.command = ['todos']
 handler.tags = ['group']
 handler.menu = true
