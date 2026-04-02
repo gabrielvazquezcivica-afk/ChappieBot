@@ -20,7 +20,7 @@ export const handler = async (m, {
   const botName = sock.user?.name || 'ChappieBot'
   const botJid = sock.user?.id || ''
 
-  // 👑 OWNERS (USANDO TU MÉTODO)
+  // 👑 OWNERS (TU SISTEMA)
   const owners = (global.config.owner?.numbers || []).map(n => onlyNumber(n))
 
   if (!isGroup) {
@@ -36,10 +36,6 @@ export const handler = async (m, {
   const senderNum = onlyNumber(sender)
   const botNum = onlyNumber(botJid)
 
-  // 👑 OWNER GRUPO
-  const realOwner = metadata.participants.find(p => p.admin === 'superadmin')
-  const groupOwner = realOwner ? onlyNumber(realOwner.id) : null
-
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const userRaw = ctx?.mentionedJid?.[0] || ctx?.participant
 
@@ -54,25 +50,13 @@ Ejemplo: .kick @usuario`
 
   const userNum = onlyNumber(userRaw)
 
-  /* 🔐 PROTECCIÓN + CASTIGO */
+  /* 🔐 PROTECCIÓN REAL */
 
-  // 👑 OWNER BOT (FIX REAL CON TU SISTEMA)
+  // 👑 OWNER DEL BOT (PROTEGIDO SIEMPRE)
   if (owners.includes(userNum)) {
 
     await sock.sendMessage(from, {
-      text: `🚨 *INTENTO DE EXPULSAR OWNER DEL BOT*\n\n👮 @${senderNum} será eliminado`,
-      mentions: [sender]
-    })
-
-    await sock.groupParticipantsUpdate(from, [sender], 'remove')
-    return
-  }
-
-  // 👑 OWNER GRUPO
-  if (groupOwner && userNum === groupOwner) {
-
-    await sock.sendMessage(from, {
-      text: `🚨 *PROTECCIÓN ACTIVADA*\n\n👑 No puedes expulsar al creador del grupo\n\n💀 @${senderNum} eliminado por intento`,
+      text: `🚨 *PROTECCIÓN OWNER ACTIVADA*\n\n👑 No puedes expulsar a este usuario\n\n💀 @${senderNum} eliminado`,
       mentions: [sender]
     })
 
