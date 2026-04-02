@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import fetch from 'node-fetch'
 
 const settingsPath = path.join(process.cwd(), 'data/settings.json')
 
@@ -101,6 +102,29 @@ handler.before = async (_, { sock }) => {
         await sock.sendMessage(id, { text, mentions, quoted:update })
       }
       
+   // 🔊 AUDIO (AQUÍ SE AGREGA SIN TOCAR TU LÓGICA)
+      try {
+        let audioUrl = ''
+
+        if (action === 'add') {
+          audioUrl = 'https://files.catbox.moe/sg93j5.mp3'
+        } else if (action === 'remove') {
+          audioUrl = 'https://files.catbox.moe/swqi7e.mp3'
+        }
+
+        if (audioUrl) {
+          const res = await fetch(audioUrl)
+          const buffer = Buffer.from(await res.arrayBuffer())
+
+          await sock.sendMessage(id, {
+            audio: buffer,
+            mimetype: 'audio/mpeg',
+            fileName: 'audio.mp3'
+          })
+        }
+
+      } catch(e){console.log('❌ Error audio:',e)}
+
     } catch(e){console.log('❌ Error welcome:',e)}
   })
 }
