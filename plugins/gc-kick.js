@@ -1,3 +1,12 @@
+// ───── HELPERS ─────
+function normalizeJid(u) {
+  return typeof u === 'string' ? u : u?.id
+}
+
+function onlyNumber(jid = '') {
+  return normalizeJid(jid)?.replace(/[^0-9]/g, '')
+}
+
 export const handler = async (m, {
   sock,
   reply,
@@ -11,10 +20,8 @@ export const handler = async (m, {
   const botName = sock.user?.name || 'ChappieBot'
   const botJid = sock.user?.id || ''
 
-  // 🔥 FIX OWNER (FORMATO CORRECTO)
-  const owners = (global.config.owner?.numbers || []).map(num =>
-    num.toString().replace(/[^0-9]/g, '')
-  )
+  // 👑 OWNERS (USANDO TU MÉTODO)
+  const owners = (global.config.owner?.numbers || []).map(n => onlyNumber(n))
 
   if (!isGroup) {
     return reply('🚫 Este comando solo funciona en grupos')
@@ -26,15 +33,12 @@ export const handler = async (m, {
 
   const metadata = await sock.groupMetadata(from)
 
-  // 🔥 limpiar jid
-  const clean = (jid) => jid?.split('@')[0].split(':')[0]
+  const senderNum = onlyNumber(sender)
+  const botNum = onlyNumber(botJid)
 
-  const cleanSender = clean(sender)
-  const cleanBot = clean(botJid)
-
-  // 👑 OWNER DEL GRUPO
+  // 👑 OWNER GRUPO
   const realOwner = metadata.participants.find(p => p.admin === 'superadmin')
-  const groupOwner = realOwner ? clean(realOwner.id) : null
+  const groupOwner = realOwner ? onlyNumber(realOwner.id) : null
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
   const userRaw = ctx?.mentionedJid?.[0] || ctx?.participant
@@ -48,15 +52,15 @@ Ejemplo: .kick @usuario`
     )
   }
 
-  const cleanUser = clean(userRaw)
+  const userNum = onlyNumber(userRaw)
 
   /* 🔐 PROTECCIÓN + CASTIGO */
 
-  // 👑 OWNER BOT (FIX REAL)
-  if (owners.includes(cleanUser)) {
+  // 👑 OWNER BOT (FIX REAL CON TU SISTEMA)
+  if (owners.includes(userNum)) {
 
     await sock.sendMessage(from, {
-      text: `🚨 *INTENTO DE EXPULSAR OWNER DEL BOT*\n\n👮 @${cleanSender} será eliminado`,
+      text: `🚨 *INTENTO DE EXPULSAR OWNER DEL BOT*\n\n👮 @${senderNum} será eliminado`,
       mentions: [sender]
     })
 
@@ -65,10 +69,10 @@ Ejemplo: .kick @usuario`
   }
 
   // 👑 OWNER GRUPO
-  if (groupOwner && cleanUser === groupOwner) {
+  if (groupOwner && userNum === groupOwner) {
 
     await sock.sendMessage(from, {
-      text: `🚨 *PROTECCIÓN ACTIVADA*\n\n👑 No puedes expulsar al creador del grupo\n\n💀 @${cleanSender} eliminado por intento`,
+      text: `🚨 *PROTECCIÓN ACTIVADA*\n\n👑 No puedes expulsar al creador del grupo\n\n💀 @${senderNum} eliminado por intento`,
       mentions: [sender]
     })
 
@@ -77,7 +81,7 @@ Ejemplo: .kick @usuario`
   }
 
   // 🤖 BOT
-  if (cleanUser === cleanBot) {
+  if (userNum === botNum) {
     return reply('⚠️ No puedo expulsarme a mí mismo')
   }
 
@@ -87,7 +91,7 @@ Ejemplo: .kick @usuario`
       react: { text: '🚪', key: m.key }
     })
 
-    await sock.groupParticipantsUpdate(from, [userRaw], 'remove')
+    await sock.groupParticipantsUpdate(from, [normalizeJid(userRaw)], 'remove')
 
     await sock.sendMessage(
       from,
@@ -98,16 +102,16 @@ Ejemplo: .kick @usuario`
 ╚═══════════════════╝
 
 👤 Usuario:
-➤ @${cleanUser}
+➤ @${userNum}
 
 👮 Moderador:
-➤ @${cleanSender}
+➤ @${senderNum}
 
 ╭───────────────╮
    🤖 ${botName}
 ╰───────────────╯
 `.trim(),
-        mentions: [userRaw, sender]
+        mentions: [normalizeJid(userRaw), sender]
       },
       { quoted: m }
     )
