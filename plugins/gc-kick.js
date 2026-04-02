@@ -10,7 +10,11 @@ export const handler = async (m, {
   const msgs = global.config.messages || {}
   const botName = sock.user?.name || 'ChappieBot'
   const botJid = sock.user?.id || ''
-  const owners = global.config.owner?.numbers || []
+
+  // 🔥 FIX OWNER (FORMATO CORRECTO)
+  const owners = (global.config.owner?.numbers || []).map(num =>
+    num.toString().replace(/[^0-9]/g, '')
+  )
 
   if (!isGroup) {
     return reply('🚫 Este comando solo funciona en grupos')
@@ -27,9 +31,8 @@ export const handler = async (m, {
 
   const cleanSender = clean(sender)
   const cleanBot = clean(botJid)
-  const cleanOwners = owners.map(o => clean(o))
 
-  // 👑 detectar owner real
+  // 👑 OWNER DEL GRUPO
   const realOwner = metadata.participants.find(p => p.admin === 'superadmin')
   const groupOwner = realOwner ? clean(realOwner.id) : null
 
@@ -49,8 +52,8 @@ Ejemplo: .kick @usuario`
 
   /* 🔐 PROTECCIÓN + CASTIGO */
 
-  // 👑 OWNER BOT
-  if (cleanOwners.includes(cleanUser)) {
+  // 👑 OWNER BOT (FIX REAL)
+  if (owners.includes(cleanUser)) {
 
     await sock.sendMessage(from, {
       text: `🚨 *INTENTO DE EXPULSAR OWNER DEL BOT*\n\n👮 @${cleanSender} será eliminado`,
