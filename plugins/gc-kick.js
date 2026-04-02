@@ -20,18 +20,18 @@ export const handler = async (m, {
   const botName = sock.user?.name || 'ChappieBot'
   const botJid = sock.user?.id || ''
 
-  // 👑 OWNERS (TU SISTEMA)
+  // 👑 OWNERS
   const owners = (global.config.owner?.numbers || []).map(n => onlyNumber(n))
 
+  // ❌ SOLO GRUPOS
   if (!isGroup) {
-    return reply('🚫 Este comando solo funciona en grupos')
+    return reply(msgs.group || '🚫 Este comando solo funciona en grupos')
   }
 
+  // 🔐 SOLO ADMINS
   if (!isAdmin) {
-    return reply('⛔ Solo administradores pueden usar este comando')
+    return reply(msgs.admin || '⛔ Solo administradores pueden usar este comando')
   }
-
-  const metadata = await sock.groupMetadata(from)
 
   const senderNum = onlyNumber(sender)
   const botNum = onlyNumber(botJid)
@@ -50,9 +50,9 @@ Ejemplo: .kick @usuario`
 
   const userNum = onlyNumber(userRaw)
 
-  /* 🔐 PROTECCIÓN REAL */
+  /* 🔐 PROTECCIÓN TOTAL */
 
-  // 👑 OWNER DEL BOT (PROTEGIDO SIEMPRE)
+  // 👑 OWNER PROTEGIDO (CHECK 1)
   if (owners.includes(userNum)) {
 
     await sock.sendMessage(from, {
@@ -60,23 +60,32 @@ Ejemplo: .kick @usuario`
       mentions: [sender]
     })
 
-    await sock.groupParticipantsUpdate(from, [sender], 'remove')
+    try {
+      await sock.groupParticipantsUpdate(from, [sender], 'remove')
+    } catch {}
+
     return
   }
 
-  // 🤖 BOT
+  // 🤖 BOT PROTEGIDO
   if (userNum === botNum) {
     return reply('⚠️ No puedo expulsarme a mí mismo')
   }
 
   try {
 
+    // 🔥 REACCIÓN
     await sock.sendMessage(from, {
       react: { text: '🚪', key: m.key }
     })
 
+    // 👑 OWNER PROTEGIDO (CHECK 2 ANTIBUG)
+    if (owners.includes(userNum)) return
+
+    // 🚪 KICK
     await sock.groupParticipantsUpdate(from, [normalizeJid(userRaw)], 'remove')
 
+    // 📩 MENSAJE
     await sock.sendMessage(
       from,
       {
@@ -106,6 +115,7 @@ Ejemplo: .kick @usuario`
   }
 }
 
+// ⚙️ CONFIG
 handler.command = ['kick']
 handler.tags = ['group']
 handler.group = true
