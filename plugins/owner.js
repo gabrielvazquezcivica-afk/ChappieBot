@@ -21,7 +21,7 @@ await sock.sendMessage(from,{
 text:
 `╭─❖ 「 👑 OWNER 」 ❖─╮
 │ 👤 Nombre: SoyGabo
-│ 📸 IG: gabriel_gdl_90
+│ 📸 IG: gabriel_cv_89
 │ 📱 Tel: +1 (365) 298-0907
 ╰────────────────
 
