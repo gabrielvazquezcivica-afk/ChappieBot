@@ -15,14 +15,25 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   if (groupSettings.enabled && !isAdmin) return
 
   // 🔹 Usuario objetivo
-  let targetJid = sender
+  let targetJid = null
   const mentions = []
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
+
   if (ctx?.mentionedJid?.length) {
     targetJid = ctx.mentionedJid[0]
   } else if (ctx?.participant) {
     targetJid = ctx.participant
+  }
+
+  // ❌ SI NO MENCIONA NI RESPONDE
+  if (!targetJid) {
+    return reply(
+`⚠️ Debes mencionar a alguien o responder a un mensaje
+
+Ejemplo:
+.doxear @usuario`
+    )
   }
 
   mentions.push(targetJid)
@@ -39,7 +50,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
   const lat = (Math.random()*180 - 90).toFixed(4)
   const lon = (Math.random()*360 - 180).toFixed(4)
 
-  // 🧠 TEXTO DINÁMICO
+  // 🧠 TEXTO
   const text = `🕵️ *@${name}*
 
 *𝚁𝙴𝚂𝚄𝙻𝚃𝙰𝙳𝙾𝚂 𝙾𝙱𝚃𝙴𝙽𝙸𝙳𝙾𝚂:*
