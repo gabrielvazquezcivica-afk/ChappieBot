@@ -28,56 +28,76 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, reply }) 
   if (!args[0]) return reply('⚠️ Uso: .autoaceptar on | off')
 
   const state = args[0].toLowerCase()
-  if (!['on', 'off'].includes(state)) return reply('⚠️ Usa: .autoaceptar on | off')
+  if (!['on','off'].includes(state)) return reply('⚠️ Usa: .autoaceptar on | off')
 
   const db = loadDB()
   if (!db[from]) db[from] = {}
 
-  const newState = state === 'on'
+  const enabled = state === 'on'
 
-  if (db[from].enabled === newState) {
+  if (db[from].enabled === enabled) {
     return reply(`⚠️ Ya estaba *${state.toUpperCase()}*`)
   }
 
-  db[from].enabled = newState
+  db[from].enabled = enabled
   saveDB(db)
 
-  await sock.sendMessage(from, {
-    text: `🤖 Autoaceptar solicitudes: *${state.toUpperCase()}*`
-  }, { quoted: m })
+  reply(`🤖 Autoaceptar: *${state.toUpperCase()}*`)
 }
 
-// ───── EVENTO REAL ─────
+// ───── EVENTO UNIVERSAL ─────
 handler.before = async (_, { sock }) => {
   if (started) return
   started = true
 
-  sock.ev.on('group.join-request', async (update) => {
-    try {
-      const { id, author, participants } = update
+  const aceptar = async (id, users = []) => {
+    const db = loadDB()
+    const settings = db[id] || {}
+    if (!settings.enabled) return
 
-      const db = loadDB()
-      const settings = db[id] || {}
+    for (const user of users) {
+      try {
 
-      if (!settings.enabled) return
-
-      for (const user of participants || []) {
-
-        // 🔥 aceptar solicitud (FIX REAL)
+        // 🔥 MÉTODO 1 (nuevo)
         await sock.groupRequestParticipantsUpdate(
           id,
           [{ jid: user, action: 'approve' }]
         )
 
-        await sock.sendMessage(id, {
-          text: `✅ @${user.split('@')[0]} fue aceptado automáticamente`,
-          mentions: [user]
-        })
+      } catch {
 
+        try {
+          // 🔥 MÉTODO 2 (viejo)
+          await sock.groupRequestParticipantsUpdate(
+            id,
+            [user],
+            'approve'
+          )
+        } catch (e) {
+          console.log('❌ Error approve:', e)
+          continue
+        }
       }
 
-    } catch (e) {
-      console.log('❌ Error autoaceptar:', e)
+      // 📩 aviso
+      await sock.sendMessage(id, {
+        text: `✅ @${user.split('@')[0]} fue aceptado automáticamente`,
+        mentions: [user]
+      })
+    }
+  }
+
+  // 🔥 EVENTO NUEVO
+  sock.ev.on('group.join-request', async (update) => {
+    try {
+      await aceptar(update.id, update.participants || [])
+    } catch {}
+  })
+
+  // 🔥 EVENTO VIEJO
+  sock.ev.on('group-participants.update', async (update) => {
+    if (update.action === 'request') {
+      await aceptar(update.id, update.participants || [])
     }
   })
 }
