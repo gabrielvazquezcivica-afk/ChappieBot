@@ -20,24 +20,18 @@ function saveDB(db) {
 let started = false
 
 // ───── COMANDO ─────
-export const handler = async (m, { sock, from, isGroup, isAdmin, args, reply }) => {
+export const handler = async (m, { from, isGroup, isAdmin, args, reply }) => {
 
-  if (!isGroup) return reply('⚠️ Solo funciona en grupos')
-  if (!isAdmin) return reply('⚠️ Solo admins pueden usar esto')
+  if (!isGroup) return reply('⚠️ Solo en grupos')
+  if (!isAdmin) return reply('⚠️ Solo admins')
 
   if (!args[0]) return reply('⚠️ Uso: .autoaceptar on | off')
-
-  const state = args[0].toLowerCase()
-  if (!['on','off'].includes(state)) return reply('⚠️ Usa: .autoaceptar on | off')
 
   const db = loadDB()
   if (!db[from]) db[from] = {}
 
+  const state = args[0].toLowerCase()
   const enabled = state === 'on'
-
-  if (db[from].enabled === enabled) {
-    return reply(`⚠️ Ya estaba *${state.toUpperCase()}*`)
-  }
 
   db[from].enabled = enabled
   saveDB(db)
@@ -45,61 +39,51 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, reply }) 
   reply(`🤖 Autoaceptar: *${state.toUpperCase()}*`)
 }
 
-// ───── EVENTO UNIVERSAL ─────
+// ───── LOOP REAL ─────
 handler.before = async (_, { sock }) => {
   if (started) return
   started = true
 
-  const aceptar = async (id, users = []) => {
-    const db = loadDB()
-    const settings = db[id] || {}
-    if (!settings.enabled) return
+  setInterval(async () => {
+    try {
+      const db = loadDB()
 
-    for (const user of users) {
-      try {
-
-        // 🔥 MÉTODO 1 (nuevo)
-        await sock.groupRequestParticipantsUpdate(
-          id,
-          [{ jid: user, action: 'approve' }]
-        )
-
-      } catch {
+      for (const groupId of Object.keys(db)) {
+        if (!db[groupId]?.enabled) continue
 
         try {
-          // 🔥 MÉTODO 2 (viejo)
-          await sock.groupRequestParticipantsUpdate(
-            id,
-            [user],
-            'approve'
-          )
-        } catch (e) {
-          console.log('❌ Error approve:', e)
-          continue
-        }
+          // 🔥 obtener solicitudes pendientes
+          const req = await sock.groupRequestParticipantsList(groupId)
+
+          if (!req || !req.length) continue
+
+          for (const user of req) {
+
+            try {
+              await sock.groupRequestParticipantsUpdate(
+                groupId,
+                [user.jid],
+                'approve'
+              )
+
+              await sock.sendMessage(groupId, {
+                text: `✅ @${user.jid.split('@')[0]} fue aceptado`,
+                mentions: [user.jid]
+              })
+
+            } catch (e) {
+              console.log('❌ Error aprobando:', e)
+            }
+          }
+
+        } catch {}
       }
 
-      // 📩 aviso
-      await sock.sendMessage(id, {
-        text: `✅ @${user.split('@')[0]} fue aceptado automáticamente`,
-        mentions: [user]
-      })
+    } catch (e) {
+      console.log('❌ Loop autoaceptar:', e)
     }
-  }
 
-  // 🔥 EVENTO NUEVO
-  sock.ev.on('group.join-request', async (update) => {
-    try {
-      await aceptar(update.id, update.participants || [])
-    } catch {}
-  })
-
-  // 🔥 EVENTO VIEJO
-  sock.ev.on('group-participants.update', async (update) => {
-    if (update.action === 'request') {
-      await aceptar(update.id, update.participants || [])
-    }
-  })
+  }, 8000) // cada 8 segundos
 }
 
 // ⚙️ CONFIG
