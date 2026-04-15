@@ -58,6 +58,7 @@ export const handler = async (m, { sock, from, isGroup, sender, isAdmin, reply }
 // ⚙️ CONFIG
 handler.command = ['peruano']
 handler.tags = ['juegos']
+handler.help = ['peruano @usuario'] 
 handler.group = true
 handler.admin = false
 handler.menu = true
