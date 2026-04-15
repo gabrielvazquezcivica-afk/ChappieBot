@@ -25,14 +25,10 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, reply }) 
   if (!isGroup) return reply('⚠️ Solo funciona en grupos')
   if (!isAdmin) return reply('⚠️ Solo admins pueden usar esto')
 
-  if (!args[0]) {
-    return reply('⚠️ Uso: .autoaceptar on | off')
-  }
+  if (!args[0]) return reply('⚠️ Uso: .autoaceptar on | off')
 
   const state = args[0].toLowerCase()
-  if (!['on', 'off'].includes(state)) {
-    return reply('⚠️ Usa: .autoaceptar on | off')
-  }
+  if (!['on', 'off'].includes(state)) return reply('⚠️ Usa: .autoaceptar on | off')
 
   const db = loadDB()
   if (!db[from]) db[from] = {}
@@ -51,34 +47,37 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, reply }) 
   }, { quoted: m })
 }
 
-// ───── EVENTO ─────
+// ───── EVENTO REAL ─────
 handler.before = async (_, { sock }) => {
   if (started) return
   started = true
 
-  sock.ev.on('group-participants.update', async (update) => {
-    const { id, participants, action } = update
+  sock.ev.on('group.join-request', async (update) => {
+    try {
+      const { id, author, participants } = update
 
-    if (action !== 'request') return // 🔥 SOLO solicitudes
+      const db = loadDB()
+      const settings = db[id] || {}
 
-    const db = loadDB()
-    const settings = db[id] || {}
+      if (!settings.enabled) return
 
-    if (!settings.enabled) return
+      for (const user of participants || []) {
 
-    for (const user of participants) {
-      try {
-        // 🔥 aceptar solicitud
-        await sock.groupRequestParticipantsUpdate(id, [user], 'approve')
+        // 🔥 aceptar solicitud (FIX REAL)
+        await sock.groupRequestParticipantsUpdate(
+          id,
+          [{ jid: user, action: 'approve' }]
+        )
 
         await sock.sendMessage(id, {
           text: `✅ @${user.split('@')[0]} fue aceptado automáticamente`,
           mentions: [user]
         })
 
-      } catch (e) {
-        console.log('❌ Error autoaceptar:', e)
       }
+
+    } catch (e) {
+      console.log('❌ Error autoaceptar:', e)
     }
   })
 }
