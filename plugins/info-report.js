@@ -16,7 +16,7 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
     args = [textMsg]
   }
 
-  // 🔥 MENÚ PREMIUM
+  // 🔥 MENÚ PREMIUM EN FORMATO DE LISTA
   if (!args.length) {
 
     const msg = {
@@ -24,48 +24,47 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
         message: {
           interactiveMessage: {
             body: {
-              text: '🚨 *SISTEMA DE REPORTES PREMIUM*\n\nSelecciona una opción:'
+              text: '🚨 *SISTEMA DE REPORTES PREMIUM*\n\nSelecciona una opción de la lista:'
             },
             footer: {
               text: 'ChappieBot'
             },
+            // 📌 CONFIGURACIÓN PARA QUE APAREZCA COMO LISTA
             nativeFlowMessage: {
-              buttons: [
-                {
-                  name: "quick_reply",
-                  buttonParamsJson: JSON.stringify({
-                    display_text: "❌ Menú no sirve",
-                    id: ".reporte El menú no sirve"
-                  })
-                },
-                {
-                  name: "quick_reply",
-                  buttonParamsJson: JSON.stringify({
-                    display_text: "🎵 Play no funciona",
-                    id: ".reporte Play no funciona"
-                  })
-                },
-                {
-                  name: "quick_reply",
-                  buttonParamsJson: JSON.stringify({
-                    display_text: "🖼️ Stickers no funcionan",
-                    id: ".reporte Sticker no funciona"
-                  })
-                },
-                {
-                  name: "quick_reply",
-                  buttonParamsJson: JSON.stringify({
-                    display_text: "✏️ Otro",
-                    id: ".reporte otro"
-                  })
-                }
-              ]
+              name: "list_reply", // Tipo de mensaje: lista desplegable
+              buttonParamsJson: JSON.stringify({
+                title: "📋 Opciones de Reporte", // Texto que aparece en el botón para abrir la lista
+                sections: [
+                  {
+                    title: "Elige el tipo de problema", // Título de la sección de la lista
+                    rows: [
+                      {
+                        title: "❌ Menú no sirve",
+                        id: ".reporte El menú no sirve"
+                      },
+                      {
+                        title: "🎵 Play no funciona",
+                        id: ".reporte Play no funciona"
+                      },
+                      {
+                        title: "🖼️ Stickers no funcionan",
+                        id: ".reporte Sticker no funciona"
+                      },
+                      {
+                        title: "✏️ Otro",
+                        id: ".reporte otro"
+                      }
+                    ]
+                  }
+                ]
+              })
             }
           }
         }
       }
     }
 
+    // 📤 Enviamos el mensaje con la lista
     return await sock.relayMessage(from, msg, {})
   }
 
