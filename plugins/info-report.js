@@ -3,54 +3,73 @@ global.reportReply = global.reportReply || {}
 
 export const handler = async (m, { sock, from, sender, pushName, args, reply }) => {
 
+  const textMsg =
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+
   const ctx = m.message?.extendedTextMessage?.contextInfo
 
-  // 🔥 RESPUESTA AL MODO "OTRO"
+  // 🔥 RESPUESTA A "OTRO"
   if (ctx?.quotedMessage && global.reportReply[sender]) {
-    const textReply =
-      m.message?.conversation ||
-      m.message?.extendedTextMessage?.text ||
-      ''
-
-    if (!textReply) return reply('⚠️ Escribe tu problema')
-
-    args = [textReply]
+    if (!textMsg) return reply('⚠️ Escribe tu problema')
+    args = [textMsg]
   }
 
-  // 🔥 SI NO HAY TEXTO → BOTONES
+  // 🔥 MENÚ PREMIUM
   if (!args.length) {
-    return await sock.sendMessage(from, {
-      text: `🚨 *SISTEMA DE REPORTES*
 
-Selecciona una opción:`,
-      footer: 'ChappieBot',
-      buttons: [
-        {
-          buttonId: '.reporte El menú no sirve',
-          buttonText: { displayText: '❌ Menú no sirve' },
-          type: 1
-        },
-        {
-          buttonId: '.reporte Play no funciona',
-          buttonText: { displayText: '🎵 Play no funciona' },
-          type: 1
-        },
-        {
-          buttonId: '.reporte Sticker no funciona',
-          buttonText: { displayText: '🖼️ Stickers no sirven' },
-          type: 1
-        },
-        {
-          buttonId: '.reporte otro',
-          buttonText: { displayText: '✏️ Otro' },
-          type: 1
+    const msg = {
+      viewOnceMessage: {
+        message: {
+          interactiveMessage: {
+            body: {
+              text: '🚨 *SISTEMA DE REPORTES PREMIUM*\n\nSelecciona una opción:'
+            },
+            footer: {
+              text: 'ChappieBot'
+            },
+            nativeFlowMessage: {
+              buttons: [
+                {
+                  name: "quick_reply",
+                  buttonParamsJson: JSON.stringify({
+                    display_text: "❌ Menú no sirve",
+                    id: ".reporte El menú no sirve"
+                  })
+                },
+                {
+                  name: "quick_reply",
+                  buttonParamsJson: JSON.stringify({
+                    display_text: "🎵 Play no funciona",
+                    id: ".reporte Play no funciona"
+                  })
+                },
+                {
+                  name: "quick_reply",
+                  buttonParamsJson: JSON.stringify({
+                    display_text: "🖼️ Stickers no funcionan",
+                    id: ".reporte Sticker no funciona"
+                  })
+                },
+                {
+                  name: "quick_reply",
+                  buttonParamsJson: JSON.stringify({
+                    display_text: "✏️ Otro",
+                    id: ".reporte otro"
+                  })
+                }
+              ]
+            }
+          }
         }
-      ],
-      headerType: 1
-    }, { quoted: m })
+      }
+    }
+
+    return await sock.relayMessage(from, msg, {})
   }
 
-  // 🔥 OPCIÓN "OTRO"
+  // 🔥 OPCIÓN OTRO
   if (args.join(' ').toLowerCase() === 'otro') {
 
     global.reportReply[sender] = true
@@ -58,10 +77,7 @@ Selecciona una opción:`,
     return reply(
 `✏️ *MODO REPORTE PERSONALIZADO*
 
-📌 Responde a ESTE mensaje con tu problema
-
-Ejemplo:
-> El bot no responde bien`
+📌 Responde a ESTE mensaje con tu problema`
     )
   }
 
@@ -71,7 +87,7 @@ Ejemplo:
   const last = global.cooldownReport[sender] || 0
 
   if (now - last < cooldown) {
-    return reply('⏳ ESPERA UN MOMENTO ANTES DE ENVIAR OTRO REPORTE')
+    return reply('⏳ ESPERA ANTES DE ENVIAR OTRO REPORTE')
   }
 
   global.cooldownReport[sender] = now
@@ -142,7 +158,6 @@ Ejemplo:
     })
   }
 
-  // ✅ CONFIRMACIÓN
   await reply('✅ TU REPORTE FUE ENVIADO AL OWNER')
 }
 
