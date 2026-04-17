@@ -16,27 +16,25 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
     args = [textMsg]
   }
 
-  // 🔥 MENÚ PREMIUM EN FORMATO DE LISTA
+  // 🔥 MENÚ PREMIUM EN FORMATO DE LISTA (CORREGIDO)
   if (!args.length) {
 
+    // Estructura compatible con la mayoría de versiones de Baileys
     const msg = {
-      viewOnceMessage: {
-        message: {
-          interactiveMessage: {
-            body: {
-              text: '🚨 *SISTEMA DE REPORTES PREMIUM*\n\nSelecciona una opción de la lista:'
-            },
-            footer: {
-              text: 'ChappieBot'
-            },
-            // 📌 CONFIGURACIÓN PARA QUE APAREZCA COMO LISTA
-            nativeFlowMessage: {
-              name: "list_reply", // Tipo de mensaje: lista desplegable
+      text: '🚨 *SISTEMA DE REPORTES PREMIUM*\n\nSelecciona una opción de la lista:',
+      footer: 'ChappieBot',
+      // 📌 Usamos "interactive" en lugar de viewOnceMessage para mayor compatibilidad
+      interactive: {
+        type: "list_reply",
+        nativeFlowMessage: {
+          buttons: [
+            {
+              name: "list_reply",
               buttonParamsJson: JSON.stringify({
-                title: "📋 Opciones de Reporte", // Texto que aparece en el botón para abrir la lista
+                title: "📋 Opciones de Reporte",
                 sections: [
                   {
-                    title: "Elige el tipo de problema", // Título de la sección de la lista
+                    title: "Elige el tipo de problema",
                     rows: [
                       {
                         title: "❌ Menú no sirve",
@@ -59,13 +57,13 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
                 ]
               })
             }
-          }
+          ]
         }
       }
     }
 
-    // 📤 Enviamos el mensaje con la lista
-    return await sock.relayMessage(from, msg, {})
+    // 📤 Enviamos el mensaje con el método correcto
+    return await sock.sendMessage(from, msg, { quoted: m })
   }
 
   // 🔥 OPCIÓN OTRO
@@ -165,3 +163,4 @@ handler.tags = ['info']
 handler.menu = true
 
 export default handler
+        
