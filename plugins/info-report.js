@@ -16,59 +16,112 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
     args = [textMsg]
   }
 
-  // 🔥 MENÚ PREMIUM EN FORMATO DE LISTA (CORREGIDO)
+  // 🔥 MENÚ AUTOMÁTICO
   if (!args.length) {
 
-    // Estructura compatible con la mayoría de versiones de Baileys
-    const msg = {
-      text: '🚨 *SISTEMA DE REPORTES PREMIUM*\n\nSelecciona una opción de la lista:',
-      footer: 'ChappieBot',
-      // 📌 Usamos "interactive" en lugar de viewOnceMessage para mayor compatibilidad
-      interactive: {
-        type: "list_reply",
-        nativeFlowMessage: {
-          buttons: [
-            {
-              name: "list_reply",
-              buttonParamsJson: JSON.stringify({
-                title: "📋 Opciones de Reporte",
-                sections: [
+    // 🧠 DETECCIÓN
+    let sent = false
+
+    // ───── 1. INTENTO PREMIUM ─────
+    try {
+      const msg = {
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: {
+              body: {
+                text: '🚨 *SISTEMA DE REPORTES*\n\nSelecciona una opción:'
+              },
+              footer: {
+                text: 'ChappieBot'
+              },
+              nativeFlowMessage: {
+                buttons: [
                   {
-                    title: "Elige el tipo de problema",
-                    rows: [
-                      {
-                        title: "❌ Menú no sirve",
-                        id: ".reporte El menú no sirve"
-                      },
-                      {
-                        title: "🎵 Play no funciona",
-                        id: ".reporte Play no funciona"
-                      },
-                      {
-                        title: "🖼️ Stickers no funcionan",
-                        id: ".reporte Sticker no funciona"
-                      },
-                      {
-                        title: "✏️ Otro",
-                        id: ".reporte otro"
-                      }
-                    ]
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                      display_text: "❌ Menú no sirve",
+                      id: ".reporte El menú no sirve"
+                    })
+                  },
+                  {
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                      display_text: "🎵 Play no funciona",
+                      id: ".reporte Play no funciona"
+                    })
+                  },
+                  {
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                      display_text: "🖼️ Stickers no funcionan",
+                      id: ".reporte Sticker no funciona"
+                    })
+                  },
+                  {
+                    name: "quick_reply",
+                    buttonParamsJson: JSON.stringify({
+                      display_text: "✏️ Otro",
+                      id: ".reporte otro"
+                    })
                   }
                 ]
-              })
+              }
             }
-          ]
+          }
         }
       }
+
+      await sock.relayMessage(from, msg, {})
+      sent = true
+    } catch {}
+
+    // ───── 2. BOTONES NORMALES ─────
+    if (!sent) {
+      try {
+        await sock.sendMessage(from, {
+          text: `🚨 *SISTEMA DE REPORTES*\n\nSelecciona una opción:`,
+          footer: 'ChappieBot',
+          buttons: [
+            { buttonId: '.reporte El menú no sirve', buttonText: { displayText: '❌ Menú no sirve' }, type: 1 },
+            { buttonId: '.reporte Play no funciona', buttonText: { displayText: '🎵 Play no funciona' }, type: 1 },
+            { buttonId: '.reporte Sticker no funciona', buttonText: { displayText: '🖼️ Stickers no sirven' }, type: 1 },
+            { buttonId: '.reporte otro', buttonText: { displayText: '✏️ Otro' }, type: 1 }
+          ],
+          headerType: 1
+        }, { quoted: m })
+
+        sent = true
+      } catch {}
     }
 
-    // 📤 Enviamos el mensaje con el método correcto
-    return await sock.sendMessage(from, msg, { quoted: m })
+    // ───── 3. TEXTO (SI TODO FALLA) ─────
+    if (!sent) {
+      global.reportReply[sender] = false
+
+      return reply(
+`🚨 *SISTEMA DE REPORTES*
+
+Responde con el número:
+
+1️⃣ Menú no sirve  
+2️⃣ Play no funciona  
+3️⃣ Stickers no funcionan  
+4️⃣ Otro`
+      )
+    }
+
+    return
   }
 
-  // 🔥 OPCIÓN OTRO
-  if (args.join(' ').toLowerCase() === 'otro') {
+  // 🔥 PROCESAR OPCIONES
+  let texto = args.join(' ').toLowerCase()
 
+  if (texto === '1') texto = 'Menú no sirve'
+  else if (texto === '2') texto = 'Play no funciona'
+  else if (texto === '3') texto = 'Stickers no funcionan'
+
+  // 🔥 OPCIÓN OTRO
+  if (texto === '4' || texto === 'otro') {
     global.reportReply[sender] = true
 
     return reply(
@@ -90,16 +143,10 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
   global.cooldownReport[sender] = now
   delete global.reportReply[sender]
 
-  const texto = args.join(' ')
-
   // 📌 OWNER
   const ownerNumbers = global.config.owner?.numbers || []
+  if (!ownerNumbers.length) return reply('❌ NO HAY OWNER CONFIGURADO')
 
-  if (!ownerNumbers.length) {
-    return reply('❌ NO HAY OWNER CONFIGURADO')
-  }
-
-  // 📍 INFO
   const userTag = `@${sender.split('@')[0]}`
   const isGroup = from.endsWith('@g.us')
 
@@ -110,29 +157,23 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
     try {
       const metadata = await sock.groupMetadata(from)
       groupName = metadata.subject
-
       const code = await sock.groupInviteCode(from)
       groupLink = `https://chat.whatsapp.com/${code}`
-
     } catch {
       groupLink = 'NO SE PUDO OBTENER'
     }
   }
 
-  // 🕒 HORA
   const hora = new Date().toLocaleString('es-MX', {
     timeZone: 'America/Mexico_City'
   })
 
-  // ✍️ REACCIÓN
   await sock.sendMessage(from, {
     react: { text: '📩', key: m.key }
   })
 
-  // 📄 MENSAJE
   const reportMsg = `
 ╭━━━〔 🚨 REPORTE 〕━━━⬣
-┃
 ┃ 👤 USUARIO: ${pushName}
 ┃ 🔢 NÚMERO: ${userTag}
 ┃ 📍 CHAT: ${groupName}
@@ -141,11 +182,9 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
 ┃
 ┃ 📝 MENSAJE:
 ┃ ${texto}
-┃
 ╰━━━━━━━━━━━━━━━━⬣
 `.trim()
 
-  // 📤 ENVIAR A OWNERS
   for (let number of ownerNumbers) {
     const jid = number + '@s.whatsapp.net'
 
@@ -163,4 +202,3 @@ handler.tags = ['info']
 handler.menu = true
 
 export default handler
-        
