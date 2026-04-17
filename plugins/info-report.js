@@ -1,13 +1,57 @@
 global.cooldownReport = global.cooldownReport || {}
+global.reportReply = global.reportReply || {}
 
 export const handler = async (m, { sock, from, sender, pushName, args, reply }) => {
 
-  if (!args.length) {
-    return reply('⚠️ ESCRIBE TU REPORTE\n\nEJEMPLO:\n.reporte EL BOT NO FUNCIONA')
+  const ctx = m.message?.extendedTextMessage?.contextInfo
+
+  // 🔥 SI RESPONDE AL MENSAJE DEL BOT (MODO OTRO)
+  if (ctx?.quotedMessage && global.reportReply[sender]) {
+    args = [m.message?.conversation || m.message?.extendedTextMessage?.text || '']
   }
 
+  // 🔥 SI NO PONE TEXTO → MOSTRAR MENÚ
+  if (!args.length) {
+
+    const sections = [
+      {
+        title: '📋 Selecciona el problema',
+        rows: [
+          { title: '❌ El menú no sirve', rowId: '.reporte El menú no sirve' },
+          { title: '🎵 Play no funciona', rowId: '.reporte Play no funciona' },
+          { title: '🖼️ Creador de stickers no funciona', rowId: '.reporte Sticker no funciona' },
+          { title: '✏️ Otro', rowId: '.reporte otro' }
+        ]
+      }
+    ]
+
+    return await sock.sendMessage(from, {
+      text: '📩 Selecciona una opción para reportar',
+      footer: 'ChappieBot',
+      title: '🚨 SISTEMA DE REPORTES',
+      buttonText: 'Seleccionar',
+      sections
+    }, { quoted: m })
+  }
+
+  // 🔥 SI ELIGE "OTRO"
+  if (args.join(' ').toLowerCase() === 'otro') {
+
+    global.reportReply[sender] = true
+
+    return reply(
+`✏️ *MODO REPORTE PERSONALIZADO*
+
+📌 Responde a ESTE mensaje con tu problema
+
+Ejemplo:
+> El bot no responde bien`
+    )
+  }
+
+  // 🔒 COOLDOWN
   const now = Date.now()
-  const cooldown = 60000 // 60 segundos
+  const cooldown = 60000
   const last = global.cooldownReport[sender] || 0
 
   if (now - last < cooldown) {
@@ -15,6 +59,7 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
   }
 
   global.cooldownReport[sender] = now
+  delete global.reportReply[sender]
 
   const texto = args.join(' ')
 
@@ -37,7 +82,6 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
       const metadata = await sock.groupMetadata(from)
       groupName = metadata.subject
 
-      // 🔗 LINK DEL GRUPO
       const code = await sock.groupInviteCode(from)
       groupLink = `https://chat.whatsapp.com/${code}`
 
