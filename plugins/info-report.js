@@ -5,36 +5,52 @@ export const handler = async (m, { sock, from, sender, pushName, args, reply }) 
 
   const ctx = m.message?.extendedTextMessage?.contextInfo
 
-  // 🔥 SI RESPONDE AL MENSAJE DEL BOT (MODO OTRO)
+  // 🔥 RESPUESTA AL MODO "OTRO"
   if (ctx?.quotedMessage && global.reportReply[sender]) {
-    args = [m.message?.conversation || m.message?.extendedTextMessage?.text || '']
+    const textReply =
+      m.message?.conversation ||
+      m.message?.extendedTextMessage?.text ||
+      ''
+
+    if (!textReply) return reply('⚠️ Escribe tu problema')
+
+    args = [textReply]
   }
 
-  // 🔥 SI NO PONE TEXTO → MOSTRAR MENÚ
+  // 🔥 SI NO HAY TEXTO → BOTONES
   if (!args.length) {
-
-    const sections = [
-      {
-        title: '📋 Selecciona el problema',
-        rows: [
-          { title: '❌ El menú no sirve', rowId: '.reporte El menú no sirve' },
-          { title: '🎵 Play no funciona', rowId: '.reporte Play no funciona' },
-          { title: '🖼️ Creador de stickers no funciona', rowId: '.reporte Sticker no funciona' },
-          { title: '✏️ Otro', rowId: '.reporte otro' }
-        ]
-      }
-    ]
-
     return await sock.sendMessage(from, {
-      text: '📩 Selecciona una opción para reportar',
+      text: `🚨 *SISTEMA DE REPORTES*
+
+Selecciona una opción:`,
       footer: 'ChappieBot',
-      title: '🚨 SISTEMA DE REPORTES',
-      buttonText: 'Seleccionar',
-      sections
+      buttons: [
+        {
+          buttonId: '.reporte El menú no sirve',
+          buttonText: { displayText: '❌ Menú no sirve' },
+          type: 1
+        },
+        {
+          buttonId: '.reporte Play no funciona',
+          buttonText: { displayText: '🎵 Play no funciona' },
+          type: 1
+        },
+        {
+          buttonId: '.reporte Sticker no funciona',
+          buttonText: { displayText: '🖼️ Stickers no sirven' },
+          type: 1
+        },
+        {
+          buttonId: '.reporte otro',
+          buttonText: { displayText: '✏️ Otro' },
+          type: 1
+        }
+      ],
+      headerType: 1
     }, { quoted: m })
   }
 
-  // 🔥 SI ELIGE "OTRO"
+  // 🔥 OPCIÓN "OTRO"
   if (args.join(' ').toLowerCase() === 'otro') {
 
     global.reportReply[sender] = true
@@ -96,7 +112,9 @@ Ejemplo:
   })
 
   // ✍️ REACCIÓN
-  await sock.sendMessage(from, { react: { text: '📩', key: m.key } })
+  await sock.sendMessage(from, {
+    react: { text: '📩', key: m.key }
+  })
 
   // 📄 MENSAJE
   const reportMsg = `
