@@ -13,7 +13,7 @@ export const handler = async (m, {
   owner
 }) => {
 
-  /* ───── 👑 MODO ADMIN (CHAPPIEBOT) ───── */
+  /* ───── 👑 MODO ADMIN ───── */
   if (isGroup && fs.existsSync(modoadminPath)) {
     let modoadmin = {}
     try {
@@ -33,7 +33,7 @@ export const handler = async (m, {
       if (!isAdmin && !ownerJids.includes(sender)) return
     }
   }
-  /* ─────────────────────────────────── */
+  /* ───────────────────── */
 
   const text = args.join(' ').trim()
   if (!text) return reply('❌ Escribe el nombre de la canción')
@@ -44,17 +44,13 @@ export const handler = async (m, {
 
   try {
 
-    /* 🔎 BUSCAR */
     const search = await yts(text)
-
-    if (!search.videos.length) {
-      return reply('❌ No encontré resultados')
-    }
+    if (!search.videos.length) return reply('❌ No encontré resultados')
 
     const video = search.videos[0]
     const { title, thumbnail, timestamp, views, author } = video
 
-    /* 🖼️ PRIMERO ENVÍA IMAGEN */
+    /* 🖼️ TARJETA BONITA */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
@@ -65,39 +61,21 @@ export const handler = async (m, {
 │ 👁 ${views.toLocaleString()} vistas
 ╰────────────────
 
-📌 Opciones abajo 👇`
+📌 Selecciona una opción abajo 👇`
     }, { quoted: m })
 
-    /* 📋 DESPUÉS ENVÍA LISTA CLICKEABLE */
+    /* 💎 MENÚ FAKE PREMIUM */
     await sock.sendMessage(from, {
-      text: "🎧 Elige formato de descarga",
-      footer: "ChappieBot",
-      title: "Descarga de música",
-      buttonText: "Elegir formato",
-      sections: [
-        {
-          title: "Opciones",
-          rows: [
-            {
-              title: "🎧 Audio",
-              description: "Descargar como audio",
-              rowId: `.play ${text}`
-            },
-            {
-              title: "🎥 Video",
-              description: "Descargar como video",
-              rowId: `.playvid ${text}`
-            }
-          ]
-        }
-      ]
+      text:
+`🎧 *Elige formato de descarga*
+
+↩️ *Audio*
+↩️ *Video*`
     }, { quoted: m })
 
   } catch (e) {
-
-    console.log('SPOTIFY ERROR:', e)
-    reply('❌ Error al procesar la canción')
-
+    console.log(e)
+    reply('❌ Error al procesar')
   }
 }
 
