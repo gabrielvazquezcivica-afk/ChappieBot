@@ -1,7 +1,5 @@
 import yts from 'yt-search'
-import { spawn } from 'child_process'
 import fs from 'fs'
-import path from 'path'
 
 const modoadminPath = './data/modoadmin.json'
 
@@ -54,27 +52,9 @@ export const handler = async (m, {
     }
 
     const video = search.videos[0]
-    const { title, url, thumbnail, timestamp, views, author } = video
+    const { title, thumbnail, timestamp, views, author } = video
 
-    /* 📋 MENÚ CLICKEABLE (NUEVO DISEÑO) */
-    const sections = [
-      {
-        title: "Elige formato",
-        rows: [
-          {
-            title: "🎧 Audio",
-            description: `${title}`,
-            rowId: `.play ${text}`
-          },
-          {
-            title: "🎥 Video",
-            description: `${title}`,
-            rowId: `.playvid ${text}`
-          }
-        ]
-      }
-    ]
-
+    /* 🖼️ PRIMERO ENVÍA IMAGEN */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
@@ -85,11 +65,32 @@ export const handler = async (m, {
 │ 👁 ${views.toLocaleString()} vistas
 ╰────────────────
 
-📌 Selecciona una opción abajo`,
+📌 Opciones abajo 👇`
+    }, { quoted: m })
+
+    /* 📋 DESPUÉS ENVÍA LISTA CLICKEABLE */
+    await sock.sendMessage(from, {
+      text: "🎧 Elige formato de descarga",
       footer: "ChappieBot",
       title: "Descarga de música",
       buttonText: "Elegir formato",
-      sections
+      sections: [
+        {
+          title: "Opciones",
+          rows: [
+            {
+              title: "🎧 Audio",
+              description: "Descargar como audio",
+              rowId: `.play ${text}`
+            },
+            {
+              title: "🎥 Video",
+              description: "Descargar como video",
+              rowId: `.playvid ${text}`
+            }
+          ]
+        }
+      ]
     }, { quoted: m })
 
   } catch (e) {
