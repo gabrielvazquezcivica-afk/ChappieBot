@@ -1,20 +1,10 @@
-import fetch from 'node-fetch'
+import yts from 'yt-search'
+import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
-/* ───── PATH MODOADMIN ───── */
-const modoadminPath = path.join(process.cwd(), 'data/modoadmin.json')
+const modoadminPath = './data/modoadmin.json'
 
-/* ───── TIKTOK API ───── */
-const tiktokDownload = async (url) => {
-  const api = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`
-  const res = await fetch(api)
-  const json = await res.json()
-  if (!json.data) return null
-  return json.data
-}
-
-/* ───── HANDLER ───── */
 export const handler = async (m, {
   sock,
   from,
@@ -42,73 +32,88 @@ export const handler = async (m, {
         (p.admin === 'admin' || p.admin === 'superadmin')
       )
 
-      // 🚫 bloqueo silencioso
       if (!isAdmin && !ownerJids.includes(sender)) return
     }
   }
   /* ─────────────────────────────────── */
 
-  if (!args[0]) {
-    return reply(`
-╭──〔 🎵 TIKTOK DOWNLOADER 〕──╮
-│ 📌 Uso:
-│ .tiktok <link>
-│
-│ 🔗 Ejemplo:
-│ .tiktok https://vm.tiktok.com/xxxx
-╰──〔 🤖 ChappieBot 〕──╯
-`.trim())
-  }
+  const text = args.join(' ').trim()
+  if (!text) return reply('❌ Escribe el nombre de la canción')
 
-  const link = args[0]
-  if (!/tiktok\.com|vm\.tiktok\.com/.test(link)) {
-    return reply('❌ Ese no es un link válido de TikTok')
-  }
-
-  /* ⏳ REACCIÓN */
   await sock.sendMessage(from, {
-    react: { text: '⏳', key: m.key }
+    react: { text: '🎧', key: m.key }
   })
 
-  let data
   try {
-    data = await tiktokDownload(link)
-  } catch {
-    return reply('❌ TikTok bloqueó temporalmente la descarga')
+
+    /* 🔎 BUSCAR */
+    const search = await yts(text)
+
+    if (!search.videos.length) {
+      return reply('❌ No encontré resultados')
+    }
+
+    const video = search.videos[0]
+    const { title, url, thumbnail, timestamp, views, author } = video
+
+    /* 🎵 MENSAJE BONITO (VISIBLE PARA TODOS) */
+    await sock.sendMessage(from, {
+      image: { url: thumbnail },
+      caption:
+`╭─❖ 「 🎧 SPOTIFY 」 ❖─╮
+│ 🎵 ${title}
+│ 👤 ${author.name}
+│ ⏱ ${timestamp}
+│ 👁 ${views.toLocaleString()} vistas
+╰────────────────
+
+⬇️ Descargando audio...`
+    }, { quoted: m })
+
+    /* 📁 ARCHIVO */
+    const file = path.join('./tmp', `${Date.now()}.m4a`)
+
+    /* ⚡ DESCARGA RÁPIDA */
+    const ytdlp = spawn('yt-dlp', [
+      '-f', 'bestaudio[ext=m4a]',
+      '--no-playlist',
+      '--quiet',
+      '-o', file,
+      url
+    ])
+
+    ytdlp.on('close', async (code) => {
+
+      if (code !== 0) {
+        return reply('❌ Error descargando audio')
+      }
+
+      /* 🎧 ENVIAR AUDIO */
+      await sock.sendMessage(from, {
+        audio: fs.readFileSync(file),
+        mimetype: 'audio/mp4',
+        fileName: `${title}.m4a`
+      }, { quoted: m })
+
+      fs.unlinkSync(file)
+
+      await sock.sendMessage(from, {
+        react: { text: '✅', key: m.key }
+      })
+
+    })
+
+  } catch (e) {
+
+    console.log('SPOTIFY ERROR:', e)
+    reply('❌ Error al procesar la canción')
+
   }
-
-  if (!data?.play) return reply('❌ No se pudo obtener el video')
-
-  const caption = `
-╭──〔 🎬 TIKTOK 〕──╮
-│ 🎵 ${data.title || 'Sin título'}
-│ 👤 @${data.author?.unique_id || 'Desconocido'}
-│ ❤️ ${data.digg_count || 0}
-│ 💬 ${data.comment_count || 0}
-│ 🔁 ${data.share_count || 0}
-╰──〔 🤖 ChappieBot 〕──╯
-`.trim()
-
-  /* 📤 ENVIAR VIDEO */
-  await sock.sendMessage(
-    from,
-    {
-      video: { url: data.play },
-      caption
-    },
-    { quoted: m }
-  )
-
-  /* ✅ FINAL */
-  await sock.sendMessage(from, {
-    react: { text: '✅', key: m.key }
-  })
 }
 
-/* ───── CONFIG ───── */
-handler.command = ['tiktok']
+handler.command = ['spotify']
 handler.tags = ['descargas']
+handler.help = ['spotify <canción>']
 handler.menu = true
-handler.group = false
 
 export default handler
