@@ -38,7 +38,7 @@ export const handler = async (m, {
   /* ───────────────────── */
 
   const text = args.join(' ').trim()
-  if (!text) return reply('❌ Escribe el nombre de la canción')
+  if (!text) return reply('❌ *Ingresa el nombre de la canción que quieres descargar*')
 
   await sock.sendMessage(from, {
     react: { text: '🎧', key: m.key }
@@ -49,24 +49,33 @@ export const handler = async (m, {
     /* 🔎 BUSCAR */
     const search = await yts(text)
     if (!search.videos.length) {
-      return reply('❌ No encontré resultados')
+      return reply('❌ *No se encontraron resultados para tu búsqueda*')
     }
 
     const video = search.videos[0]
     const { title, url, thumbnail, timestamp, views, author } = video
 
-    /* 🖼️ TARJETA BONITA */
+    /* 🖼️ TARJETA BONITA - DISEÑO MEJORADO */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
-`╭─❖ 「 🎧 SPOTIFY 」 ❖─╮
-│ 🎵 ${title}
-│ 👤 ${author.name}
-│ ⏱ ${timestamp}
-│ 👁 ${views.toLocaleString()} vistas
-╰────────────────
+`┌─────────────────────────┐
+│  🎵  *CANCIÓN ENCONTRADA*  🎵  │
+├─────────────────────────┤
+│ 🎶 *Título:*
+│ ${title}
+│
+│ 👤 *Artista:*
+│ ${author.name}
+│
+│ ⏱ *Duración:*
+│ ${timestamp}
+│
+│ 👁 *Reproducciones:*
+│ ${views.toLocaleString()}
+└─────────────────────────┘
 
-⬇️ Descargando audio...`
+⬇️ *Descargando tu audio...*`
     }, { quoted: m })
 
     /* 📁 ARCHIVO */
@@ -84,14 +93,15 @@ export const handler = async (m, {
     ytdlp.on('close', async (code) => {
 
       if (code !== 0) {
-        return reply('❌ Error descargando audio')
+        return reply('❌ *Ocurrió un error al descargar el audio, intenta más tarde*')
       }
 
       /* 🎧 ENVIAR AUDIO */
       await sock.sendMessage(from, {
         audio: fs.readFileSync(file),
         mimetype: 'audio/mp4',
-        fileName: `${title}.m4a`
+        fileName: `${title}.m4a`,
+        caption: `✅ *Descarga completada:*\n${title}`
       }, { quoted: m })
 
       fs.unlinkSync(file)
@@ -104,7 +114,7 @@ export const handler = async (m, {
 
   } catch (e) {
     console.log('SPOTIFY ERROR:', e)
-    reply('❌ Error al procesar la canción')
+    reply('❌ *Error al procesar la solicitud, intenta nuevamente*')
   }
 }
 
