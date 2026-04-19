@@ -45,12 +45,14 @@ export const handler = async (m, {
   try {
 
     const search = await yts(text)
-    if (!search.videos.length) return reply('❌ No encontré resultados')
+    if (!search.videos.length) {
+      return reply('❌ No encontré resultados')
+    }
 
     const video = search.videos[0]
     const { title, thumbnail, timestamp, views, author } = video
 
-    /* 🖼️ TARJETA BONITA */
+    /* 🔥(Node 24) */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
@@ -61,21 +63,26 @@ export const handler = async (m, {
 │ 👁 ${views.toLocaleString()} vistas
 ╰────────────────
 
-📌 Selecciona una opción abajo 👇`
-    }, { quoted: m })
-
-    /* 💎 MENÚ FAKE PREMIUM */
-    await sock.sendMessage(from, {
-      text:
-`🎧 *Elige formato de descarga*
-
-↩️ *Audio*
-↩️ *Video*`
+📌 Selecciona una opción`,
+      footer: 'ChappieBot',
+      buttons: [
+        {
+          buttonId: `.play ${text}`,
+          buttonText: { displayText: '🎧 Audio' },
+          type: 1
+        },
+        {
+          buttonId: `.playvid ${text}`,
+          buttonText: { displayText: '🎥 Video' },
+          type: 1
+        }
+      ],
+      headerType: 4
     }, { quoted: m })
 
   } catch (e) {
-    console.log(e)
-    reply('❌ Error al procesar')
+    console.log('ERROR:', e)
+    reply('❌ Error al procesar la canción')
   }
 }
 
