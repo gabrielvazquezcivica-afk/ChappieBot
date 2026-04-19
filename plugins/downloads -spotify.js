@@ -56,7 +56,25 @@ export const handler = async (m, {
     const video = search.videos[0]
     const { title, url, thumbnail, timestamp, views, author } = video
 
-    /* 🎵 MENSAJE BONITO (VISIBLE PARA TODOS) */
+    /* 📋 MENÚ CLICKEABLE (NUEVO DISEÑO) */
+    const sections = [
+      {
+        title: "Elige formato",
+        rows: [
+          {
+            title: "🎧 Audio",
+            description: `${title}`,
+            rowId: `.play ${text}`
+          },
+          {
+            title: "🎥 Video",
+            description: `${title}`,
+            rowId: `.playvid ${text}`
+          }
+        ]
+      }
+    ]
+
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
@@ -67,41 +85,12 @@ export const handler = async (m, {
 │ 👁 ${views.toLocaleString()} vistas
 ╰────────────────
 
-⬇️ Descargando audio...`
+📌 Selecciona una opción abajo`,
+      footer: "ChappieBot",
+      title: "Descarga de música",
+      buttonText: "Elegir formato",
+      sections
     }, { quoted: m })
-
-    /* 📁 ARCHIVO */
-    const file = path.join('./tmp', `${Date.now()}.m4a`)
-
-    /* ⚡ DESCARGA RÁPIDA */
-    const ytdlp = spawn('yt-dlp', [
-      '-f', 'bestaudio[ext=m4a]',
-      '--no-playlist',
-      '--quiet',
-      '-o', file,
-      url
-    ])
-
-    ytdlp.on('close', async (code) => {
-
-      if (code !== 0) {
-        return reply('❌ Error descargando audio')
-      }
-
-      /* 🎧 ENVIAR AUDIO */
-      await sock.sendMessage(from, {
-        audio: fs.readFileSync(file),
-        mimetype: 'audio/mp4',
-        fileName: `${title}.m4a`
-      }, { quoted: m })
-
-      fs.unlinkSync(file)
-
-      await sock.sendMessage(from, {
-        react: { text: '✅', key: m.key }
-      })
-
-    })
 
   } catch (e) {
 
