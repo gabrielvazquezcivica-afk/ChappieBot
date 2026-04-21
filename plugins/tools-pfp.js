@@ -60,19 +60,27 @@ export const handler = async (m, {
       pfp = await sock.profilePictureUrl(user, 'image')
     } catch {}
 
-    // 🔥 intento 2 (fix privacidad)
+    // 🔥 intento 2 (privacidad)
     if (!pfp) {
       try {
         pfp = await sock.profilePictureUrl(user, 'preview')
       } catch {}
     }
 
-    // 😈 avatar automático si no hay foto
-    if (!pfp) {
+    // 🧠 VALIDAR SI ES FALSA (fondo/color bug)
+    const isBadPfp =
+      !pfp ||
+      pfp.includes('default') ||
+      pfp.includes('blank') ||
+      pfp.includes('profilePicture') ||
+      pfp.includes('null')
+
+    // 😈 avatar automático si falla
+    if (isBadPfp) {
       pfp = `https://api.dicebear.com/7.x/initials/png?seed=${numero}`
     }
 
-    // 🎴 TARJETA DIOS
+    // 🎴 TARJETA PRO
     const caption = `
 ╭━━━〔 👑 PERFIL DIOS 〕━━━⬣
 ┃
@@ -107,7 +115,7 @@ export const handler = async (m, {
   }
 }
 
-handler.command = ['pfp']
+handler.command = ['pfp', 'perfil']
 handler.tags = ['tools']
 handler.help = ['pfp @user']
 handler.group = true
