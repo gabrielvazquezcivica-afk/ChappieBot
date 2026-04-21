@@ -46,12 +46,11 @@ export const handler = async (m, {
 
     const file = `./tmp/${Date.now()}.webp`
 
-    // ⚡ GENERACIÓN RÁPIDA (SIN LAG)
     const ffmpeg = spawn('ffmpeg', [
       '-f', 'lavfi',
       '-i', 'color=c=white:s=512x512:d=1',
       '-vf',
-      `drawtext=fontfile=/data/data/com.termux/files/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
+      `drawtext=text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
       '-vcodec', 'libwebp',
       '-preset', 'ultrafast',
       '-loop', '0',
@@ -60,10 +59,12 @@ export const handler = async (m, {
       file
     ])
 
+    ffmpeg.stderr.on('data', d => console.log('FFMPEG:', d.toString()))
+
     ffmpeg.on('close', async (code) => {
 
-      if (code !== 0) {
-        return reply('❌ Error creando sticker')
+      if (code !== 0 || !fs.existsSync(file)) {
+        return reply('❌ Error creando sticker (ffmpeg)')
       }
 
       await sock.sendMessage(from, {
