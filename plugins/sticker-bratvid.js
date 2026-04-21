@@ -33,7 +33,6 @@ export const handler = async (m, {
       if (!isAdmin && !ownerJids.includes(sender)) return
     }
   }
-  /* ───────────────────────── */
 
   const text = args.join(' ').replace(/'/g, '')
   if (!text) return reply('❌ Ejemplo: .bratvid hola grupo')
@@ -48,19 +47,16 @@ export const handler = async (m, {
 
     const ffmpeg = spawn('ffmpeg', [
       '-f', 'lavfi',
-      '-i', 'color=c=white:s=512x512:d=1',
+      '-i', 'color=c=white:s=512x512:d=2',
       '-vf',
-      `drawtext=text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
+      `drawtext=text='${text}':fontcolor=black:fontsize=70:x=(w-text_w)/2:y=(h-text_h)/2,zoompan=z='if(lte(on,15),1+0.02*on,1.3-0.02*(on-15))':d=30`,
       '-vcodec', 'libwebp',
       '-loop', '0',
-      '-lossless', '0',
-      '-q:v', '50',      // calidad
-      '-r', '10',        // FPS bajo = más rápido
+      '-q:v', '50',
+      '-r', '12',
       '-an',
       file
     ])
-
-    ffmpeg.stderr.on('data', d => console.log('FFMPEG:', d.toString()))
 
     ffmpeg.on('close', async (code) => {
 
@@ -82,11 +78,6 @@ export const handler = async (m, {
 
   } catch (e) {
     console.log('BRATVID ERROR:', e)
-
-    await sock.sendMessage(from, {
-      react: { text: '❌', key: m.key }
-    })
-
     reply('❌ Error')
   }
 }
