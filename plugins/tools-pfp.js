@@ -44,25 +44,43 @@ export const handler = async (m, {
     user = sender
   }
 
+  const numero = user.split('@')[0]
+
+  // ⚡ REACCIÓN INICIAL
+  await sock.sendMessage(from, {
+    react: { text: '🖼️', key: m.key }
+  })
+
   try {
 
-    let pfp
+    let pfp = null
 
+    // 🔥 intento 1
     try {
       pfp = await sock.profilePictureUrl(user, 'image')
-    } catch {
-      return reply('❌ Este usuario no tiene foto de perfil')
+    } catch {}
+
+    // 🔥 intento 2 (fix privacidad)
+    if (!pfp) {
+      try {
+        pfp = await sock.profilePictureUrl(user, 'preview')
+      } catch {}
     }
 
-    const nombre = user.split('@')[0]
+    // 😈 avatar automático si no hay foto
+    if (!pfp) {
+      pfp = `https://api.dicebear.com/7.x/initials/png?seed=${numero}`
+    }
 
+    // 🎴 TARJETA DIOS
     const caption = `
-╭━━━〔 👤 PERFIL 〕━━━⬣
+╭━━━〔 👑 PERFIL DIOS 〕━━━⬣
 ┃
-┃ ✦ Usuario: @${nombre}
-┃ ✦ ID: wa.me/${nombre}
+┃ ✦ Usuario: @${numero}
+┃ ✦ Link: wa.me/${numero}
 ┃
-┃ 🖼️ Foto de perfil
+┃ 🖼️ Vista de perfil
+┃ ⚡ ChappieBot Engine
 ┃
 ╰━━━━━━━━━━━━━━━━⬣
 `.trim()
@@ -73,9 +91,19 @@ export const handler = async (m, {
       mentions: [user]
     }, { quoted: m })
 
+    // ✅ REACCIÓN FINAL
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
+
   } catch (e) {
-    console.log('PFP ERROR:', e)
-    reply('❌ Error al obtener la foto')
+    console.log('PFP DIOS ERROR:', e)
+
+    await sock.sendMessage(from, {
+      react: { text: '❌', key: m.key }
+    })
+
+    reply('❌ Error al obtener el perfil')
   }
 }
 
