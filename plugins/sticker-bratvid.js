@@ -35,7 +35,7 @@ export const handler = async (m, {
   }
   /* ───────────────────────── */
 
-  const text = args.join(' ')
+  const text = args.join(' ').replace(/'/g, '')
   if (!text) return reply('❌ Ejemplo: .bratvid hola grupo')
 
   await sock.sendMessage(from, {
@@ -52,9 +52,10 @@ export const handler = async (m, {
       '-vf',
       `drawtext=text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
       '-vcodec', 'libwebp',
-      '-preset', 'ultrafast',
       '-loop', '0',
-      '-frames:v', '12',
+      '-lossless', '0',
+      '-q:v', '50',      // calidad
+      '-r', '10',        // FPS bajo = más rápido
       '-an',
       file
     ])
@@ -64,7 +65,7 @@ export const handler = async (m, {
     ffmpeg.on('close', async (code) => {
 
       if (code !== 0 || !fs.existsSync(file)) {
-        return reply('❌ Error creando sticker (ffmpeg)')
+        return reply('❌ Error creando sticker')
       }
 
       await sock.sendMessage(from, {
