@@ -44,21 +44,20 @@ export const handler = async (m, {
 
   try {
 
-    const base = Date.now()
-    const output = `./tmp/${base}.webp`
+    const file = `./tmp/${Date.now()}.webp`
 
-    // 🔥 TODO EN UNO (imagen + animación → webp)
+    // ⚡ GENERACIÓN RÁPIDA (SIN LAG)
     const ffmpeg = spawn('ffmpeg', [
       '-f', 'lavfi',
-      '-i', 'color=c=white:s=512x512:d=2',
+      '-i', 'color=c=white:s=512x512:d=1',
       '-vf',
-      `drawtext=fontfile=/data/data/com.termux/files/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2,zoompan=z='min(zoom+0.002,1.2)':d=80`,
+      `drawtext=fontfile=/data/data/com.termux/files/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
       '-vcodec', 'libwebp',
+      '-preset', 'ultrafast',
       '-loop', '0',
-      '-preset', 'default',
+      '-frames:v', '12',
       '-an',
-      '-vsync', '0',
-      output
+      file
     ])
 
     ffmpeg.on('close', async (code) => {
@@ -68,10 +67,10 @@ export const handler = async (m, {
       }
 
       await sock.sendMessage(from, {
-        sticker: fs.readFileSync(output)
+        sticker: fs.readFileSync(file)
       }, { quoted: m })
 
-      fs.unlinkSync(output)
+      fs.unlinkSync(file)
 
       await sock.sendMessage(from, {
         react: { text: '🔥', key: m.key }
