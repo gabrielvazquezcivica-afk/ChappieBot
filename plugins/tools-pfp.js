@@ -34,15 +34,14 @@ export const handler = async (m, {
   }
   /* ───────────────────────── */
 
-  let user
+  let user =
+  m.mentionedJid?.[0] ||
+  m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] ||
+  m.quoted?.sender ||
+  sender
 
-  if (m.mentionedJid?.length) {
-    user = m.mentionedJid[0]
-  } else if (m.quoted) {
-    user = m.quoted.sender
-  } else {
-    user = sender
-  }
+// 🔥 limpiar formato (muy importante)
+if (user) user = user.split(':')[0]
 
   const numero = user.split('@')[0]
 
