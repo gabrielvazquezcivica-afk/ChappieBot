@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
+import { Sticker } from 'wa-sticker-formatter'
 
 const modoadminPath = './data/modoadmin.json'
 
@@ -13,7 +14,7 @@ export const handler = async (m, {
   owner
 }) => {
 
-  /* ───── 👑 MODO ADMIN (CHAPPIEBOT) ───── */
+  /* ───── 👑 MODO ADMIN ───── */
   if (isGroup && fs.existsSync(modoadminPath)) {
     let modoadmin = {}
     try {
@@ -33,59 +34,62 @@ export const handler = async (m, {
       if (!isAdmin && !ownerJids.includes(sender)) return
     }
   }
-  /* ─────────────────────────────────── */
+  /* ───────────────────────── */
 
   const text = args.join(' ')
-  if (!text) return reply('❌ Escribe un texto\nEjemplo: .bratvid hola grupo')
+  if (!text) return reply('❌ Ejemplo: .bratvid hola grupo')
 
-  // ⚡ reacción inicio
   await sock.sendMessage(from, {
-    react: { text: '🖤', key: m.key }
+    react: { text: '⏳', key: m.key }
   })
 
   try {
 
-    const input = `./tmp/${Date.now()}.png`
-    const output = `./tmp/${Date.now()}.webp`
+    const base = Date.now()
+    const img = `./tmp/${base}.png`
+    const vid = `./tmp/${base}.mp4`
 
-    // 🧠 CREAR IMAGEN (fondo blanco + texto negro)
-    const ffmpeg1 = spawn('ffmpeg', [
+    // 🔥 crear imagen brat (fondo blanco + texto negro)
+    const ff1 = spawn('ffmpeg', [
       '-f', 'lavfi',
-      '-i', `color=c=white:s=512x512:d=2`,
+      '-i', 'color=c=white:s=512x512:d=1',
       '-vf',
       `drawtext=fontfile=/data/data/com.termux/files/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
       '-frames:v', '1',
-      input
+      img
     ])
 
-    ffmpeg1.on('close', () => {
+    ff1.on('close', () => {
 
-      // 🎬 ANIMACIÓN BRAT (zoom)
-      const ffmpeg2 = spawn('ffmpeg', [
+      // 🎬 animación tipo brat (zoom)
+      const ff2 = spawn('ffmpeg', [
         '-loop', '1',
-        '-i', input,
-        '-vf',
-        "scale=512:512,zoompan=z='min(zoom+0.002,1.15)':d=80",
+        '-i', img,
+        '-vf', "zoompan=z='min(zoom+0.002,1.2)':d=60,scale=512:512",
         '-t', '2',
-        '-vcodec', 'libwebp',
-        '-lossless', '1',
-        '-qscale', '80',
-        '-preset', 'default',
-        '-an',
-        '-vsync', '0',
-        output
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        vid
       ])
 
-      ffmpeg2.on('close', async () => {
+      ff2.on('close', async () => {
+
+        const buffer = fs.readFileSync(vid)
+
+        const sticker = new Sticker(buffer, {
+          pack: 'ChappieBot',
+          author: 'BratVid',
+          type: 'full',
+          quality: 70
+        })
 
         await sock.sendMessage(from, {
-          sticker: fs.readFileSync(output)
+          sticker: await sticker.toBuffer()
         }, { quoted: m })
 
-        fs.unlinkSync(input)
-        fs.unlinkSync(output)
+        fs.unlinkSync(img)
+        fs.unlinkSync(vid)
 
-        // ✅ reacción final
         await sock.sendMessage(from, {
           react: { text: '🔥', key: m.key }
         })
