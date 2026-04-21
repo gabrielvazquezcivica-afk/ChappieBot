@@ -1,6 +1,5 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
-import { Sticker } from 'wa-sticker-formatter'
 
 const modoadminPath = './data/modoadmin.json'
 
@@ -46,54 +45,36 @@ export const handler = async (m, {
   try {
 
     const base = Date.now()
-    const img = `./tmp/${base}.png`
-    const vid = `./tmp/${base}.mp4`
+    const output = `./tmp/${base}.webp`
 
-    // 🔥 crear imagen brat (fondo blanco + texto negro)
-    const ff1 = spawn('ffmpeg', [
+    // 🔥 TODO EN UNO (imagen + animación → webp)
+    const ffmpeg = spawn('ffmpeg', [
       '-f', 'lavfi',
-      '-i', 'color=c=white:s=512x512:d=1',
+      '-i', 'color=c=white:s=512x512:d=2',
       '-vf',
-      `drawtext=fontfile=/data/data/com.termux/files/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2`,
-      '-frames:v', '1',
-      img
+      `drawtext=fontfile=/data/data/com.termux/files/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${text}':fontcolor=black:fontsize=60:x=(w-text_w)/2:y=(h-text_h)/2,zoompan=z='min(zoom+0.002,1.2)':d=80`,
+      '-vcodec', 'libwebp',
+      '-loop', '0',
+      '-preset', 'default',
+      '-an',
+      '-vsync', '0',
+      output
     ])
 
-    ff1.on('close', () => {
+    ffmpeg.on('close', async (code) => {
 
-      // 🎬 animación tipo brat (zoom)
-      const ff2 = spawn('ffmpeg', [
-        '-loop', '1',
-        '-i', img,
-        '-vf', "zoompan=z='min(zoom+0.002,1.2)':d=60,scale=512:512",
-        '-t', '2',
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
-        vid
-      ])
+      if (code !== 0) {
+        return reply('❌ Error creando sticker')
+      }
 
-      ff2.on('close', async () => {
+      await sock.sendMessage(from, {
+        sticker: fs.readFileSync(output)
+      }, { quoted: m })
 
-        const buffer = fs.readFileSync(vid)
+      fs.unlinkSync(output)
 
-        const sticker = new Sticker(buffer, {
-          pack: 'ChappieBot',
-          author: 'BratVid',
-          type: 'full',
-          quality: 70
-        })
-
-        await sock.sendMessage(from, {
-          sticker: await sticker.toBuffer()
-        }, { quoted: m })
-
-        fs.unlinkSync(img)
-        fs.unlinkSync(vid)
-
-        await sock.sendMessage(from, {
-          react: { text: '🔥', key: m.key }
-        })
-
+      await sock.sendMessage(from, {
+        react: { text: '🔥', key: m.key }
       })
 
     })
@@ -105,7 +86,7 @@ export const handler = async (m, {
       react: { text: '❌', key: m.key }
     })
 
-    reply('❌ Error creando sticker')
+    reply('❌ Error')
   }
 }
 
