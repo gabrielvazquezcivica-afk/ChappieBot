@@ -107,7 +107,7 @@ handler.before = async (_, { sock }) => {
         let audioUrl = ''
 
         if (action === 'add') {
-          audioUrl = 'https://files.catbox.moe/sg93j5.mp3'
+          audioUrl = 'https://files.catbox.moe/t73rbs.mp3'
         } else if (action === 'remove') {
           audioUrl = 'https://files.catbox.moe/swqi7e.mp3'
         }
