@@ -23,15 +23,10 @@ global.prefix = config.bot.prefix
 global.adminCache = {}
 global.autoRead = true
 
-// ⚡ OPTIMIZACIÓN GLOBAL
-global.groupCache = {}
-global.lastSave = 0
-global.queue = Promise.resolve()
-
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
 
-// 📊 DB FUNCIONES
+// 📊 DB FUNCIONES (FIX)
 function loadDB() {
   try {
     if (!fs.existsSync(dbPath)) return {}
@@ -50,10 +45,11 @@ function saveDB(data) {
   }
 }
 
+// (opcional pero recomendado)
 global.loadDB = loadDB
 global.saveDB = saveDB
 
-// ───── ERRORES ─────
+// ───── ERRORES GLOBALES ─────
 process.on('uncaughtException', err => {
   if (String(err).includes('Bad MAC')) return
   console.error(chalk.red('❌ uncaughtException:'), err)
@@ -112,55 +108,9 @@ async function startBot () {
 
   const sock = await connectBot()
 
-  // 🔥 CACHE GLOBAL METADATA
-  const originalGroupMetadata = sock.groupMetadata.bind(sock)
-  sock.groupMetadata = async (jid) => {
-    let cache = global.groupCache[jid]
-
-    if (!cache || Date.now() - cache.time > 60000) {
-      try {
-        const data = await originalGroupMetadata(jid)
-        global.groupCache[jid] = { data, time: Date.now() }
-        return data
-      } catch {
-        return cache?.data || {}
-      }
-    }
-
-    return cache.data
-  }
-
-  // 🔥 COLA GLOBAL
-  const originalSend = sock.sendMessage.bind(sock)
-  sock.sendMessage = async (...args) => {
-    global.queue = global.queue.then(() => originalSend(...args))
-    return global.queue
-  }
-
   // EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
-  })
-
-  // 🔥 ACTUALIZAR AL INSTANTE CUANDO HAY CAMBIOS
-  sock.ev.on('group-participants.update', async update => {
-    const { id } = update
-    try {
-      // Borrar cache anterior para forzar actualización
-      delete global.adminCache[id]
-      
-      const metadata = await sock.groupMetadata(id)
-
-      global.adminCache[id] = {
-        admins: metadata.participants
-          .filter(p => p.admin)
-          .map(p => {
-            return p.id.includes(':') 
-              ? p.id.split(':')[0] + '@' + p.id.split('@')[1] 
-              : p.id
-          })
-      }
-    } catch {}
   })
 
   sock.ev.on('connection.update', update => {
@@ -191,45 +141,58 @@ async function startBot () {
 
     const isGroup = from.endsWith('@g.us')
 
+    
+    // 🔥 FIX ADMIN (IMPORTANTE)
     let sender = isGroup ? m.key.participant : from
-    if (sender) sender = sender.includes(':') 
-      ? sender.split(':')[0] + '@' + sender.split('@')[1] 
-      : sender
-
+    if (sender) sender = sender.split(':')[0]
+    
     const pushName = m.pushName || 'Usuario'
 
-    // BEFORE
-    for (const p of plugins) {
-      try {
-        if (typeof p.before === 'function') {
-          await p.before(m, { sock, from, sender, isGroup, pushName })
-        }
-      } catch (e) {
-        console.log('❌ Error en before:', e)
-      }
-    }
-
-    // CONTADOR
-    try {
-      const db = loadDB()
-      if (!db[from]) db[from] = {}
-
-      const type = Object.keys(m.message || {})[0]
-      const valid = ['conversation','extendedTextMessage','imageMessage','videoMessage']
-
-      if (type && valid.includes(type)) {
-        db[from][sender] = (db[from][sender] || 0) + 1
-
-        if (Date.now() - global.lastSave > 5000) {
-          saveDB(db)
-          global.lastSave = Date.now()
+          // 🔥 BEFORE (LO PRIMERO SIEMPRE)
+      for (const p of plugins) {
+        try {
+          if (typeof p.before === 'function') {
+            await p.before(m, {
+              sock,
+              from,
+              sender,
+              isGroup,
+              pushName
+            })
+          }
+        } catch (e) {
+          console.log('❌ Error en before:', e)
         }
       }
-    } catch {}
 
+    /* 📊 CONTADOR REAL (FIX FINAL) */
+/* 📊 CONTADOR SEGURO */
+try {
+  const db = loadDB()
+  if (!db[from]) db[from] = {}
+
+  const type = Object.keys(m.message || {})[0]
+
+  const valid = [
+    'conversation',
+    'extendedTextMessage',
+    'imageMessage',
+    'videoMessage'
+  ]
+
+  if (type && valid.includes(type)) {
+    db[from][sender] = (db[from][sender] || 0) + 1
+    saveDB(db)
+  }
+} catch (e) {
+  console.log('❌ Error contador:', e)
+}
+    
+        // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
+    // 👀 LEER MENSAJE GLOBAL
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
@@ -240,12 +203,14 @@ async function startBot () {
 
     let isOwner = false
 
+    // BAN GLOBAL
     let cleanSender = sender
+    if (cleanSender) cleanSender = cleanSender.split(':')[0]
     if (isBanned(cleanSender) && !isOwner) return
 
     const text = getText(m)
 
-    // SALUDO (se mantiene)
+    // SALUDO
     global.cooldownHola = global.cooldownHola || {}
 
     if (text) {
@@ -277,32 +242,24 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ✅ VERIFICACIÓN INSTANTÁNEA (SIN ESPERAR)
+    // ADMIN + CACHE
     let isAdmin = false
 
-    if (isGroup && sender) {
-      try {
-        // Obtener datos NUEVOS directamente de WhatsApp
-        const metadata = await sock.groupMetadata(from)
+if (isGroup && sender) {
+  try {
+    const metadata = await sock.groupMetadata(from)
 
-        const admins = metadata.participants
-          .filter(p => p.admin)
-          .map(p => {
-            return p.id.includes(':') 
-              ? p.id.split(':')[0] + '@' + p.id.split('@')[1] 
-              : p.id
-          })
+    const admins = metadata.participants
+      .filter(p => p.admin)
+      .map(p => p.id.split(':')[0])
 
-        // Actualizar cache inmediatamente
-        global.adminCache[from] = { admins }
+    const cleanSender = sender.split(':')[0]
 
-        // Comprobar ahora sí
-        isAdmin = admins.includes(sender)
-
-      } catch {
-        isAdmin = false
+    isAdmin = admins.includes(cleanSender)
+  } catch (e) {
+    isAdmin = false
+  }
       }
-    }
 
     // OWNER
     const ownerNumbers = global.config.owner?.numbers || []
@@ -317,6 +274,7 @@ Usa *${global.prefix}menu* para ver mis comandos.`
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
+    // LOG PRO
     let groupName = 'Privado'
     if (isGroup) groupName = global.adminCache[from]?.name || 'Grupo'
 
@@ -327,6 +285,7 @@ Usa *${global.prefix}menu* para ver mis comandos.`
       '\n⚡', command
     )
 
+    // COMANDOS
     for (const p of plugins) {
       const h = p.handler ?? p
       if (!h?.command) continue
@@ -355,6 +314,5 @@ Usa *${global.prefix}menu* para ver mis comandos.`
   })
 }
 
-// INIT
+// ───── INIT ─────
 startBot()
-    
