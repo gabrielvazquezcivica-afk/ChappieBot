@@ -23,6 +23,11 @@ global.prefix = config.bot.prefix
 global.adminCache = {}
 global.autoRead = true
 
+// ⚡ OPTIMIZACIÓN GLOBAL
+global.groupCache = {}
+global.lastSave = 0
+global.queue = Promise.resolve()
+
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
 
@@ -108,9 +113,48 @@ async function startBot () {
 
   const sock = await connectBot()
 
+  // ⚡ CACHE GLOBAL MAS RAPIDO
+  const originalGroupMetadata = sock.groupMetadata.bind(sock)
+  sock.groupMetadata = async (jid) => {
+    let cache = global.groupCache[jid]
+
+    if (!cache || Date.now() - cache.time > 15000) { // 15 segundos maximo
+      try {
+        const data = await originalGroupMetadata(jid)
+        global.groupCache[jid] = { data, time: Date.now() }
+        return data
+      } catch {
+        return cache?.data || {}
+      }
+    }
+    return cache.data
+  }
+
+  // 🔥 COLA GLOBAL PARA NO TAPARSE
+  const originalSend = sock.sendMessage.bind(sock)
+  sock.sendMessage = async (...args) => {
+    global.queue = global.queue.then(() => originalSend(...args))
+    return global.queue
+  }
+
   // EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
+  })
+
+  // ⚡ ACTUALIZAR ADMINS AL INSTANTE CUANDO HAY CAMBIOS
+  sock.ev.on('group-participants.update', async update => {
+    const { id } = update
+    try {
+      delete global.adminCache[id] // Borrar cache viejo
+      const metadata = await sock.groupMetadata(id)
+
+      global.adminCache[id] = {
+        admins: metadata.participants
+          .filter(p => p.admin)
+          .map(p => p.id.split(':')[0])
+      }
+    } catch {}
   })
 
   sock.ev.on('connection.update', update => {
@@ -141,54 +185,57 @@ async function startBot () {
 
     const isGroup = from.endsWith('@g.us')
 
-    
-    // 🔥 FIX ADMIN (IMPORTANTE)
+    // 🔥 FIX ADMIN (COMPATIBLE CON LID Y NORMAL)
     let sender = isGroup ? m.key.participant : from
     if (sender) sender = sender.split(':')[0]
-    
+
     const pushName = m.pushName || 'Usuario'
 
-          // 🔥 BEFORE (LO PRIMERO SIEMPRE)
-      for (const p of plugins) {
-        try {
-          if (typeof p.before === 'function') {
-            await p.before(m, {
-              sock,
-              from,
-              sender,
-              isGroup,
-              pushName
-            })
-          }
-        } catch (e) {
-          console.log('❌ Error en before:', e)
+    // 🔥 BEFORE (LO PRIMERO SIEMPRE)
+    for (const p of plugins) {
+      try {
+        if (typeof p.before === 'function') {
+          await p.before(m, {
+            sock,
+            from,
+            sender,
+            isGroup,
+            pushName
+          })
+        }
+      } catch (e) {
+        console.log('❌ Error en before:', e)
+      }
+    }
+
+    /* 📊 CONTADOR SEGURO */
+    try {
+      const db = loadDB()
+      if (!db[from]) db[from] = {}
+
+      const type = Object.keys(m.message || {})[0]
+
+      const valid = [
+        'conversation',
+        'extendedTextMessage',
+        'imageMessage',
+        'videoMessage'
+      ]
+
+      if (type && valid.includes(type)) {
+        db[from][sender] = (db[from][sender] || 0) + 1
+
+        // Guardar cada 5 seg para no cargar tanto
+        if (Date.now() - global.lastSave > 5000) {
+          saveDB(db)
+          global.lastSave = Date.now()
         }
       }
+    } catch (e) {
+      console.log('❌ Error contador:', e)
+    }
 
-    /* 📊 CONTADOR REAL (FIX FINAL) */
-/* 📊 CONTADOR SEGURO */
-try {
-  const db = loadDB()
-  if (!db[from]) db[from] = {}
-
-  const type = Object.keys(m.message || {})[0]
-
-  const valid = [
-    'conversation',
-    'extendedTextMessage',
-    'imageMessage',
-    'videoMessage'
-  ]
-
-  if (type && valid.includes(type)) {
-    db[from][sender] = (db[from][sender] || 0) + 1
-    saveDB(db)
-  }
-} catch (e) {
-  console.log('❌ Error contador:', e)
-}
-    
-        // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
+    // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
@@ -242,24 +289,24 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ADMIN + CACHE
+    // ⚡ VERIFICACION DE ADMIN RAPIDA Y AL INSTANTE
     let isAdmin = false
 
-if (isGroup && sender) {
-  try {
-    const metadata = await sock.groupMetadata(from)
+    if (isGroup && sender) {
+      try {
+        const metadata = await sock.groupMetadata(from)
 
-    const admins = metadata.participants
-      .filter(p => p.admin)
-      .map(p => p.id.split(':')[0])
+        const admins = metadata.participants
+          .filter(p => p.admin)
+          .map(p => p.id.split(':')[0])
 
-    const cleanSender = sender.split(':')[0]
+        const cleanSender = sender.split(':')[0]
 
-    isAdmin = admins.includes(cleanSender)
-  } catch (e) {
-    isAdmin = false
-  }
+        isAdmin = admins.includes(cleanSender)
+      } catch (e) {
+        isAdmin = false
       }
+    }
 
     // OWNER
     const ownerNumbers = global.config.owner?.numbers || []
@@ -316,3 +363,4 @@ if (isGroup && sender) {
 
 // ───── INIT ─────
 startBot()
+       
