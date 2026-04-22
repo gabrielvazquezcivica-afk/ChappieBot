@@ -110,7 +110,7 @@ handler.before = async (_, { sock }) => {
 
           // ⏳ Delay SOLO para bienvenida
           if (action === 'add') {
-            await new Promise(r => setTimeout(r, 2500))
+            await new Promise(r => setTimeout(r, 4000))
           }
 
           await sock.sendMessage(id, {
