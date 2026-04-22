@@ -22,7 +22,6 @@ let started = false
 
 // ───── COMANDO WELCOME ON/OFF ─────
 export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, reply }) => {
-  const botName = sock.user?.name || 'ChappieBot'
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
 
@@ -45,15 +44,14 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, 
   }
 }
 
-// ───── HANDLER ANTES DE CUALQUIER COMANDO (EVENTO) ─────
-handler.before = async (_, { sock }) => {
+// ───── EVENTO ─────
+handler.before = async (m, { sock }) => {
   if (started) return
   started = true
 
   sock.ev.on('group-participants.update', async update => {
     const { id, participants, action, admin } = update
     if (!id.endsWith('@g.us')) return
-
     if (!['add', 'remove'].includes(action)) return
     if (admin) return
 
@@ -72,7 +70,7 @@ handler.before = async (_, { sock }) => {
     if (action === 'add') {
       text = groupSettings.customWelcome ||
         `🎉 ¡Bienvenido al grupo!\n👤 @user\n👥 Miembros: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
-    } else if (action === 'remove') {
+    } else {
       text = groupSettings.customBye ||
         `👋 Ha salido del grupo:\n👤 @user\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     }
@@ -89,38 +87,39 @@ handler.before = async (_, { sock }) => {
 
     try {
       const mentions = [user]
-      
+
       if (image) {
-        await sock.sendMessage(id, { image, caption:text, mentions, quoted:update })
+        await sock.sendMessage(id, { image, caption:text, mentions })
       } else {
-        await sock.sendMessage(id, { text, mentions, quoted:update })
+        await sock.sendMessage(id, { text, mentions })
       }
 
-      // 🔊 AUDIO (FIX FINAL)
-      try {
-        let audioUrl = ''
+      // 🔊 AUDIO (FIX REAL FINAL)
+      let audioUrl = ''
 
-        if (action === 'add') {
-          audioUrl = 'https://files.catbox.moe/t73rbs.mp3'
-        } else if (action === 'remove') {
-          audioUrl = 'https://files.catbox.moe/swqi7e.mp3'
-        }
+      if (action === 'add') {
+        audioUrl = 'https://files.catbox.moe/t73rbs.mp3'
+      } else {
+        audioUrl = 'https://files.catbox.moe/swqi7e.mp3'
+      }
 
-        if (audioUrl) {
+      if (audioUrl) {
+        setTimeout(async () => {
+          try {
+            const res = await fetch(audioUrl)
+            const buffer = Buffer.from(await res.arrayBuffer())
 
-          // ⏳ Delay SOLO para bienvenida
-          if (action === 'add') {
-            await new Promise(r => setTimeout(r, 4000))
+            await sock.sendMessage(id, {
+              audio: buffer,
+              mimetype: 'audio/mpeg',
+              ptt: true
+            })
+
+          } catch (e) {
+            console.log('❌ Error audio async:', e)
           }
-
-          await sock.sendMessage(id, {
-            audio: { url: audioUrl },
-            mimetype: 'audio/mpeg',
-            fileName: 'audio.mp3'
-          })
-        }
-
-      } catch(e){console.log('❌ Error audio:',e)}
+        }, action === 'add' ? 4000 : 1000)
+      }
 
     } catch(e){console.log('❌ Error welcome:',e)}
   })
