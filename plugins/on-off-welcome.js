@@ -22,6 +22,7 @@ let started = false
 
 // ───── COMANDO WELCOME ON/OFF ─────
 export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, reply }) => {
+  const botName = sock.user?.name || 'ChappieBot'
   const settings = loadSettings()
   if (!settings[from]) settings[from] = {}
 
@@ -44,14 +45,16 @@ export const handler = async (m, { sock, from, isGroup, isAdmin, args, command, 
   }
 }
 
-// ───── EVENTO ─────
-handler.before = async (m, { sock }) => {
+// ───── HANDLER ANTES DE CUALQUIER COMANDO (EVENTO) ─────
+handler.before = async (_, { sock }) => {
   if (started) return
   started = true
 
   sock.ev.on('group-participants.update', async update => {
     const { id, participants, action, admin } = update
     if (!id.endsWith('@g.us')) return
+
+    // 🔹 Solo entradas o salidas reales, ignorar cambios de admin
     if (!['add', 'remove'].includes(action)) return
     if (admin) return
 
@@ -65,67 +68,68 @@ handler.before = async (m, { sock }) => {
     const metadata = await sock.groupMetadata(id)
     const totalMembers = metadata.participants.length
 
-    // ───── TEXTO ─────
+    // ───── TEXTO DE WELCOME / BYE ─────
     let text = ''
     if (action === 'add') {
       text = groupSettings.customWelcome ||
         `🎉 ¡Bienvenido al grupo!\n👤 @user\n👥 Miembros: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
-    } else {
+    } else if (action === 'remove') {
       text = groupSettings.customBye ||
         `👋 Ha salido del grupo:\n👤 @user\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     }
 
+    // 🔹 Reemplazar @user por la mención real
     text = text.replace(/@user/g, `@${user.split('@')[0]}`)
 
-    // ───── FOTO ─────
+
+    // ───── OBTENER FOTO ─────
     let image = null
     try {
+      // Foto del usuario
       try { const pfp = await sock.profilePictureUrl(user,'image'); if(pfp) image={url:pfp} } catch{}
+      // Si no hay, foto del grupo
       if(!image){try{const gpfp = await sock.profilePictureUrl(id,'image'); if(gpfp) image={url:gpfp}} catch{}}
+      // Si no hay, foto del bot
       if(!image){try{const bpfp = await sock.profilePictureUrl(sock.user.id,'image'); if(bpfp) image={url:bpfp}} catch{}}
     } catch(e){console.log('❌ Error imagen:',e)}
 
     try {
       const mentions = [user]
-
+      
       if (image) {
-        await sock.sendMessage(id, { image, caption:text, mentions })
+        await sock.sendMessage(id, { image, caption:text, mentions, quoted:update })
       } else {
-        await sock.sendMessage(id, { text, mentions })
+        await sock.sendMessage(id, { text, mentions, quoted:update })
       }
+      
+   // 🔊 AUDIO (AQUÍ SE AGREGA SIN TOCAR TU LÓGICA)
+      try {
+        let audioUrl = ''
 
-      // 🔊 AUDIO (FIX REAL FINAL)
-      let audioUrl = ''
+        if (action === 'add') {
+          audioUrl = 'https://files.catbox.moe/sg93j5.mp3'
+        } else if (action === 'remove') {
+          audioUrl = 'https://files.catbox.moe/swqi7e.mp3'
+        }
 
-      if (action === 'add') {
-        audioUrl = 'https://files.catbox.moe/t73rbs.mp3'
-      } else {
-        audioUrl = 'https://files.catbox.moe/swqi7e.mp3'
-      }
+        if (audioUrl) {
+          const res = await fetch(audioUrl)
+          const buffer = Buffer.from(await res.arrayBuffer())
 
-      if (audioUrl) {
-        setTimeout(async () => {
-          try {
-            const res = await fetch(audioUrl)
-            const buffer = Buffer.from(await res.arrayBuffer())
+          await sock.sendMessage(id, {
+            audio: buffer,
+            mimetype: 'audio/mpeg',
+            fileName: 'audio.mp3'
+          })
+        }
 
-            await sock.sendMessage(id, {
-              audio: buffer,
-              mimetype: 'audio/mpeg',
-              ptt: true
-            })
-
-          } catch (e) {
-            console.log('❌ Error audio async:', e)
-          }
-        }, action === 'add' ? 4000 : 1000)
-      }
+      } catch(e){console.log('❌ Error audio:',e)}
 
     } catch(e){console.log('❌ Error welcome:',e)}
   })
 }
 
-// ───── CONFIG ─────
+// ───── CONFIG DEL HANDLER ─────
 handler.command = ['welcome']
 handler.tags = ['on-off']
 handler.group = true
