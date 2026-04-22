@@ -96,7 +96,7 @@ handler.before = async (_, { sock }) => {
         await sock.sendMessage(id, { text, mentions, quoted:update })
       }
 
-      // 🔊 AUDIO (FIX REAL)
+      // 🔊 AUDIO (FIX FINAL)
       try {
         let audioUrl = ''
 
@@ -107,6 +107,12 @@ handler.before = async (_, { sock }) => {
         }
 
         if (audioUrl) {
+
+          // ⏳ Delay SOLO para bienvenida
+          if (action === 'add') {
+            await new Promise(r => setTimeout(r, 2500))
+          }
+
           await sock.sendMessage(id, {
             audio: { url: audioUrl },
             mimetype: 'audio/mpeg',
