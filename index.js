@@ -112,7 +112,7 @@ async function startBot () {
 
   const sock = await connectBot()
 
-  // 🔥 CACHE GLOBAL METADATA (SIN TOCAR PLUGINS)
+  // 🔥 CACHE GLOBAL METADATA
   const originalGroupMetadata = sock.groupMetadata.bind(sock)
   sock.groupMetadata = async (jid) => {
     let cache = global.groupCache[jid]
@@ -130,7 +130,7 @@ async function startBot () {
     return cache.data
   }
 
-  // 🔥 COLA GLOBAL (ANTI LAG)
+  // 🔥 COLA GLOBAL
   const originalSend = sock.sendMessage.bind(sock)
   sock.sendMessage = async (...args) => {
     global.queue = global.queue.then(() => originalSend(...args))
@@ -140,6 +140,27 @@ async function startBot () {
   // EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
+  })
+
+  // 🔥 ACTUALIZAR AL INSTANTE CUANDO HAY CAMBIOS
+  sock.ev.on('group-participants.update', async update => {
+    const { id } = update
+    try {
+      // Borrar cache anterior para forzar actualización
+      delete global.adminCache[id]
+      
+      const metadata = await sock.groupMetadata(id)
+
+      global.adminCache[id] = {
+        admins: metadata.participants
+          .filter(p => p.admin)
+          .map(p => {
+            return p.id.includes(':') 
+              ? p.id.split(':')[0] + '@' + p.id.split('@')[1] 
+              : p.id
+          })
+      }
+    } catch {}
   })
 
   sock.ev.on('connection.update', update => {
@@ -171,7 +192,9 @@ async function startBot () {
     const isGroup = from.endsWith('@g.us')
 
     let sender = isGroup ? m.key.participant : from
-    if (sender) sender = sender.split(':')[0]
+    if (sender) sender = sender.includes(':') 
+      ? sender.split(':')[0] + '@' + sender.split('@')[1] 
+      : sender
 
     const pushName = m.pushName || 'Usuario'
 
@@ -186,7 +209,7 @@ async function startBot () {
       }
     }
 
-    // 📊 CONTADOR (OPTIMIZADO)
+    // CONTADOR
     try {
       const db = loadDB()
       if (!db[from]) db[from] = {}
@@ -202,15 +225,11 @@ async function startBot () {
           global.lastSave = Date.now()
         }
       }
-    } catch (e) {
-      console.log('❌ Error contador:', e)
-    }
+    } catch {}
 
-    // MUTE
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
-    // AUTOREAD
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
@@ -222,12 +241,11 @@ async function startBot () {
     let isOwner = false
 
     let cleanSender = sender
-    if (cleanSender) cleanSender = cleanSender.split(':')[0]
     if (isBanned(cleanSender) && !isOwner) return
 
     const text = getText(m)
 
-    // SALUDO (SE MANTIENE)
+    // SALUDO (se mantiene)
     global.cooldownHola = global.cooldownHola || {}
 
     if (text) {
@@ -259,20 +277,29 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ADMIN
+    // ✅ VERIFICACIÓN INSTANTÁNEA (SIN ESPERAR)
     let isAdmin = false
 
     if (isGroup && sender) {
       try {
+        // Obtener datos NUEVOS directamente de WhatsApp
         const metadata = await sock.groupMetadata(from)
 
         const admins = metadata.participants
           .filter(p => p.admin)
-          .map(p => p.id.split(':')[0])
+          .map(p => {
+            return p.id.includes(':') 
+              ? p.id.split(':')[0] + '@' + p.id.split('@')[1] 
+              : p.id
+          })
 
-        const cleanSender = sender.split(':')[0]
-        isAdmin = admins.includes(cleanSender)
-      } catch (e) {
+        // Actualizar cache inmediatamente
+        global.adminCache[from] = { admins }
+
+        // Comprobar ahora sí
+        isAdmin = admins.includes(sender)
+
+      } catch {
         isAdmin = false
       }
     }
@@ -330,3 +357,4 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
 // INIT
 startBot()
+    
