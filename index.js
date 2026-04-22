@@ -112,7 +112,7 @@ async function startBot () {
 
   const sock = await connectBot()
 
-  // 🔥 CACHE GLOBAL METADATA
+  // 🔥 CACHE GLOBAL METADATA (SIN TOCAR PLUGINS)
   const originalGroupMetadata = sock.groupMetadata.bind(sock)
   sock.groupMetadata = async (jid) => {
     let cache = global.groupCache[jid]
@@ -130,7 +130,7 @@ async function startBot () {
     return cache.data
   }
 
-  // 🔥 COLA GLOBAL
+  // 🔥 COLA GLOBAL (ANTI LAG)
   const originalSend = sock.sendMessage.bind(sock)
   sock.sendMessage = async (...args) => {
     global.queue = global.queue.then(() => originalSend(...args))
@@ -140,20 +140,6 @@ async function startBot () {
   // EVENTOS
   sock.ev.on('group-participants.update', async update => {
     await autoAdminOwnerEvent(sock, update)
-  })
-
-  // 🔥 ACTUALIZAR CACHE ADMINS
-  sock.ev.on('group-participants.update', async update => {
-    const { id } = update
-    try {
-      const metadata = await sock.groupMetadata(id)
-
-      global.adminCache[id] = {
-        admins: metadata.participants
-          .filter(p => p.admin)
-          .map(p => p.id.split(':')[0])
-      }
-    } catch {}
   })
 
   sock.ev.on('connection.update', update => {
@@ -200,7 +186,7 @@ async function startBot () {
       }
     }
 
-    // CONTADOR
+    // 📊 CONTADOR (OPTIMIZADO)
     try {
       const db = loadDB()
       if (!db[from]) db[from] = {}
@@ -216,11 +202,15 @@ async function startBot () {
           global.lastSave = Date.now()
         }
       }
-    } catch {}
+    } catch (e) {
+      console.log('❌ Error contador:', e)
+    }
 
+    // MUTE
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
+    // AUTOREAD
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
@@ -237,7 +227,7 @@ async function startBot () {
 
     const text = getText(m)
 
-    // SALUDO (se mantiene)
+    // SALUDO (SE MANTIENE)
     global.cooldownHola = global.cooldownHola || {}
 
     if (text) {
@@ -269,28 +259,20 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // 🔥 ADMIN FIX DEFINITIVO
+    // ADMIN
     let isAdmin = false
 
     if (isGroup && sender) {
       try {
+        const metadata = await sock.groupMetadata(from)
+
+        const admins = metadata.participants
+          .filter(p => p.admin)
+          .map(p => p.id.split(':')[0])
+
         const cleanSender = sender.split(':')[0]
-        const cachedAdmins = global.adminCache[from]?.admins || []
-
-        if (cachedAdmins.includes(cleanSender)) {
-          isAdmin = true
-        } else {
-          const metadata = await sock.groupMetadata(from)
-
-          const admins = metadata.participants
-            .filter(p => p.admin)
-            .map(p => p.id.split(':')[0])
-
-          global.adminCache[from] = { admins }
-
-          isAdmin = admins.includes(cleanSender)
-        }
-      } catch {
+        isAdmin = admins.includes(cleanSender)
+      } catch (e) {
         isAdmin = false
       }
     }
