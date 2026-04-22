@@ -54,7 +54,6 @@ handler.before = async (_, { sock }) => {
     const { id, participants, action, admin } = update
     if (!id.endsWith('@g.us')) return
 
-    // 🔹 Solo entradas o salidas reales, ignorar cambios de admin
     if (!['add', 'remove'].includes(action)) return
     if (admin) return
 
@@ -68,7 +67,7 @@ handler.before = async (_, { sock }) => {
     const metadata = await sock.groupMetadata(id)
     const totalMembers = metadata.participants.length
 
-    // ───── TEXTO DE WELCOME / BYE ─────
+    // ───── TEXTO ─────
     let text = ''
     if (action === 'add') {
       text = groupSettings.customWelcome ||
@@ -78,18 +77,13 @@ handler.before = async (_, { sock }) => {
         `👋 Ha salido del grupo:\n👤 @user\n👥 Miembros restantes: ${totalMembers}\n> ${sock.user?.name || 'ChappieBot'}`
     }
 
-    // 🔹 Reemplazar @user por la mención real
     text = text.replace(/@user/g, `@${user.split('@')[0]}`)
 
-
-    // ───── OBTENER FOTO ─────
+    // ───── FOTO ─────
     let image = null
     try {
-      // Foto del usuario
       try { const pfp = await sock.profilePictureUrl(user,'image'); if(pfp) image={url:pfp} } catch{}
-      // Si no hay, foto del grupo
       if(!image){try{const gpfp = await sock.profilePictureUrl(id,'image'); if(gpfp) image={url:gpfp}} catch{}}
-      // Si no hay, foto del bot
       if(!image){try{const bpfp = await sock.profilePictureUrl(sock.user.id,'image'); if(bpfp) image={url:bpfp}} catch{}}
     } catch(e){console.log('❌ Error imagen:',e)}
 
@@ -101,8 +95,8 @@ handler.before = async (_, { sock }) => {
       } else {
         await sock.sendMessage(id, { text, mentions, quoted:update })
       }
-      
-   // 🔊 AUDIO (AQUÍ SE AGREGA SIN TOCAR TU LÓGICA)
+
+      // 🔊 AUDIO (FIX REAL)
       try {
         let audioUrl = ''
 
@@ -113,11 +107,8 @@ handler.before = async (_, { sock }) => {
         }
 
         if (audioUrl) {
-          const res = await fetch(audioUrl)
-          const buffer = Buffer.from(await res.arrayBuffer())
-
           await sock.sendMessage(id, {
-            audio: buffer,
+            audio: { url: audioUrl },
             mimetype: 'audio/mpeg',
             fileName: 'audio.mp3'
           })
@@ -129,7 +120,7 @@ handler.before = async (_, { sock }) => {
   })
 }
 
-// ───── CONFIG DEL HANDLER ─────
+// ───── CONFIG ─────
 handler.command = ['welcome']
 handler.tags = ['on-off']
 handler.group = true
