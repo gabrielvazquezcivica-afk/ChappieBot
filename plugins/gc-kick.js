@@ -1,126 +1,358 @@
-// ───── HELPERS ─────
-function normalizeJid(u) {
-  return typeof u === 'string' ? u : u?.id
+import util from 'util'
+import chalk from 'chalk'
+import figlet from 'figlet'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { DisconnectReason } from '@whiskeysockets/baileys'
+
+import { connectBot } from './lib/connection.js'
+import config from './config.js'
+import { muteWatcher } from './lib/muteWatcher.js'
+import { autoAdminOwnerEvent } from './lib/autoAdminOwner.js'
+import { isBanned } from './middleware/ban.js'
+
+// ───── CONFIG GLOBAL ─────
+util.inspect.defaultOptions.depth = 0
+util.inspect.defaultOptions.colors = false
+process.env.NODE_NO_WARNINGS = '1'
+
+// 🔥 GLOBALS
+global.config = config
+global.prefix = config.bot.prefix
+global.adminCache = {}
+global.autoRead = true
+
+// ⚡ OPTIMIZACIÓN GLOBAL
+global.groupCache = {}
+global.lastSave = 0
+global.queue = Promise.resolve()
+
+// 📊 DB PATH
+const dbPath = './data/msgcount.json'
+
+// 📊 DB FUNCIONES
+function loadDB() {
+  try {
+    if (!fs.existsSync(dbPath)) return {}
+    return JSON.parse(fs.readFileSync(dbPath, 'utf-8'))
+  } catch (e) {
+    console.log(chalk.red('❌ Error leyendo DB:'), e)
+    return {}
+  }
 }
 
-function onlyNumber(jid = '') {
-  return normalizeJid(jid)?.replace(/[^0-9]/g, '')
+function saveDB(data) {
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
+  } catch (e) {
+    console.log(chalk.red('❌ Error guardando DB:'), e)
+  }
 }
 
-export const handler = async (m, {
-  sock,
-  reply,
-  isGroup,
-  sender,
-  isAdmin,
-  from
-}) => {
+global.loadDB = loadDB
+global.saveDB = saveDB
 
-  const msgs = global.config.messages || {}
-  const botName = sock.user?.name || 'ChappieBot'
-  const botJid = sock.user?.id || ''
+// ───── ERRORES ─────
+process.on('uncaughtException', err => {
+  if (String(err).includes('Bad MAC')) return
+  console.error(chalk.red('❌ uncaughtException:'), err)
+})
 
-  // 👑 OWNERS
-  const owners = (global.config.owner?.numbers || []).map(n => onlyNumber(n))
+process.on('unhandledRejection', err => {
+  if (String(err).includes('Bad MAC')) return
+  console.error(chalk.red('❌ unhandledRejection:'), err)
+})
 
-  // ❌ SOLO GRUPOS
-  if (!isGroup) {
-    return reply(msgs.group || '🚫 Este comando solo funciona en grupos')
-  }
+// ───── PATHS ─────
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-  // 🔐 SOLO ADMINS
-  if (!isAdmin) {
-    return reply(msgs.admin || '⛔ Solo administradores pueden usar este comando')
-  }
+// ───── BANNER ─────
+function showBanner () {
+  console.clear()
+  const banner = figlet.textSync('CHAPPIE BOT', { font: 'Slant' })
+  console.log(chalk.cyan(banner))
+  console.log(chalk.green('🤖 Bot iniciado | Esperando comandos...\n'))
+}
 
-  const senderNum = onlyNumber(sender)
-  const botNum = onlyNumber(botJid)
+// ───── PLUGINS ─────
+let plugins = []
 
-  const ctx = m.message?.extendedTextMessage?.contextInfo
-  const userRaw = ctx?.mentionedJid?.[0] || ctx?.participant
+async function loadPlugins () {
+  const dir = path.join(__dirname, 'plugins')
+  plugins = []
 
-  if (!userRaw) {
-    return reply(
-`⚠️ Uso incorrecto
-
-👉 Menciona al usuario o responde a su mensaje
-Ejemplo: .kick @usuario`
-    )
-  }
-
-  const userNum = onlyNumber(userRaw)
-
-  /* 🔐 PROTECCIÓN TOTAL */
-
-  // 👑 OWNER PROTEGIDO (CHECK 1)
-  if (owners.includes(userNum)) {
-
-    await sock.sendMessage(from, {
-      text: `🚨 *PROTECCIÓN OWNER ACTIVADA*\n\n👑 No puedes expulsar a este usuario\n\n💀 @${senderNum} eliminado`,
-      mentions: [sender]
-    })
-
+  for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
-      await sock.groupParticipantsUpdate(from, [sender], 'remove')
+      const plugin = await import(
+        pathToFileURL(path.join(dir, file)).href + `?v=${Date.now()}`
+      )
+      plugins.push(plugin.default ?? plugin)
+    } catch (e) {
+      console.log(chalk.red('❌ Error plugin:'), file, e)
+    }
+  }
+
+  console.log(chalk.yellow(`🧩 Plugins cargados: ${plugins.length}`))
+}
+
+// ───── UTILS ─────
+const getText = m =>
+  m.message?.conversation ||
+  m.message?.extendedTextMessage?.text ||
+  m.message?.imageMessage?.caption ||
+  m.message?.videoMessage?.caption ||
+  ''
+
+// ───── START BOT ─────
+async function startBot () {
+  showBanner()
+  await loadPlugins()
+
+  const sock = await connectBot()
+
+  // 🔥 CACHE GLOBAL METADATA
+  const originalGroupMetadata = sock.groupMetadata.bind(sock)
+  sock.groupMetadata = async (jid) => {
+    let cache = global.groupCache[jid]
+
+    if (!cache || Date.now() - cache.time > 60000) {
+      try {
+        const data = await originalGroupMetadata(jid)
+        global.groupCache[jid] = { data, time: Date.now() }
+        return data
+      } catch {
+        return cache?.data || {}
+      }
+    }
+
+    return cache.data
+  }
+
+  // 🔥 COLA GLOBAL
+  const originalSend = sock.sendMessage.bind(sock)
+  sock.sendMessage = async (...args) => {
+    global.queue = global.queue.then(() => originalSend(...args))
+    return global.queue
+  }
+
+  // EVENTOS
+  sock.ev.on('group-participants.update', async update => {
+    await autoAdminOwnerEvent(sock, update)
+  })
+
+  // 🔥 ACTUALIZAR CACHE ADMINS (CORREGIDO)
+  sock.ev.on('group-participants.update', async update => {
+    const { id } = update
+    try {
+      const metadata = await sock.groupMetadata(id)
+
+      global.adminCache[id] = {
+        admins: metadata.participants
+          .filter(p => p.admin)
+          .map(p => {
+            // Formato correcto para IDs con : o @lid
+            return p.id.includes(':') 
+              ? p.id.split(':')[0] + '@' + p.id.split('@')[1] 
+              : p.id
+          })
+      }
+    } catch {}
+  })
+
+  sock.ev.on('connection.update', update => {
+    const { connection, lastDisconnect } = update
+
+    if (connection === 'open') {
+      console.log(chalk.green('✅ Conectado | Comandos activos'))
+    }
+
+    if (connection === 'close') {
+      const reason = lastDisconnect?.error?.output?.statusCode
+      console.log(chalk.red('⚠️ Conexión cerrada:'), reason)
+
+      if (reason !== DisconnectReason.loggedOut) {
+        console.log(chalk.yellow('🔁 Reintentando en 3s...'))
+        setTimeout(startBot, 3000)
+      }
+    }
+  })
+
+  // ───── MENSAJES ─────
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const m = messages[0]
+    if (!m?.message || m.key.fromMe) return
+
+    const from = m.key.remoteJid
+    if (!from) return
+
+    const isGroup = from.endsWith('@g.us')
+
+    let sender = isGroup ? m.key.participant : from
+    if (sender) sender = sender.split(':')[0] + '@' + sender.split('@')[1]
+
+    const pushName = m.pushName || 'Usuario'
+
+    // BEFORE
+    for (const p of plugins) {
+      try {
+        if (typeof p.before === 'function') {
+          await p.before(m, { sock, from, sender, isGroup, pushName })
+        }
+      } catch (e) {
+        console.log('❌ Error en before:', e)
+      }
+    }
+
+    // CONTADOR
+    try {
+      const db = loadDB()
+      if (!db[from]) db[from] = {}
+
+      const type = Object.keys(m.message || {})[0]
+      const valid = ['conversation','extendedTextMessage','imageMessage','videoMessage']
+
+      if (type && valid.includes(type)) {
+        db[from][sender] = (db[from][sender] || 0) + 1
+
+        if (Date.now() - global.lastSave > 5000) {
+          saveDB(db)
+          global.lastSave = Date.now()
+        }
+      }
     } catch {}
 
-    return
-  }
+    const isMuted = await muteWatcher(sock, m)
+    if (isMuted) return
 
-  // 🤖 BOT PROTEGIDO
-  if (userNum === botNum) {
-    return reply('⚠️ No puedo expulsarme a mí mismo')
-  }
+    if (global.autoRead) {
+      try {
+        if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
+          await sock.readMessages([m.key])
+        }
+      } catch {}
+    }
 
-  try {
+    let isOwner = false
 
-    // 🔥 REACCIÓN
-    await sock.sendMessage(from, {
-      react: { text: '🚪', key: m.key }
-    })
+    let cleanSender = sender
+    if (cleanSender) cleanSender = cleanSender.split(':')[0] + '@' + cleanSender.split('@')[1]
+    if (isBanned(cleanSender) && !isOwner) return
 
-    // 👑 OWNER PROTEGIDO (CHECK 2 ANTIBUG)
-    if (owners.includes(userNum)) return
+    const text = getText(m)
 
-    // 🚪 KICK
-    await sock.groupParticipantsUpdate(from, [normalizeJid(userRaw)], 'remove')
+    // SALUDO (se mantiene)
+    global.cooldownHola = global.cooldownHola || {}
 
-    // 📩 MENSAJE
-    await sock.sendMessage(
-      from,
-      {
-        text: `
-╔═══════════════════╗
-   🚪  EXPULSIÓN
-╚═══════════════════╝
+    if (text) {
+      const msg = text.toLowerCase().trim()
 
-👤 Usuario:
-➤ @${userNum}
+      if (msg === 'hola') {
+        const now = Date.now()
+        const cooldown = 20000
+        const last = global.cooldownHola[sender] || 0
+        if (now - last < cooldown) return
 
-👮 Moderador:
-➤ @${senderNum}
+        global.cooldownHola[sender] = now
 
-╭───────────────╮
-   🤖 ${botName}
-╰───────────────╯
-`.trim(),
-        mentions: [normalizeJid(userRaw), sender]
-      },
-      { quoted: m }
+        const hora = new Date().getHours()
+        let saludo = 'Hola'
+        if (hora >= 6 && hora < 12) saludo = 'Buenos días'
+        else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
+        else saludo = 'Buenas noches'
+
+        await sock.sendMessage(from, {
+          text: `👋 ${saludo} ${pushName}
+
+🤖 Soy *ChappieBot*
+
+Usa *${global.prefix}menu* para ver mis comandos.`
+        }, { quoted: m })
+      }
+    }
+
+    if (!text || !text.startsWith(global.prefix)) return
+
+    // 🔥 ADMIN FIX DEFINITIVO (CORREGIDO)
+    let isAdmin = false
+
+    if (isGroup && sender) {
+      try {
+        const cachedAdmins = global.adminCache[from]?.admins || []
+
+        if (cachedAdmins.length > 0 && cachedAdmins.includes(sender)) {
+          isAdmin = true
+        } else {
+          const metadata = await sock.groupMetadata(from)
+
+          const admins = metadata.participants
+            .filter(p => p.admin)
+            .map(p => {
+              return p.id.includes(':') 
+                ? p.id.split(':')[0] + '@' + p.id.split('@')[1] 
+                : p.id
+            })
+
+          global.adminCache[from] = { admins }
+          isAdmin = admins.includes(sender)
+        }
+      } catch {
+        isAdmin = false
+      }
+    }
+
+    // OWNER
+    const ownerNumbers = global.config.owner?.numbers || []
+    const ownerJids = global.config.owner?.jid || []
+
+    let senderNumber = ''
+    if (sender) senderNumber = sender.split('@')[0].split(':')[0]
+
+    if (senderNumber && ownerNumbers.includes(senderNumber)) isOwner = true
+    if (sender && ownerJids.includes(sender)) isOwner = true
+
+    const args = text.slice(global.prefix.length).trim().split(/\s+/)
+    const command = args.shift().toLowerCase()
+
+    let groupName = 'Privado'
+    if (isGroup) groupName = global.adminCache[from]?.name || 'Grupo'
+
+    console.log(
+      chalk.blue('\n📩 COMANDO'),
+      '\n👤', pushName,
+      '\n👥', groupName,
+      '\n⚡', command
     )
 
-  } catch (e) {
-    console.log('❌ Error kick:', e)
-    reply('❌ No pude expulsar al usuario')
-  }
+    for (const p of plugins) {
+      const h = p.handler ?? p
+      if (!h?.command) continue
+
+      const cmds = Array.isArray(h.command) ? h.command : [h.command]
+      if (!cmds.includes(command)) continue
+
+      h(m, {
+        sock,
+        from,
+        sender,
+        pushName,
+        isGroup,
+        isAdmin,
+        isOwner,
+        args,
+        command,
+        plugins,
+        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+      }).catch(e => {
+        console.log(chalk.red('❌ Error comando:'), e)
+      })
+
+      break
+    }
+  })
 }
 
-// ⚙️ CONFIG
-handler.command = ['kick']
-handler.tags = ['group']
-handler.group = true
-handler.admin = true
-handler.botAdmin = true
-handler.menu = true
-
-export default handler
+// INIT
+startBot()
+    
