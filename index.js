@@ -142,7 +142,7 @@ async function startBot () {
     await autoAdminOwnerEvent(sock, update)
   })
 
-  // 🔥 CACHE ADMINS
+  // 🔥 ACTUALIZAR CACHE ADMINS
   sock.ev.on('group-participants.update', async update => {
     const { id } = update
     try {
@@ -153,33 +153,8 @@ async function startBot () {
           .filter(p => p.admin)
           .map(p => p.id.split(':')[0])
       }
-    } catch (e) {
-      console.log('❌ Error cache admins:', e)
-    }
+    } catch {}
   })
-
-  // 🔥 PRECARGA ADMINS
-  setTimeout(async () => {
-    try {
-      const chats = Object.keys(sock.chats || {})
-
-      for (const id of chats) {
-        if (!id.endsWith('@g.us')) continue
-
-        const metadata = await sock.groupMetadata(id)
-
-        global.adminCache[id] = {
-          admins: metadata.participants
-            .filter(p => p.admin)
-            .map(p => p.id.split(':')[0])
-        }
-      }
-
-      console.log('⚡ Admin cache cargado')
-    } catch (e) {
-      console.log('❌ Error preload admins:', e)
-    }
-  }, 5000)
 
   sock.ev.on('connection.update', update => {
     const { connection, lastDisconnect } = update
@@ -241,9 +216,7 @@ async function startBot () {
           global.lastSave = Date.now()
         }
       }
-    } catch (e) {
-      console.log('❌ Error contador:', e)
-    }
+    } catch {}
 
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
@@ -264,7 +237,7 @@ async function startBot () {
 
     const text = getText(m)
 
-    // SALUDO (TE LO DEJÉ)
+    // SALUDO (se mantiene)
     global.cooldownHola = global.cooldownHola || {}
 
     if (text) {
@@ -296,12 +269,30 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // 🔥 ADMIN FIX
+    // 🔥 ADMIN FIX DEFINITIVO
     let isAdmin = false
+
     if (isGroup && sender) {
-      const cleanSender = sender.split(':')[0]
-      const admins = global.adminCache[from]?.admins || []
-      isAdmin = admins.includes(cleanSender)
+      try {
+        const cleanSender = sender.split(':')[0]
+        const cachedAdmins = global.adminCache[from]?.admins || []
+
+        if (cachedAdmins.includes(cleanSender)) {
+          isAdmin = true
+        } else {
+          const metadata = await sock.groupMetadata(from)
+
+          const admins = metadata.participants
+            .filter(p => p.admin)
+            .map(p => p.id.split(':')[0])
+
+          global.adminCache[from] = { admins }
+
+          isAdmin = admins.includes(cleanSender)
+        }
+      } catch {
+        isAdmin = false
+      }
     }
 
     // OWNER
