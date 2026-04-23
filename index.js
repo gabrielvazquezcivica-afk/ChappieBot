@@ -148,20 +148,20 @@ async function startBot () {
     
     const pushName = m.pushName || 'Usuario'
 
-          // 🔥 BEFORE (LO PRIMERO SIEMPRE)
+          // 🔥 BEFORE (LO PRIMERO SIEMPRE) - OPTIMIZADO
       for (const p of plugins) {
         try {
           if (typeof p.before === 'function') {
-            await p.before(m, {
+            p.before(m, {
               sock,
               from,
               sender,
               isGroup,
               pushName
-            })
+            }).catch(()=>{}) // SIN AWAIT, RESPONDE YA
           }
         } catch (e) {
-          console.log('❌ Error en before:', e)
+          // console.log('❌ Error en before:', e) // COMENTADO PARA VELOCIDAD
         }
       }
 
@@ -185,18 +185,18 @@ try {
     saveDB(db)
   }
 } catch (e) {
-  console.log('❌ Error contador:', e)
+  // console.log('❌ Error contador:', e) // COMENTADO PARA VELOCIDAD
 }
     
         // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
-    // 👀 LEER MENSAJE GLOBAL
+    // 👀 LEER MENSAJE GLOBAL - OPTIMIZADO
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
-          await sock.readMessages([m.key])
+          sock.readMessages([m.key]).catch(()=>{}) // SIN AWAIT
         }
       } catch {}
     }
@@ -230,19 +230,20 @@ try {
         else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
         else saludo = 'Buenas noches'
 
-        await sock.sendMessage(from, {
+        sock.sendMessage(from, {
           text: `👋 ${saludo} ${pushName}
 
 🤖 Soy *ChappieBot*
 
 Usa *${global.prefix}menu* para ver mis comandos.`
-        }, { quoted: m })
+        }, { quoted: m }).catch(()=>{}) // SIN AWAIT
+        return
       }
     }
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ADMIN + CACHE
+    // ADMIN + CACHE (IGUAL QUE TENÍAS, SIN CAMBIOS)
     let isAdmin = false
 
 if (isGroup && sender) {
@@ -304,7 +305,7 @@ if (isGroup && sender) {
         args,
         command,
         plugins,
-        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m }).catch(()=>{})
       }).catch(e => {
         console.log(chalk.red('❌ Error comando:'), e)
       })
@@ -316,4 +317,4 @@ if (isGroup && sender) {
 
 // ───── INIT ─────
 startBot()
-  
+      
