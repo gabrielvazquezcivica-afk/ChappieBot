@@ -22,11 +22,12 @@ global.config = config
 global.prefix = config.bot.prefix
 global.adminCache = {}
 global.autoRead = true
+global.lastSave = 0 // 🔥 FIX
 
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
 
-// 📊 DB FUNCIONES (FIX)
+// 📊 DB FUNCIONES
 function loadDB() {
   try {
     if (!fs.existsSync(dbPath)) return {}
@@ -45,9 +46,8 @@ function saveDB(data) {
   }
 }
 
-// (opcional pero recomendado)
-global.loadDB = loadDB
-global.saveDB = saveDB
+// 🔥 DB GLOBAL (FIX IMPORTANTE)
+global.db = loadDB()
 
 // ───── ERRORES GLOBALES ─────
 process.on('uncaughtException', err => {
@@ -141,69 +141,54 @@ async function startBot () {
 
     const isGroup = from.endsWith('@g.us')
 
-    
-    // 🔥 FIX ADMIN (IMPORTANTE)
     let sender = isGroup ? m.key.participant : from
     if (sender) sender = sender.split(':')[0]
-    
+
     const pushName = m.pushName || 'Usuario'
 
-          // 🔥 BEFORE (LO PRIMERO SIEMPRE) - OPTIMIZADO
-      for (const p of plugins) {
-        try {
-          if (typeof p.before === 'function') {
-            p.before(m, {
-              sock,
-              from,
-              sender,
-              isGroup,
-              pushName
-            }).catch(()=>{}) // SIN AWAIT, RESPONDE YA
-          }
-        } catch (e) {
-          // console.log('❌ Error en before:', e) // COMENTADO PARA VELOCIDAD
+    // BEFORE (sin await = rápido)
+    for (const p of plugins) {
+      try {
+        if (typeof p.before === 'function') {
+          p.before(m, { sock, from, sender, isGroup, pushName }).catch(()=>{})
+        }
+      } catch {}
+    }
+
+    // 📊 CONTADOR OPTIMIZADO (FIX REAL)
+    try {
+      const db = global.db
+      if (!db[from]) db[from] = {}
+
+      const type = Object.keys(m.message || {})[0]
+      const valid = ['conversation','extendedTextMessage','imageMessage','videoMessage']
+
+      if (type && valid.includes(type)) {
+        db[from][sender] = (db[from][sender] || 0) + 1
+
+        // 🔥 guardar cada 5 segundos
+        if (Date.now() - global.lastSave > 5000) {
+          saveDB(db)
+          global.lastSave = Date.now()
         }
       }
+    } catch {}
 
-    /* 📊 CONTADOR REAL (FIX FINAL) */
-/* 📊 CONTADOR SEGURO */
-try {
-  const db = loadDB()
-  if (!db[from]) db[from] = {}
-
-  const type = Object.keys(m.message || {})[0]
-
-  const valid = [
-    'conversation',
-    'extendedTextMessage',
-    'imageMessage',
-    'videoMessage'
-  ]
-
-  if (type && valid.includes(type)) {
-    db[from][sender] = (db[from][sender] || 0) + 1
-    saveDB(db)
-  }
-} catch (e) {
-  // console.log('❌ Error contador:', e) // COMENTADO PARA VELOCIDAD
-}
-    
-        // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
+    // MUTE
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
-    // 👀 LEER MENSAJE GLOBAL - OPTIMIZADO
+    // AUTOREAD
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
-          sock.readMessages([m.key]).catch(()=>{}) // SIN AWAIT
+          sock.readMessages([m.key]).catch(()=>{})
         }
       } catch {}
     }
 
     let isOwner = false
 
-    // BAN GLOBAL
     let cleanSender = sender
     if (cleanSender) cleanSender = cleanSender.split(':')[0]
     if (isBanned(cleanSender) && !isOwner) return
@@ -236,31 +221,30 @@ try {
 🤖 Soy *ChappieBot*
 
 Usa *${global.prefix}menu* para ver mis comandos.`
-        }, { quoted: m }).catch(()=>{}) // SIN AWAIT
+        }, { quoted: m }).catch(()=>{})
         return
       }
     }
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ADMIN + CACHE (IGUAL QUE TENÍAS, SIN CAMBIOS)
+    // ADMIN (NO TOCADO)
     let isAdmin = false
 
-if (isGroup && sender) {
-  try {
-    const metadata = await sock.groupMetadata(from)
+    if (isGroup && sender) {
+      try {
+        const metadata = await sock.groupMetadata(from)
 
-    const admins = metadata.participants
-      .filter(p => p.admin)
-      .map(p => p.id.split(':')[0])
+        const admins = metadata.participants
+          .filter(p => p.admin)
+          .map(p => p.id.split(':')[0])
 
-    const cleanSender = sender.split(':')[0]
-
-    isAdmin = admins.includes(cleanSender)
-  } catch (e) {
-    isAdmin = false
-  }
+        const cleanSender = sender.split(':')[0]
+        isAdmin = admins.includes(cleanSender)
+      } catch {
+        isAdmin = false
       }
+    }
 
     // OWNER
     const ownerNumbers = global.config.owner?.numbers || []
@@ -275,7 +259,6 @@ if (isGroup && sender) {
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
-    // LOG PRO
     let groupName = 'Privado'
     if (isGroup) groupName = global.adminCache[from]?.name || 'Grupo'
 
@@ -286,7 +269,6 @@ if (isGroup && sender) {
       '\n⚡', command
     )
 
-    // COMANDOS
     for (const p of plugins) {
       const h = p.handler ?? p
       if (!h?.command) continue
@@ -317,4 +299,3 @@ if (isGroup && sender) {
 
 // ───── INIT ─────
 startBot()
-      
