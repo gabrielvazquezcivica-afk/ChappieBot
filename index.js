@@ -232,18 +232,33 @@ Usa *${global.prefix}menu* para ver mis comandos.`
     let isAdmin = false
 
     if (isGroup && sender) {
-      try {
-        const metadata = await sock.groupMetadata(from)
+  try {
+    const cleanSender = sender.split(':')[0]
 
-        const admins = metadata.participants
-          .filter(p => p.admin)
-          .map(p => p.id.split(':')[0])
+    // 🔥 cache ultra rápido
+    if (!global.adminCache[from]) {
+      global.adminCache[from] = { admins: [], time: 0 }
+    }
 
-        const cleanSender = sender.split(':')[0]
-        isAdmin = admins.includes(cleanSender)
-      } catch {
-        isAdmin = false
-      }
+    let cache = global.adminCache[from]
+
+    // ⚡ solo consulta cada 2 minutos
+    if (Date.now() - cache.time > 120000) {
+      sock.groupMetadata(from).then(metadata => {
+        global.adminCache[from] = {
+          admins: metadata.participants
+            .filter(p => p.admin)
+            .map(p => p.id.split(':')[0]),
+          time: Date.now()
+        }
+      }).catch(()=>{})
+    }
+
+    isAdmin = cache.admins.includes(cleanSender)
+
+  } catch {
+    isAdmin = false
+  }
     }
 
     // OWNER
