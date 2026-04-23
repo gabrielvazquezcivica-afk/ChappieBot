@@ -1,14 +1,27 @@
 export const handler = async (m, { sock, from }) => {
-  // Guardamos el tiempo en que se recibió el mensaje
-  const tiempoInicio = Date.now()
+  const start = Date.now()
 
-  // Enviamos el mensaje y calculamos el tiempo de respuesta
+  // 🔥 reacción instantánea (mide latencia real)
   await sock.sendMessage(from, {
-    text: `pong 🏓\n\n⚡ Velocidad: ${Date.now() - tiempoInicio} ms\n\n> ChappieBot`
+    react: { text: '🏓', key: m.key }
   })
+
+  const speed = Date.now() - start
+
+  // 🔥 respuesta final
+  await sock.sendMessage(from, {
+    text: `🏓 *Pong*
+
+⚡ Velocidad: ${speed} ms
+🚀 Estado: ${speed < 200 ? 'Rápido' : speed < 500 ? 'Normal' : 'Lento'}
+
+> ChappieBot`
+  }, { quoted: m })
 }
 
-handler.command = ['ping']
+handler.command = ['p']
 handler.help = ['p']
 handler.tags = ['info']
 handler.menu = true
+
+export default handler
