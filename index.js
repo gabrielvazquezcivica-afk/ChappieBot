@@ -26,13 +26,12 @@ global.autoRead = true
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
 
-// 📊 DB FUNCIONES (FIX)
+// 📊 DB FUNCIONES
 function loadDB() {
   try {
     if (!fs.existsSync(dbPath)) return {}
     return JSON.parse(fs.readFileSync(dbPath, 'utf-8'))
   } catch (e) {
-    console.log(chalk.red('❌ Error leyendo DB:'), e)
     return {}
   }
 }
@@ -40,12 +39,9 @@ function loadDB() {
 function saveDB(data) {
   try {
     fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
-  } catch (e) {
-    console.log(chalk.red('❌ Error guardando DB:'), e)
-  }
+  } catch (e) {}
 }
 
-// (opcional pero recomendado)
 global.loadDB = loadDB
 global.saveDB = saveDB
 
@@ -140,72 +136,49 @@ async function startBot () {
     if (!from) return
 
     const isGroup = from.endsWith('@g.us')
-
     
-    // 🔥 FIX ADMIN (IMPORTANTE)
+    // 🔥 LIMPIEZA RÁPIDA DE ID
     let sender = isGroup ? m.key.participant : from
     if (sender) sender = sender.split(':')[0]
     
     const pushName = m.pushName || 'Usuario'
 
-          // 🔥 BEFORE (LO PRIMERO SIEMPRE)
-      for (const p of plugins) {
-        try {
-          if (typeof p.before === 'function') {
-            await p.before(m, {
-              sock,
-              from,
-              sender,
-              isGroup,
-              pushName
-            })
-          }
-        } catch (e) {
-          console.log('❌ Error en before:', e)
-        }
+    // ⚡ EJECUCIÓN EN PARALELO (NO ESPERAR)
+    for (const p of plugins) {
+      if (typeof p.before === 'function') {
+        p.before(m, { sock, from, sender, isGroup, pushName }).catch(()=>{})
       }
+    }
 
-    /* 📊 CONTADOR REAL (FIX FINAL) */
-/* 📊 CONTADOR SEGURO */
-try {
-  const db = loadDB()
-  if (!db[from]) db[from] = {}
+    /* 📊 CONTADOR */
+    try {
+      const db = loadDB()
+      if (!db[from]) db[from] = {}
 
-  const type = Object.keys(m.message || {})[0]
-
-  const valid = [
-    'conversation',
-    'extendedTextMessage',
-    'imageMessage',
-    'videoMessage'
-  ]
-
-  if (type && valid.includes(type)) {
-    db[from][sender] = (db[from][sender] || 0) + 1
-    saveDB(db)
-  }
-} catch (e) {
-  console.log('❌ Error contador:', e)
-}
+      const type = Object.keys(m.message || {})[0]
+      const valid = ['conversation','extendedTextMessage','imageMessage','videoMessage']
+      
+      if (type && valid.includes(type)) {
+        db[from][sender] = (db[from][sender] || 0) + 1
+        saveDB(db)
+      }
+    } catch (e) {}
     
-        // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
+    // 🔥 BLOQUEO INSTANTÁNEO
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
-    // 👀 LEER MENSAJE GLOBAL
+    // 👀 MARCAR COMO LEÍDO
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
-          await sock.readMessages([m.key])
+          sock.readMessages([m.key]).catch(()=>{})
         }
       } catch {}
     }
 
     let isOwner = false
-
-    // BAN GLOBAL
     let cleanSender = sender
-    if (cleanSender) cleanSender = cleanSender.split(':')[0]
     if (isBanned(cleanSender) && !isOwner) return
 
     const text = getText(m)
@@ -215,7 +188,6 @@ try {
 
     if (text) {
       const msg = text.toLowerCase().trim()
-
       if (msg === 'hola') {
         const now = Date.now()
         const cooldown = 20000
@@ -230,54 +202,44 @@ try {
         else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
         else saludo = 'Buenas noches'
 
-        await sock.sendMessage(from, {
-          text: `👋 ${saludo} ${pushName}
-
-🤖 Soy *ChappieBot*
-
-Usa *${global.prefix}menu* para ver mis comandos.`
-        }, { quoted: m })
+        sock.sendMessage(from, {
+          text: `👋 ${saludo} ${pushName}\n\n🤖 Soy *ChappieBot*\n\nUsa *${global.prefix}menu* para ver mis comandos.`
+        }, { quoted: m }).catch(()=>{})
+        return // Salir para no procesar más
       }
     }
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ADMIN + CACHE
+    // ⚡ ADMIN: USAR CACHE, NO CONSULTAR API CADA VEZ
     let isAdmin = false
-
-if (isGroup && sender) {
-  try {
-    const metadata = await sock.groupMetadata(from)
-
-    const admins = metadata.participants
-      .filter(p => p.admin)
-      .map(p => p.id.split(':')[0])
-
-    const cleanSender = sender.split(':')[0]
-
-    isAdmin = admins.includes(cleanSender)
-  } catch (e) {
-    isAdmin = false
-  }
+    if (isGroup && sender) {
+      // Si ya tenemos cache, usarlo. Si no, actualizar en segundo plano
+      if (global.adminCache[from]?.admins?.includes(sender)) {
+        isAdmin = true
+      } else {
+        // Actualizar cache PERO NO ESPERAR A QUE TERMINE
+        sock.groupMetadata(from).then(meta => {
+          const admins = meta.participants.filter(p => p.admin).map(p => p.id.split(':')[0])
+          global.adminCache[from] = { name: meta.subject, admins: admins }
+        }).catch(()=>{})
       }
+    }
 
     // OWNER
     const ownerNumbers = global.config.owner?.numbers || []
     const ownerJids = global.config.owner?.jid || []
+    let senderNumber = sender.split('@')[0]
 
-    let senderNumber = ''
-    if (sender) senderNumber = sender.split('@')[0].split(':')[0]
-
-    if (senderNumber && ownerNumbers.includes(senderNumber)) isOwner = true
-    if (sender && ownerJids.includes(sender)) isOwner = true
+    if (ownerNumbers.includes(senderNumber) || ownerJids.includes(sender)) isOwner = true
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
-    // LOG PRO
-    let groupName = 'Privado'
-    if (isGroup) groupName = global.adminCache[from]?.name || 'Grupo'
-
+    // LOG
+    let groupName = global.adminCache[from]?.name || 'Grupo'
+    if (!isGroup) groupName = 'Privado'
+    
     console.log(
       chalk.blue('\n📩 COMANDO'),
       '\n👤', pushName,
@@ -285,7 +247,7 @@ if (isGroup && sender) {
       '\n⚡', command
     )
 
-    // COMANDOS
+    // EJECUTAR COMANDO
     for (const p of plugins) {
       const h = p.handler ?? p
       if (!h?.command) continue
@@ -304,7 +266,7 @@ if (isGroup && sender) {
         args,
         command,
         plugins,
-        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
+        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m }).catch(()=>{})
       }).catch(e => {
         console.log(chalk.red('❌ Error comando:'), e)
       })
@@ -316,3 +278,4 @@ if (isGroup && sender) {
 
 // ───── INIT ─────
 startBot()
+          
