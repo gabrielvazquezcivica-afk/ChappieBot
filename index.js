@@ -26,12 +26,13 @@ global.autoRead = true
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
 
-// 📊 DB FUNCIONES
+// 📊 DB FUNCIONES (FIX)
 function loadDB() {
   try {
     if (!fs.existsSync(dbPath)) return {}
     return JSON.parse(fs.readFileSync(dbPath, 'utf-8'))
   } catch (e) {
+    console.log(chalk.red('❌ Error leyendo DB:'), e)
     return {}
   }
 }
@@ -39,9 +40,12 @@ function loadDB() {
 function saveDB(data) {
   try {
     fs.writeFileSync(dbPath, JSON.stringify(data, null, 2))
-  } catch (e) {}
+  } catch (e) {
+    console.log(chalk.red('❌ Error guardando DB:'), e)
+  }
 }
 
+// (opcional pero recomendado)
 global.loadDB = loadDB
 global.saveDB = saveDB
 
@@ -136,49 +140,72 @@ async function startBot () {
     if (!from) return
 
     const isGroup = from.endsWith('@g.us')
+
     
-    // 🔥 LIMPIEZA RÁPIDA DE ID
+    // 🔥 FIX ADMIN (IMPORTANTE)
     let sender = isGroup ? m.key.participant : from
     if (sender) sender = sender.split(':')[0]
     
     const pushName = m.pushName || 'Usuario'
 
-    // ⚡ EJECUCIÓN EN PARALELO (NO ESPERAR)
-    for (const p of plugins) {
-      if (typeof p.before === 'function') {
-        p.before(m, { sock, from, sender, isGroup, pushName }).catch(()=>{})
+          // 🔥 BEFORE (LO PRIMERO SIEMPRE)
+      for (const p of plugins) {
+        try {
+          if (typeof p.before === 'function') {
+            await p.before(m, {
+              sock,
+              from,
+              sender,
+              isGroup,
+              pushName
+            })
+          }
+        } catch (e) {
+          console.log('❌ Error en before:', e)
+        }
       }
-    }
 
-    /* 📊 CONTADOR */
-    try {
-      const db = loadDB()
-      if (!db[from]) db[from] = {}
+    /* 📊 CONTADOR REAL (FIX FINAL) */
+/* 📊 CONTADOR SEGURO */
+try {
+  const db = loadDB()
+  if (!db[from]) db[from] = {}
 
-      const type = Object.keys(m.message || {})[0]
-      const valid = ['conversation','extendedTextMessage','imageMessage','videoMessage']
-      
-      if (type && valid.includes(type)) {
-        db[from][sender] = (db[from][sender] || 0) + 1
-        saveDB(db)
-      }
-    } catch (e) {}
+  const type = Object.keys(m.message || {})[0]
+
+  const valid = [
+    'conversation',
+    'extendedTextMessage',
+    'imageMessage',
+    'videoMessage'
+  ]
+
+  if (type && valid.includes(type)) {
+    db[from][sender] = (db[from][sender] || 0) + 1
+    saveDB(db)
+  }
+} catch (e) {
+  console.log('❌ Error contador:', e)
+}
     
-    // 🔥 BLOQUEO INSTANTÁNEO
+        // 🔥 BLOQUEO INSTANTÁNEO (ANTES DE TODO)
     const isMuted = await muteWatcher(sock, m)
     if (isMuted) return
 
-    // 👀 MARCAR COMO LEÍDO
+    // 👀 LEER MENSAJE GLOBAL
     if (global.autoRead) {
       try {
         if (!m.key.fromMe && m.key.remoteJid !== 'status@broadcast') {
-          sock.readMessages([m.key]).catch(()=>{})
+          await sock.readMessages([m.key])
         }
       } catch {}
     }
 
     let isOwner = false
+
+    // BAN GLOBAL
     let cleanSender = sender
+    if (cleanSender) cleanSender = cleanSender.split(':')[0]
     if (isBanned(cleanSender) && !isOwner) return
 
     const text = getText(m)
@@ -188,6 +215,7 @@ async function startBot () {
 
     if (text) {
       const msg = text.toLowerCase().trim()
+
       if (msg === 'hola') {
         const now = Date.now()
         const cooldown = 20000
@@ -202,44 +230,54 @@ async function startBot () {
         else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes'
         else saludo = 'Buenas noches'
 
-        sock.sendMessage(from, {
-          text: `👋 ${saludo} ${pushName}\n\n🤖 Soy *ChappieBot*\n\nUsa *${global.prefix}menu* para ver mis comandos.`
-        }, { quoted: m }).catch(()=>{})
-        return // Salir para no procesar más
+        await sock.sendMessage(from, {
+          text: `👋 ${saludo} ${pushName}
+
+🤖 Soy *ChappieBot*
+
+Usa *${global.prefix}menu* para ver mis comandos.`
+        }, { quoted: m })
       }
     }
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ⚡ ADMIN: USAR CACHE, NO CONSULTAR API CADA VEZ
+    // ADMIN + CACHE
     let isAdmin = false
-    if (isGroup && sender) {
-      // Si ya tenemos cache, usarlo. Si no, actualizar en segundo plano
-      if (global.adminCache[from]?.admins?.includes(sender)) {
-        isAdmin = true
-      } else {
-        // Actualizar cache PERO NO ESPERAR A QUE TERMINE
-        sock.groupMetadata(from).then(meta => {
-          const admins = meta.participants.filter(p => p.admin).map(p => p.id.split(':')[0])
-          global.adminCache[from] = { name: meta.subject, admins: admins }
-        }).catch(()=>{})
+
+if (isGroup && sender) {
+  try {
+    const metadata = await sock.groupMetadata(from)
+
+    const admins = metadata.participants
+      .filter(p => p.admin)
+      .map(p => p.id.split(':')[0])
+
+    const cleanSender = sender.split(':')[0]
+
+    isAdmin = admins.includes(cleanSender)
+  } catch (e) {
+    isAdmin = false
+  }
       }
-    }
 
     // OWNER
     const ownerNumbers = global.config.owner?.numbers || []
     const ownerJids = global.config.owner?.jid || []
-    let senderNumber = sender.split('@')[0]
 
-    if (ownerNumbers.includes(senderNumber) || ownerJids.includes(sender)) isOwner = true
+    let senderNumber = ''
+    if (sender) senderNumber = sender.split('@')[0].split(':')[0]
+
+    if (senderNumber && ownerNumbers.includes(senderNumber)) isOwner = true
+    if (sender && ownerJids.includes(sender)) isOwner = true
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
 
-    // LOG
-    let groupName = global.adminCache[from]?.name || 'Grupo'
-    if (!isGroup) groupName = 'Privado'
-    
+    // LOG PRO
+    let groupName = 'Privado'
+    if (isGroup) groupName = global.adminCache[from]?.name || 'Grupo'
+
     console.log(
       chalk.blue('\n📩 COMANDO'),
       '\n👤', pushName,
@@ -247,7 +285,7 @@ async function startBot () {
       '\n⚡', command
     )
 
-    // EJECUTAR COMANDO
+    // COMANDOS
     for (const p of plugins) {
       const h = p.handler ?? p
       if (!h?.command) continue
@@ -266,7 +304,7 @@ async function startBot () {
         args,
         command,
         plugins,
-        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m }).catch(()=>{})
+        reply: txt => sock.sendMessage(from, { text: txt }, { quoted: m })
       }).catch(e => {
         console.log(chalk.red('❌ Error comando:'), e)
       })
@@ -278,4 +316,4 @@ async function startBot () {
 
 // ───── INIT ─────
 startBot()
-          
+  
