@@ -55,27 +55,25 @@ export const handler = async (m, {
     const video = search.videos[0]
     const { title, url, thumbnail, timestamp, views, author } = video
 
-    /* 🖼️ TARJETA BONITA - DISEÑO MEJORADO */
+    /* 🖼️ DISEÑO SIN BORDES */
     await sock.sendMessage(from, {
       image: { url: thumbnail },
       caption:
-`┌─────────────────────────┐
-│  🎵  *CANCIÓN ENCONTRADA*  🎵  │
-├─────────────────────────┤
-│ 🎶 *Título:*
-│ ${title}
-│
-│ 👤 *Artista:*
-│ ${author.name}
-│
-│ ⏱ *Duración:*
-│ ${timestamp}
-│
-│ 👁 *Reproducciones:*
-│ ${views.toLocaleString()}
-└─────────────────────────┘
+`🎧  *REPRODUCIENDO*  🎧
 
-⬇️ *Descargando tu audio...*`
+• 🎵 *Título:*
+  ${title}
+
+• 👤 *Artista:*
+  ${author.name}
+
+• ⏱ *Duración:*
+  ${timestamp}
+
+• 👁 *Vistas:*
+  ${views.toLocaleString()}
+
+⬇️ Descargando audio...`
     }, { quoted: m })
 
     /* 📁 ARCHIVO */
