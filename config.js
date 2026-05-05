@@ -27,7 +27,7 @@ const config = {
   name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
 
   numbers: [
-    '13652980907'
+    '18252500344'
   ],
 
   jid: [
@@ -42,7 +42,7 @@ const config = {
 
   // ───── MENSAJES GLOBALES PARA PLUGINS ─────
   messages: {
-    error: '❌ Ocurrió un error, intenta nuevamente',
+    error: '❌ Ocurrió un error',
     admin: '⚠️ Este comando es solo para administradores',
     owner: '⚠️ Este comando es solo para el propietario',
     group: '⚠️ Este comando solo funciona en grupos',
