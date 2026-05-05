@@ -22,7 +22,7 @@ global.config = config
 global.prefix = config.bot.prefix
 global.adminCache = {}
 global.autoRead = true
-global.lastSave = 0 // 🔥 FIX
+global.lastSave = 0
 
 // 📊 DB PATH
 const dbPath = './data/msgcount.json'
@@ -46,7 +46,7 @@ function saveDB(data) {
   }
 }
 
-// 🔥 DB GLOBAL (FIX IMPORTANTE)
+// 🔥 DB GLOBAL
 global.db = loadDB()
 
 // ───── ERRORES GLOBALES ─────
@@ -146,7 +146,7 @@ async function startBot () {
 
     const pushName = m.pushName || 'Usuario'
 
-    // BEFORE (sin await = rápido)
+    // BEFORE
     for (const p of plugins) {
       try {
         if (typeof p.before === 'function') {
@@ -155,7 +155,7 @@ async function startBot () {
       } catch {}
     }
 
-    // 📊 CONTADOR OPTIMIZADO (FIX REAL)
+    // 📊 CONTADOR
     try {
       const db = global.db
       if (!db[from]) db[from] = {}
@@ -166,7 +166,6 @@ async function startBot () {
       if (type && valid.includes(type)) {
         db[from][sender] = (db[from][sender] || 0) + 1
 
-        // 🔥 guardar cada 5 segundos
         if (Date.now() - global.lastSave > 5000) {
           saveDB(db)
           global.lastSave = Date.now()
@@ -195,7 +194,7 @@ async function startBot () {
 
     const text = getText(m)
 
-    // SALUDO
+    // ───── SALUDO ─────
     global.cooldownHola = global.cooldownHola || {}
 
     if (text) {
@@ -228,48 +227,52 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     if (!text || !text.startsWith(global.prefix)) return
 
-    // ADMIN (NO TOCADO)
+    // ADMIN
     let isAdmin = false
 
     if (isGroup && sender) {
-  try {
-    const cleanSender = sender.split(':')[0]
+      try {
+        const cleanSender = sender.split(':')[0]
 
-    // 🔥 cache ultra rápido
-    if (!global.adminCache[from]) {
-      global.adminCache[from] = { admins: [], time: 0 }
-    }
-
-    let cache = global.adminCache[from]
-
-    // ⚡ solo consulta cada 2 minutos
-    if (Date.now() - cache.time > 120000) {
-      sock.groupMetadata(from).then(metadata => {
-        global.adminCache[from] = {
-          admins: metadata.participants
-            .filter(p => p.admin)
-            .map(p => p.id.split(':')[0]),
-          time: Date.now()
+        if (!global.adminCache[from]) {
+          global.adminCache[from] = { admins: [], time: 0 }
         }
-      }).catch(()=>{})
+
+        let cache = global.adminCache[from]
+
+        if (Date.now() - cache.time > 120000) {
+          sock.groupMetadata(from).then(metadata => {
+            global.adminCache[from] = {
+              admins: metadata.participants
+                .filter(p => p.admin)
+                .map(p => p.id.split(':')[0]),
+              time: Date.now()
+            }
+          }).catch(()=>{})
+        }
+
+        isAdmin = cache.admins.includes(cleanSender)
+
+      } catch {
+        isAdmin = false
+      }
     }
 
-    isAdmin = cache.admins.includes(cleanSender)
-
-  } catch {
-    isAdmin = false
-  }
-    }
-
-    // OWNER
+    // 🔥 OWNER FIX
     const ownerNumbers = global.config.owner?.numbers || []
-    const ownerJids = global.config.owner?.jid || []
 
     let senderNumber = ''
-    if (sender) senderNumber = sender.split('@')[0].split(':')[0]
+    if (sender) {
+      senderNumber = sender
+        .split('@')[0]
+        .split(':')[0]
+        .replace(/^521/, '')
+        .replace(/^52/, '')
+    }
 
-    if (senderNumber && ownerNumbers.includes(senderNumber)) isOwner = true
-    if (sender && ownerJids.includes(sender)) isOwner = true
+    isOwner = ownerNumbers.some(num =>
+      senderNumber.endsWith(num) || num.endsWith(senderNumber)
+    )
 
     const args = text.slice(global.prefix.length).trim().split(/\s+/)
     const command = args.shift().toLowerCase()
@@ -279,9 +282,10 @@ Usa *${global.prefix}menu* para ver mis comandos.`
 
     console.log(
       chalk.blue('\n📩 COMANDO'),
-      '\n👤', pushName,
-      '\n👥', groupName,
-      '\n⚡', command
+      '\n👤 Usuario:', pushName,
+      '\n👥 Chat:', groupName,
+      '\n⚡ Comando:', command,
+      '\n👑 Owner:', isOwner
     )
 
     for (const p of plugins) {
