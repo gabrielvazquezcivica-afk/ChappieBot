@@ -1,3 +1,5 @@
+20260505 12:34:57 || ponle q diga 👋🏻 USUARIO EXPULSADO CORRECTAMENTE > por
+
 // ───── HELPERS ─────
 function normalizeJid(u) {
   return typeof u === 'string' ? u : u?.id
@@ -89,22 +91,9 @@ Ejemplo: .kick @usuario`
     await sock.sendMessage(
       from,
       {
-        text: `
-╔═══════════════════╗
-   🚪  EXPULSIÓN
-╚═══════════════════╝
-
-👤 Usuario:
-➤ @${userNum}
-
-👮 Moderador:
-➤ @${senderNum}
-
-╭───────────────╮
-   🤖 ${botName}
-╰───────────────╯
-`.trim(),
-        mentions: [normalizeJid(userRaw), sender]
+        text: `👋🏻 USUARIO EXPULSADO CORRECTAMENTE
+> por @${senderNum}`,
+        mentions: [sender]
       },
       { quoted: m }
     )
