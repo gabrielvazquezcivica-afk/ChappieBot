@@ -1,5 +1,3 @@
-20260505 12:34:57 || ponle q diga 👋🏻 USUARIO EXPULSADO CORRECTAMENTE > por
-
 // ───── HELPERS ─────
 function normalizeJid(u) {
   return typeof u === 'string' ? u : u?.id
@@ -56,7 +54,6 @@ Ejemplo: .kick @usuario`
 
   // 👑 OWNER PROTEGIDO (CHECK 1)
   if (owners.includes(userNum)) {
-
     await sock.sendMessage(from, {
       text: `🚨 *PROTECCIÓN OWNER ACTIVADA*\n\n👑 No puedes expulsar a este usuario\n\n💀 @${senderNum} eliminado`,
       mentions: [sender]
@@ -75,7 +72,6 @@ Ejemplo: .kick @usuario`
   }
 
   try {
-
     // 🔥 REACCIÓN
     await sock.sendMessage(from, {
       react: { text: '🚪', key: m.key }
