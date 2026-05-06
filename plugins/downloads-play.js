@@ -56,9 +56,14 @@ await sock.sendMessage(from,{
 ╰━━━━━━━━━━━━━━⬣`
 },{ quoted:m })
 
+/* 📁 ASEGURAR CARPETA TMP */
+if (!fs.existsSync('./tmp')) {
+  fs.mkdirSync('./tmp')
+}
+
 const file = `./tmp/${Date.now()}.m4a`
 
-/* 🚀 DESCARGA MÁS RÁPIDA */
+/* 🚀 DESCARGA */
 const ytdlp = spawn('yt-dlp',[
   '-f','bestaudio[abr<=128][ext=m4a]/bestaudio',
   '--no-playlist',
@@ -66,6 +71,11 @@ const ytdlp = spawn('yt-dlp',[
   '-o',file,
   url
 ])
+
+/* 🧠 LOG DE ERRORES (por si algo falla) */
+ytdlp.stderr.on('data', data => {
+  console.log('YTDLP ERROR:', data.toString())
+})
 
 ytdlp.on('close', async(code)=>{
 
@@ -75,11 +85,9 @@ ytdlp.on('close', async(code)=>{
 
   try {
 
-    /* ⚡ LEER COMO BUFFER (MUCHO MÁS RÁPIDO) */
-    const buffer = fs.readFileSync(file)
-
+    /* ✅ FIX: enviar por URL (no buffer) */
     await sock.sendMessage(from,{
-      audio: buffer,
+      audio: { url: file },
       mimetype:'audio/mp4',
       ptt:false
     },{ quoted:m })
