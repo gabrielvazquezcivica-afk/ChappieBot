@@ -6,9 +6,7 @@
 const toJid = (n) => {
   if (!n) return null
   if (n.includes('@')) return n
-  return n.length > 15
-    ? `${n}@lid`
-    : `${n}@s.whatsapp.net`
+  return `${n}@s.whatsapp.net`
 }
 
 // ───── CONFIG PRINCIPAL ─────
@@ -24,16 +22,16 @@ const config = {
 
   // ───── OWNER ─────
   owner: {
-  name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
+    name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
 
-  numbers: [
-    '18252500344'
-  ],
+    numbers: [
+      '18252500344'
+    ],
 
-  jid: [
-    '150904481304607@lid'
-  ]
-},
+    jid: [
+      '18252500344@s.whatsapp.net'
+    ]
+  },
 
   // ───── LOGIN ─────
   login: {
