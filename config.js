@@ -2,22 +2,27 @@
 // CONFIGURACIÓN GLOBAL CHAPPIEBOT
 // ─────────────────────────────
 
-// 🔧 Normalizador JID (CORREGIDO)
-const toJid = (n) => {
-  if (!n) return null
-  if (n.includes('@')) return n.split(':')[0].replace('@lid', '@s.whatsapp.net')
-  return `${n}@s.whatsapp.net`
+// 🔧 Normalizador JID REAL (Baileys safe)
+const normalizeJid = (jid = '') => {
+  return jid
+    .split(':')[0]
+    .replace('@lid', '@s.whatsapp.net')
+    .replace('@broadcast', '')
 }
 
-// 🔥 Normalizador universal de sender
-const normalizeJid = (jid = '') => {
-  return jid.split(':')[0].replace('@lid', '@s.whatsapp.net')
+// 🔧 obtener sender REAL (CLAVE)
+const getSender = (m) => {
+  return (
+    m.key?.participant ||
+    m.key?.remoteJid ||
+    m.sender ||
+    ''
+  )
 }
 
 // ───── CONFIG PRINCIPAL ─────
 const config = {
 
-  // ───── BOT ─────
   bot: {
     name: '𝐂𝐡𝐚𝐩𝐩𝐢𝐞𝐁𝐨𝐭',
     prefix: '.',
@@ -25,7 +30,6 @@ const config = {
     version: '1.0.0'
   },
 
-  // ───── OWNER ─────
   owner: {
     name: '𝑺𝒐𝒚𝑮𝒂𝒃𝒐',
 
@@ -38,12 +42,10 @@ const config = {
     ]
   },
 
-  // ───── LOGIN ─────
   login: {
     pairing: true
   },
 
-  // ───── MENSAJES GLOBALES ─────
   messages: {
     error: '❌ Ocurrió un error',
     admin: '⚠️ Este comando es solo para administradores',
@@ -53,19 +55,21 @@ const config = {
   }
 }
 
-// 🔥 Normalizar owner JIDs finales
+// 🔥 normalizar owners finales
 config.owner.jid = config.owner.jid
-  .concat(config.owner.numbers.map(toJid))
+  .map(normalizeJid)
+  .concat(config.owner.numbers.map(n => `${n}@s.whatsapp.net`))
   .filter(Boolean)
 
 
-// ───── FUNCIÓN GLOBAL DE OWNER CHECK (CLAVE) ─────
-export const isOwner = (sender) => {
-  const jid = normalizeJid(sender)
-  const number = jid.split('@')[0]
+// ───── CHECK OWNER REAL (ESTO ES LO QUE TE FALTABA) ─────
+export const isOwner = (m) => {
+
+  const sender = normalizeJid(getSender(m))
+  const number = sender.split('@')[0]
 
   return (
-    config.owner.jid.includes(jid) ||
+    config.owner.jid.includes(sender) ||
     config.owner.numbers.includes(number)
   )
 }
