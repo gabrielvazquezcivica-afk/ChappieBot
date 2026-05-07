@@ -2,11 +2,16 @@
 // CONFIGURACIÓN GLOBAL CHAPPIEBOT
 // ─────────────────────────────
 
-// 🔧 Normalizador JID
+// 🔧 Normalizador JID (CORREGIDO)
 const toJid = (n) => {
   if (!n) return null
-  if (n.includes('@')) return n
+  if (n.includes('@')) return n.split(':')[0].replace('@lid', '@s.whatsapp.net')
   return `${n}@s.whatsapp.net`
+}
+
+// 🔥 Normalizador universal de sender
+const normalizeJid = (jid = '') => {
+  return jid.split(':')[0].replace('@lid', '@s.whatsapp.net')
 }
 
 // ───── CONFIG PRINCIPAL ─────
@@ -35,10 +40,10 @@ const config = {
 
   // ───── LOGIN ─────
   login: {
-    pairing: true // true = código | false = QR
+    pairing: true
   },
 
-  // ───── MENSAJES GLOBALES PARA PLUGINS ─────
+  // ───── MENSAJES GLOBALES ─────
   messages: {
     error: '❌ Ocurrió un error',
     admin: '⚠️ Este comando es solo para administradores',
@@ -46,12 +51,23 @@ const config = {
     group: '⚠️ Este comando solo funciona en grupos',
     botAdmin: '⚠️ Necesito ser administrador para ejecutar esto'
   }
-
 }
 
 // 🔥 Normalizar owner JIDs finales
 config.owner.jid = config.owner.jid
   .concat(config.owner.numbers.map(toJid))
   .filter(Boolean)
+
+
+// ───── FUNCIÓN GLOBAL DE OWNER CHECK (CLAVE) ─────
+export const isOwner = (sender) => {
+  const jid = normalizeJid(sender)
+  const number = jid.split('@')[0]
+
+  return (
+    config.owner.jid.includes(jid) ||
+    config.owner.numbers.includes(number)
+  )
+}
 
 export default config
